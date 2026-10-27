@@ -42,3 +42,13 @@ def test_machine_report_formats(tmp_path: Path) -> None:
     assert len(suite.findall("testcase/failure")) == 1
     sarif = to_sarif(report)
     assert sarif["runs"][0]["results"][0]["ruleId"] == "dead_primary_cta"
+
+
+def test_warning_and_empty_junit() -> None:
+    warning = Issue("small_tap_targets", "warning", "Too small")
+    suite = ET.fromstring(to_junit(_report([warning])))
+    assert suite.findtext("testcase/system-out") == "Too small"
+    assert suite.attrib["failures"] == "0"
+
+    empty = ET.fromstring(to_junit(_report([])))
+    assert empty.find("testcase").attrib["name"] == "delivery gate"

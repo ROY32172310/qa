@@ -40,7 +40,7 @@ def audit(
         from playwright.sync_api import sync_playwright
     except ImportError as exc:
         raise AuditRuntimeError(
-            "Playwright is not installed. Run: python -m pip install ego-webqa "
+            "Playwright is not installed. Run: python -m pip install playwright "
             "&& python -m playwright install chromium"
         ) from exc
 

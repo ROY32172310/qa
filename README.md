@@ -16,12 +16,14 @@ the user is trying to tap it.
 `ego-webqa` turns those into deterministic checks. It is not a visual-regression
 service and does not require writing tests or storing approved screenshots.
 
-## Install
+## Install from this repository
 
 ```bash
-python -m pip install ego-webqa
+python -m pip install dist/ego_webqa-0.1.0-py3-none-any.whl
 python -m playwright install chromium
 ```
+
+For development, use `python -m pip install -e '.[dev]'` instead.
 
 Use a system Chrome instead of downloading Chromium:
 
@@ -102,12 +104,14 @@ not safe.
 
 ## GitHub Actions
 
+After the package is published to PyPI, it can be installed in CI like this:
+
 ```yaml
 - uses: actions/setup-python@v5
   with:
     python-version: "3.12"
 - run: |
-    pip install ego-webqa
+    pip install ego-webqa  # requires a published release
     python -m playwright install --with-deps chromium
     ego-webqa "$PREVIEW_URL" --out webqa-report
 - uses: actions/upload-artifact@v4
@@ -150,4 +154,3 @@ positive control and an observed failure mode.
 ## License
 
 MIT
-
