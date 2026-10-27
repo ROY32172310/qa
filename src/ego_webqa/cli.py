@@ -1,0 +1,119 @@
+"""Command-line interface."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from collections.abc import Sequence
+from pathlib import Path
+
+from .config import Settings, Viewport, load_settings
+from .engine import AuditRuntimeError, audit
+from .reporting import write_reports
+from .server import LocalServer
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="ego-webqa",
+        description="Deterministic delivery QA for AI-generated web pages.",
+    )
+    parser.add_argument("url", nargs="?", help="page URL")
+    parser.add_argument("--dir", help="serve this local directory during the audit")
+    parser.add_argument("--file", default="index.html", help="entry file under --dir")
+    parser.add_argument("--config", help="JSON configuration file")
+    parser.add_argument(
+        "--viewports",
+        help="comma-separated WIDTHxHEIGHT[:NAME] list (default: 390x844,768x1024,1280x800)",
+    )
+    parser.add_argument("--out", default="webqa-report", help="artifact directory")
+    parser.add_argument("--timeout-ms", type=int, help="navigation/action timeout")
+    parser.add_argument(
+        "--ignore-selector",
+        action="append",
+        default=[],
+        help="selector to exclude",
+    )
+    parser.add_argument("--smoke-selector", help="explicit primary CTA selector")
+    parser.add_argument(
+        "--browser-channel",
+        help="Chrome channel, e.g. chrome, chrome-beta, msedge",
+    )
+    parser.add_argument("--no-smoke", action="store_true", help="skip the primary-CTA click")
+    parser.add_argument("--fail-on-warn", action="store_true", help="make warnings exit non-zero")
+    parser.add_argument("--json", action="store_true", help="print the complete JSON report")
+    parser.add_argument("--version", action="version", version="ego-webqa 0.1.0")
+    return parser
+
+
+def _settings(args: argparse.Namespace) -> Settings:
+    cfg = load_settings(args.config) if args.config else Settings()
+    updates: dict[str, object] = {}
+    if args.viewports:
+        updates["viewports"] = [Viewport.parse(item) for item in args.viewports.split(",")]
+    if args.timeout_ms is not None:
+        updates["timeout_ms"] = args.timeout_ms
+    if args.ignore_selector:
+        updates["ignore_selectors"] = [*cfg.ignore_selectors, *args.ignore_selector]
+    if args.smoke_selector is not None:
+        updates["smoke_selector"] = args.smoke_selector
+    if args.browser_channel is not None:
+        updates["browser_channel"] = args.browser_channel
+    if args.fail_on_warn:
+        updates["fail_on_warn"] = True
+    return Settings.from_mapping(updates, base=cfg)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    if not args.url and not args.dir:
+        print("ego-webqa: provide a URL or --dir", file=sys.stderr)
+        return 2
+    if args.url and args.dir:
+        print("ego-webqa: provide either a URL or --dir, not both", file=sys.stderr)
+        return 2
+    try:
+        cfg = _settings(args)
+    except (OSError, ValueError) as exc:
+        print(f"ego-webqa: invalid configuration: {exc}", file=sys.stderr)
+        return 2
+
+    server: LocalServer | None = None
+    target = args.url or ""
+    try:
+        if args.dir:
+            server = LocalServer(args.dir)
+            target = server.url(args.file)
+        report = audit(
+            target,
+            settings=cfg,
+            output_dir=Path(args.out),
+            smoke=not args.no_smoke,
+        )
+        artifacts = write_reports(report, args.out)
+    except (AuditRuntimeError, OSError, ValueError) as exc:
+        print(f"ego-webqa: {exc}", file=sys.stderr)
+        return 2
+    finally:
+        if server is not None:
+            server.close()
+
+    if args.json:
+        print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+    else:
+        icon = {"pass": "PASS", "warn": "WARN", "fail": "FAIL"}[report.status]
+        counts = report.to_dict()["counts"]
+        print(f"[{icon}] {target}")
+        print(
+            f"{len(report.viewports)} viewport(s), "
+            f"{counts['error']} error(s), {counts['warning']} warning(s), "
+            f"{report.duration_ms}ms"
+        )
+        for issue in report.issues:
+            prefix = f"[{issue.viewport}] " if issue.viewport else ""
+            print(f"  {issue.severity.upper():7} {prefix}{issue.code}: {issue.message}")
+            if issue.hint:
+                print(f"          hint: {issue.hint}")
+        print(f"artifacts: {artifacts['json']}")
+    return 0 if report.status in ("pass", "warn") else 1

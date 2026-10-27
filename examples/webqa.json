@@ -1,0 +1,7 @@
+{
+  "viewports": ["390x844:mobile", "768x1024:tablet", "1280x800:desktop"],
+  "min_tap_target_px": 44,
+  "min_font_px": 12,
+  "ignore_selectors": [".third-party-chat-widget"]
+}
+

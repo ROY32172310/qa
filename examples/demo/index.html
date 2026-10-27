@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ego-webqa demo</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f6f7f9; color: #18212f; }
+    main { width: min(720px, calc(100% - 32px)); margin: 48px auto; }
+    section { background: white; border: 1px solid #dce2ea; border-radius: 18px; padding: 28px; }
+    h1 { font-size: clamp(28px, 8vw, 48px); line-height: 1.08; margin: 0 0 16px; }
+    p { font-size: 17px; line-height: 1.6; }
+    button { min-height: 48px; padding: 0 22px; border: 0; border-radius: 10px;
+      background: #1155cc; color: white; font-size: 16px; cursor: pointer; }
+    #result { min-height: 28px; color: #236b3c; font-weight: 650; }
+  </style>
+</head>
+<body>
+  <main>
+    <section>
+      <h1>Ship the page, not the obvious defects.</h1>
+      <p>This fixture is intentionally small. The audit checks layout, readability,
+        resources, timing, and whether the primary action responds.</p>
+      <button id="start" onclick="document.querySelector('#result').textContent =
+        'Primary action responded.'">Start now</button>
+      <p id="result" aria-live="polite"></p>
+    </section>
+  </main>
+</body>
+</html>
