@@ -15,6 +15,8 @@ from ego_webqa.engine import (
     _issues_for_viewport,
     _network_summary,
     _redact_url,
+    _request_failure_record,
+    _same_origin,
     _should_run_smoke,
 )
 
@@ -80,7 +82,8 @@ def test_viewport_rule_buckets_and_thresholds() -> None:
             "distortedMedia": [{"label": "canvas", "deviation": 0.3}],
         },
     )
-    codes = _codes(_issues_for_viewport(summary, Settings()))
+    issues = _issues_for_viewport(summary, Settings())
+    codes = _codes(issues)
     assert {
         "console_error",
         "page_error",
@@ -96,6 +99,8 @@ def test_viewport_rule_buckets_and_thresholds() -> None:
         "layout_shift",
         "transfer_budget",
     } <= codes
+    resource_issue = next(issue for issue in issues if issue.code == "resource_failure")
+    assert "1 request event(s) failed across 1 unique endpoint(s)" in resource_issue.message
 
 
 def test_blank_page_is_an_error() -> None:
@@ -194,6 +199,8 @@ def test_private_helpers() -> None:
     )
     assert _is_blocked_network_error("TypeError: Failed to fetch")
     assert not _is_blocked_network_error("ReferenceError: checkout is not defined")
+    assert _same_origin("https://example.test/app.js", "https://EXAMPLE.test:443/page")
+    assert not _same_origin("http://example.test/app.js", "https://example.test/page")
 
 
 def test_browser_transport_noise_is_not_double_counted_as_console_error() -> None:
@@ -239,7 +246,11 @@ def test_ignored_requests_do_not_count_toward_budget() -> None:
         "ignored_request_count": 1,
         "transfer_bytes": 42,
         "failures": [],
+        "failure_details": [],
         "failure_count": 0,
+        "unique_failure_count": 0,
+        "failure_kind_counts": {},
+        "failed_resource_type_counts": {},
     }
 
 
@@ -253,9 +264,23 @@ def test_custom_protocol_launch_failures_are_not_resource_failures() -> None:
 
 
 def test_network_evidence_redacts_credentials_and_query_parameters() -> None:
+    class Frame:
+        url = "https://preview-user:secret@example.test/page?session=secret"
+
+    class Redirect:
+        url = "https://preview-user:secret@old.example.test/app.js?token=secret"
+
     class Request:
+        method = "GET"
+        resource_type = "script"
+        frame = Frame()
+        redirected_from = Redirect()
+
         def sizes(self) -> dict[str, int]:
             return {"responseBodySize": 42}
+
+        def is_navigation_request(self) -> bool:
+            return False
 
     class Response:
         url = "https://preview-user:secret@example.test/app.js?token=top-secret#debug"
@@ -265,9 +290,52 @@ def test_network_evidence_redacts_credentials_and_query_parameters() -> None:
     summary = _network_summary([Response()], [])
     serialized = str(summary)
     assert summary["failures"] == ["HTTP 500 https://example.test/app.js"]
+    detail = summary["failure_details"][0]
+    assert detail["resource_type"] == "script"
+    assert detail["frame_url"] == "https://example.test/page"
+    assert detail["redirected_from"] == "https://old.example.test/app.js"
+    assert detail["same_origin"] is True
+    assert detail["status"] == 500
+    assert detail["occurrences"] == 1
+    assert summary["unique_failure_count"] == 1
     assert "secret" not in serialized
     assert "token" not in serialized
     assert _redact_url(Response.url) == "https://example.test/app.js"
+
+
+def test_request_failure_evidence_is_structured_deduplicated_and_attributed() -> None:
+    class Frame:
+        url = "https://example.test/page?token=secret"
+
+    class Redirect:
+        url = "https://example.test/start?token=secret"
+
+    class Request:
+        url = "https://cdn.example.test/app.js?token=secret"
+        method = "GET"
+        resource_type = "script"
+        frame = Frame()
+        redirected_from = Redirect()
+        failure = "net::ERR_BLOCKED_BY_ORB"
+
+        def is_navigation_request(self) -> bool:
+            return False
+
+    record = _request_failure_record(Request())
+    summary = _network_summary([], [record, record])
+    assert summary["failure_count"] == 2
+    assert summary["failures"] == ["https://cdn.example.test/app.js (net::ERR_BLOCKED_BY_ORB)"]
+    detail = summary["failure_details"][0]
+    assert detail["kind"] == "request_failed"
+    assert detail["resource_type"] == "script"
+    assert detail["frame_url"] == "https://example.test/page"
+    assert detail["redirected_from"] == "https://example.test/start"
+    assert detail["same_origin"] is False
+    assert detail["occurrences"] == 2
+    assert summary["unique_failure_count"] == 1
+    assert summary["failure_kind_counts"] == {"request_failed": 2}
+    assert summary["failed_resource_type_counts"] == {"script": 2}
+    assert "secret" not in str(summary)
 
 
 def test_network_idle_timeout_is_visible_as_warning() -> None:

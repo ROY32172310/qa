@@ -140,20 +140,25 @@ COLLECT_JS = r"""
       px: Number(parseFloat(getComputedStyle(el).fontSize).toFixed(2)),
     }))
     .filter(x => x.px > 0 && x.px < cfg.minFont);
-  const hugeOverlays = allElements("*")
-    .filter(el => {
-      if (!visible(el) || ignored(el)) return false;
-      const st = getComputedStyle(el);
-      if (st.position !== "fixed") return false;
-      if (el.matches("main,[role=main]")) return false;
-      const r = el.getBoundingClientRect();
-      return (r.width * r.height) / (innerWidth * innerHeight) > cfg.overlayRatio;
-    })
-    .map(el => ({
-      label: String(el.className || el.id || el.tagName).slice(0, 60),
-      selector: selectorFor(el),
-      box: box(el),
-    }));
+  const hugeOverlays = [];
+  for (const el of allElements("*")) {
+    if (!visible(el) || ignored(el)) continue;
+    const st = getComputedStyle(el);
+    if (st.position !== "fixed") continue;
+    if (el.matches("main,[role=main]")) continue;
+    const r = el.getBoundingClientRect();
+    const coveredWidth = Math.max(0, Math.min(innerWidth, r.right) - Math.max(0, r.left));
+    const coveredHeight = Math.max(0, Math.min(innerHeight, r.bottom) - Math.max(0, r.top));
+    const coverage = (coveredWidth * coveredHeight) / (innerWidth * innerHeight);
+    if (coverage > cfg.overlayRatio) {
+      hugeOverlays.push({
+        label: String(el.className || el.id || el.tagName).slice(0, 60),
+        selector: selectorFor(el),
+        box: box(el),
+        coverage: Number(coverage.toFixed(3)),
+      });
+    }
+  }
   const brokenImages = allElements("img")
     .filter(img => visible(img) && !ignored(img) && img.complete && img.naturalWidth === 0)
     .map(img => ({
@@ -165,6 +170,8 @@ COLLECT_JS = r"""
   const distortedMedia = [];
   for (const el of allElements("canvas,img,video")) {
     if (!visible(el) || ignored(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (Math.min(r.width, r.height) < cfg.aspectMinPx) continue;
     const st = getComputedStyle(el);
     if (st.objectFit && st.objectFit !== "fill") continue;
     let nw = 0;
@@ -180,7 +187,6 @@ COLLECT_JS = r"""
       nh = el.videoHeight || el.height;
     }
     if (!nw || !nh) continue;
-    const r = el.getBoundingClientRect();
     const natural = nw / nh;
     const shown = r.width / r.height;
     const deviation = Math.abs(shown - natural) / natural;

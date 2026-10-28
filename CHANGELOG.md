@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.3 - 2026-10-28
+
+- Add structured request-failure attribution to network evidence: resource
+  type, frame URL, same-origin status, redirect source, status/error, and
+  occurrence count, with credentials and query strings removed.
+- Preserve evidence from every affected viewport in an aggregated Agent repair
+  item through `evidence_by_viewport`.
+- Measure fixed-overlay coverage from viewport intersection so fully offscreen
+  slide-out panels are no longer reported as huge overlays.
+- Ignore aspect-ratio drift below a configurable 48px rendered-media floor;
+  small icons affected by CSS pixel rounding no longer block delivery.
+
 ## 0.2.2 - 2026-10-28
 
 - Add a closed, versioned dimension registry and expose it through

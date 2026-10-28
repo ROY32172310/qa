@@ -40,13 +40,14 @@ def _dimension(
     detector: str,
     *,
     severity: str,
+    version: str = "1.0.0",
     introduced: str = "0.1.0",
     profile: str = "baseline",
     parameters: tuple[str, ...] = (),
 ) -> Dimension:
     return Dimension(
         id=code,
-        version="1.0.0",
+        version=version,
         description=description,
         detector=detector,
         default_severity=severity,
@@ -143,6 +144,7 @@ _DIMENSIONS = {
         "A fixed overlay covers too much of the viewport.",
         "geometry",
         severity="warn",
+        version="1.1.0",
         parameters=("overlay_ratio",),
     ),
     "broken_image": _dimension(
@@ -156,7 +158,8 @@ _DIMENSIONS = {
         "A media element has a distorted aspect ratio.",
         "media",
         severity="block",
-        parameters=("aspect_tolerance",),
+        version="1.1.0",
+        parameters=("aspect_tolerance", "aspect_min_rendered_px"),
     ),
     "slow_first_paint": _dimension(
         "slow_first_paint",

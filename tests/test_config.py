@@ -39,6 +39,8 @@ def test_load_settings_json_and_unknown_key(tmp_path: Path) -> None:
 def test_invalid_threshold_is_rejected() -> None:
     with pytest.raises(ValueError, match="overlay_ratio"):
         Settings(overlay_ratio=1.2)
+    with pytest.raises(ValueError, match="aspect_min_rendered_px"):
+        Settings(aspect_min_rendered_px=0)
     with pytest.raises(ValueError, match="regular expression"):
         Settings(ignore_console_patterns=("[",))
     with pytest.raises(ValueError, match="regular expression"):

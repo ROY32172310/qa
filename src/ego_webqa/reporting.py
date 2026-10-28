@@ -143,6 +143,9 @@ def _agent_failure(
         settings=settings,
         smoke_enabled=smoke_enabled,
     )
+    evidence_by_viewport: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for issue in issues:
+        evidence_by_viewport[issue.viewport or "global"].append(dict(issue.evidence))
     return {
         "dimension_id": dimension.id,
         "dimension_version": dimension.version,
@@ -155,10 +158,12 @@ def _agent_failure(
         "trigger": "; ".join(triggers) if triggers else "global",
         "triggers": triggers,
         "problem": problem,
+        "problems": messages,
         "suggestion": hint,
         "reproduce": shlex.join(command),
         "occurrences": len(issues),
         "evidence": dict(issues[0].evidence),
+        "evidence_by_viewport": dict(evidence_by_viewport),
     }
 
 

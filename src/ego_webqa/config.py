@@ -110,6 +110,7 @@ class Settings:
     overlay_ratio: float = 0.4
     overflow_tolerance_px: int = 2
     aspect_tolerance: float = 0.05
+    aspect_min_rendered_px: float = 48.0
     blank_text_chars: int = 10
     blank_element_count: int = 5
     fcp_warn_ms: float = 3_000.0
@@ -159,6 +160,7 @@ class Settings:
             "min_tap_target_px": self.min_tap_target_px,
             "hard_font_px": self.hard_font_px,
             "min_font_px": self.min_font_px,
+            "aspect_min_rendered_px": self.aspect_min_rendered_px,
         }
         for name, value in positive.items():
             if value <= 0:

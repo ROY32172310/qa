@@ -218,7 +218,7 @@ def _audit_viewport(
 ) -> dict[str, Any]:
     page_errors: list[str] = []
     console_errors: list[str] = []
-    failed_requests: list[str] = []
+    failed_requests: list[dict[str, Any]] = []
     responses: list[Any] = []
     screenshots: list[str] = []
     smoke: dict[str, Any] = {
@@ -263,9 +263,7 @@ def _audit_viewport(
     )
     page.on(
         "requestfailed",
-        lambda request: failed_requests.append(
-            f"{request.url} ({request.failure or 'unknown failure'})"
-        ),
+        lambda request: failed_requests.append(_request_failure_record(request)),
     )
     page.on("response", lambda response: responses.append(response))
 
@@ -399,46 +397,222 @@ def _probe_config(cfg: Settings) -> dict[str, Any]:
         "minFont": cfg.min_font_px,
         "overlayRatio": cfg.overlay_ratio,
         "aspectTolerance": cfg.aspect_tolerance,
+        "aspectMinPx": cfg.aspect_min_rendered_px,
         "ignore": list(cfg.ignore_selectors),
     }
 
 
 def _network_summary(
     responses: Sequence[Any],
-    request_failures: Sequence[str],
+    request_failures: Sequence[str | dict[str, Any]],
     request_ignores: tuple[re.Pattern[str], ...] = (),
 ) -> dict[str, Any]:
     included = [
         response for response in responses if not _matches_any(str(response.url), request_ignores)
     ]
     total_bytes = 0
-    failed = [
-        failure
-        for failure in request_failures
-        if not _is_ignorable_failure(failure.split(" (", 1)[0], request_ignores)
-        and not _is_ignorable_request_failure(failure)
-    ]
-    failed = [_clean_request_failure(failure) for failure in failed]
+    failures: list[dict[str, Any]] = []
+    for failure in request_failures:
+        record = (
+            _normalize_request_failure(failure)
+            if isinstance(failure, str)
+            else _copy_request_failure(failure)
+        )
+        if not _is_ignorable_failure(record["url"], request_ignores) and not (
+            record["kind"] == "request_failed"
+            and _is_ignorable_request_failure(f"{record['url']} ({record['error']})")
+        ):
+            failures.append(record)
     for response in included:
         try:
             status = int(response.status)
         except Exception:  # noqa: BLE001
             status = 0
         if status >= 400 and not _is_ignorable_failure(response.url, request_ignores):
-            failed.append(f"HTTP {status} {_redact_url(str(response.url))}")
+            failures.append(_response_failure_record(response, status))
         try:
             size = int(response.request.sizes().get("responseBodySize") or 0)
             if size > 0:
                 total_bytes += size
         except Exception:  # noqa: BLE001
             pass
+    unique_failures = _deduplicate_failures(failures)
+    resource_types: dict[str, int] = {}
+    kinds: dict[str, int] = {}
+    for failure in failures:
+        resource_type = str(failure.get("resource_type") or "unknown")
+        resource_types[resource_type] = resource_types.get(resource_type, 0) + 1
+        kind = str(failure.get("kind") or "unknown")
+        kinds[kind] = kinds.get(kind, 0) + 1
     return {
         "request_count": len(included),
         "ignored_request_count": len(responses) - len(included),
         "transfer_bytes": total_bytes,
-        "failures": failed[:30],
-        "failure_count": len(failed),
+        "failures": [_failure_label(failure) for failure in unique_failures[:30]],
+        "failure_details": unique_failures[:20],
+        "failure_count": len(failures),
+        "unique_failure_count": len(unique_failures),
+        "failure_kind_counts": kinds,
+        "failed_resource_type_counts": resource_types,
     }
+
+
+def _request_failure_record(request: Any) -> dict[str, Any]:
+    """Capture stable request attribution without retaining query or credentials."""
+
+    url = _redact_url(str(request.url))
+    frame_url = _request_frame_url(request)
+    redirected_from = _request_redirected_from(request)
+    return {
+        "kind": "request_failed",
+        "method": str(request.method or "GET").upper(),
+        "resource_type": str(request.resource_type or "unknown"),
+        "url": url,
+        "frame_url": frame_url,
+        "redirected_from": redirected_from,
+        "same_origin": _same_origin(url, frame_url),
+        "is_navigation": _request_is_navigation(request),
+        "status": None,
+        "error": str(request.failure or "unknown failure"),
+    }
+
+
+def _response_failure_record(response: Any, status: int) -> dict[str, Any]:
+    request = response.request
+    url = _redact_url(str(response.url))
+    frame_url = _request_frame_url(request, response)
+    redirected_from = _request_redirected_from(request, response)
+    return {
+        "kind": "http_error",
+        "method": str(getattr(request, "method", "GET") or "GET").upper(),
+        "resource_type": str(getattr(request, "resource_type", "unknown") or "unknown"),
+        "url": url,
+        "frame_url": frame_url,
+        "redirected_from": redirected_from,
+        "same_origin": _same_origin(url, frame_url),
+        "is_navigation": _request_is_navigation(request, response),
+        "status": status,
+        "error": f"HTTP {status}",
+    }
+
+
+def _request_frame_url(request: Any, response: Any | None = None) -> str:
+    candidates = [request, response]
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        try:
+            frame = candidate.frame
+            return _redact_url(str(frame.url))
+        except Exception:  # noqa: BLE001 - attribution remains optional
+            continue
+    return ""
+
+
+def _request_redirected_from(request: Any, response: Any | None = None) -> str:
+    candidates = [request, response]
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        redirected = getattr(candidate, "redirected_from", None)
+        if redirected is None:
+            inner_request = getattr(candidate, "request", None)
+            redirected = getattr(inner_request, "redirected_from", None)
+        if redirected is not None:
+            return _redact_url(str(redirected.url))
+    return ""
+
+
+def _request_is_navigation(request: Any, response: Any | None = None) -> bool:
+    for candidate in (request, response):
+        if candidate is None:
+            continue
+        checker = getattr(candidate, "is_navigation_request", None)
+        if callable(checker):
+            try:
+                return bool(checker())
+            except Exception:  # noqa: BLE001 - attribution remains optional
+                continue
+    return False
+
+
+def _normalize_request_failure(failure: str) -> dict[str, Any]:
+    raw_url, separator, detail = failure.partition(" (")
+    error = detail[:-1] if separator and detail.endswith(")") else detail
+    return {
+        "kind": "request_failed",
+        "method": "GET",
+        "resource_type": "unknown",
+        "url": _redact_url(raw_url),
+        "frame_url": "",
+        "redirected_from": "",
+        "same_origin": False,
+        "is_navigation": False,
+        "status": None,
+        "error": error or "unknown failure",
+    }
+
+
+def _copy_request_failure(failure: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "kind": str(failure.get("kind") or "request_failed"),
+        "method": str(failure.get("method") or "GET").upper(),
+        "resource_type": str(failure.get("resource_type") or "unknown"),
+        "url": _redact_url(str(failure.get("url") or "")),
+        "frame_url": _redact_url(str(failure.get("frame_url") or "")),
+        "redirected_from": _redact_url(str(failure.get("redirected_from") or "")),
+        "same_origin": bool(failure.get("same_origin")),
+        "is_navigation": bool(failure.get("is_navigation")),
+        "status": failure.get("status"),
+        "error": str(failure.get("error") or "unknown failure"),
+    }
+
+
+def _deduplicate_failures(failures: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    unique: dict[tuple[Any, ...], dict[str, Any]] = {}
+    for failure in failures:
+        key = (
+            failure.get("kind"),
+            failure.get("method"),
+            failure.get("resource_type"),
+            failure.get("url"),
+            failure.get("frame_url"),
+            failure.get("redirected_from"),
+            failure.get("is_navigation"),
+            failure.get("status"),
+            failure.get("error"),
+        )
+        if key in unique:
+            unique[key]["occurrences"] += 1
+        else:
+            unique[key] = {**failure, "occurrences": 1}
+    return list(unique.values())
+
+
+def _failure_label(failure: dict[str, Any]) -> str:
+    if failure.get("kind") == "http_error":
+        return f"HTTP {failure.get('status')} {failure.get('url')}"
+    return f"{failure.get('url')} ({failure.get('error')})"
+
+
+def _same_origin(first: str, second: str) -> bool:
+    left = _normalized_origin(first)
+    return left is not None and left == _normalized_origin(second)
+
+
+def _normalized_origin(url: str) -> tuple[str, str, int] | None:
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except ValueError:
+        return None
+    scheme = parsed.scheme.lower()
+    host = parsed.hostname
+    if not scheme or not host:
+        return None
+    if port is None:
+        port = {"http": 80, "https": 443, "ws": 80, "wss": 443}.get(scheme, 0)
+    return scheme, host, port
 
 
 def _is_ignorable_failure(
@@ -455,13 +629,6 @@ def _is_ignorable_request_failure(failure: str) -> bool:
     """Intentional aborts are not evidence that a required resource is broken."""
 
     return "net::ERR_ABORTED" in failure
-
-
-def _clean_request_failure(failure: str) -> str:
-    raw_url, separator, detail = failure.partition(" (")
-    if not separator:
-        return _redact_url(raw_url)
-    return f"{_redact_url(raw_url)} ({detail}"
 
 
 def _redact_url(url: str) -> str:
@@ -530,15 +697,36 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
         )
     network_failures = summary["network"].get("failures") or []
     if network_failures:
+        failure_count = int(summary["network"].get("failure_count") or len(network_failures))
+        unique_failure_count = int(
+            summary["network"].get("unique_failure_count") or len(network_failures)
+        )
+        resource_types = dict(summary["network"].get("failed_resource_type_counts") or {})
+        type_summary = ", ".join(
+            f"{name}={count}" for name, count in sorted(resource_types.items())
+        )
+        type_suffix = f" ({type_summary})" if type_summary else ""
         issues.append(
             Issue(
                 "resource_failure",
                 "error",
-                f"{summary['network']['failure_count']} request(s) failed: "
+                f"{failure_count} request event(s) failed across "
+                f"{unique_failure_count} unique endpoint(s){type_suffix}: "
                 f"{'; '.join(network_failures[:3])}",
                 name,
                 "Repair missing, blocked, or failing assets.",
-                {"failures": network_failures[:10]},
+                {
+                    "failures": network_failures[:10],
+                    "failure_details": list(summary["network"].get("failure_details") or [])[:10],
+                    "failure_count": failure_count,
+                    "unique_failure_count": unique_failure_count,
+                    "failure_kind_counts": dict(
+                        summary["network"].get("failure_kind_counts") or {}
+                    ),
+                    "failed_resource_type_counts": dict(
+                        summary["network"].get("failed_resource_type_counts") or {}
+                    ),
+                },
             )
         )
     overflow = int(data.get("overflowX") or 0)

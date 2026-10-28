@@ -44,6 +44,8 @@ The stable integration surface is:
 - exit code: `0` pass/warn, `1` blocking issue, `2` invocation/runtime failure;
 - `report.json` and `--json` output with explicit `schema_version`;
 - `agent_summary.json` with root-cause aggregation and repair commands;
+- per-viewport evidence for every aggregated root cause, plus structured network
+  attribution (resource type, frame, redirect source, status, and error);
 - relative screenshot references inside the report directory;
 - JUnit and SARIF generated from the same issue list.
 

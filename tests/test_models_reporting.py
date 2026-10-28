@@ -75,6 +75,9 @@ def test_dimension_registry_is_closed_and_versioned() -> None:
     assert payload["schema_version"] == "1.0"
     assert [row["id"] for row in payload["dimensions"]] == sorted(DIMENSIONS)
     assert dimension_for("horizontal_overflow").default_severity == "block"
+    assert dimension_for("huge_overlay").version == "1.1.0"
+    assert dimension_for("media_distortion").version == "1.1.0"
+    assert "aspect_min_rendered_px" in dimension_for("media_distortion").parameters
     assert dimension_for("missing_html_lang").profile == "accessibility"
     with pytest.raises(ValueError, match="unregistered"):
         dimension_for("not_a_dimension")
@@ -142,6 +145,11 @@ def test_agent_summary_aggregates_root_causes_and_reproduction() -> None:
     assert cta["selector"] == "#buy"
     assert cta["text_snippet"] == "Buy"
     assert cta["occurrences"] == 2
+    assert cta["problems"] == ["CTA did nothing"]
+    assert cta["evidence_by_viewport"] == {
+        "mobile": [{"selector": "#buy", "text": "Buy"}],
+        "desktop": [{"selector": "#buy", "text": "Buy"}],
+    }
     assert "390x844:mobile" in cta["reproduce"]
     assert "1280x800:desktop" in cta["reproduce"]
     assert "--profile accessibility" in cta["reproduce"]
@@ -168,6 +176,34 @@ def test_agent_summary_reproduction_uses_local_source_directory() -> None:
     assert "--config /tmp/webqa.json" in reproduce
     assert "--ready-selector '#app-ready'" in reproduce
     assert "http://127.0.0.1:8000/" not in reproduce
+
+
+def test_agent_summary_preserves_distinct_network_problems_and_viewport_evidence() -> None:
+    report = _report(
+        [
+            Issue(
+                "resource_failure",
+                "error",
+                "1 request event failed",
+                "mobile",
+                evidence={"failure_details": [{"url": "https://api.example/mobile"}]},
+            ),
+            Issue(
+                "resource_failure",
+                "error",
+                "12 request events failed",
+                "desktop",
+                evidence={"failure_details": [{"url": "https://api.example/desktop"}]},
+            ),
+        ]
+    )
+    item = build_agent_summary(report)["failed_items"][0]
+    assert item["problem"] == "1 request event failed (+1 related finding(s))"
+    assert item["problems"] == ["1 request event failed", "12 request events failed"]
+    assert (
+        item["evidence_by_viewport"]["desktop"][0]["failure_details"][0]["url"]
+        == "https://api.example/desktop"
+    )
 
 
 def test_agent_summary_reproduction_preserves_audit_settings() -> None:

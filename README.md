@@ -82,6 +82,12 @@ viewports produces one repair item with affected triggers and a reproducible
 command. MCP callers receive the same summary as structured content and as the
 short text result.
 
+Each repair item keeps the first evidence object for compatibility and an
+`evidence_by_viewport` map for the complete cross-viewport evidence. Network
+failures additionally carry `failure_details` with resource type, frame URL,
+same-origin status, redirect source, HTTP status or browser error, and occurrence
+count. Query strings and credentials are removed from all reported URLs.
+
 ## Checks
 
 Blocking errors:
@@ -108,6 +114,9 @@ Warnings:
 
 The browser probe reports facts. All thresholds and pass/fail decisions live in
 [`src/ego_webqa/config.py`](src/ego_webqa/config.py).
+The aspect-ratio check only evaluates rendered media at least
+`aspect_min_rendered_px` (48px by default), avoiding pixel-rounding noise from
+small icons.
 
 ### Dimensions
 
@@ -283,7 +292,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ROY32172310/qa@v0.2.2
+      - uses: ROY32172310/qa@v0.2.3
         with:
           url: ${{ vars.PREVIEW_URL }}
           profile: accessibility
@@ -301,7 +310,7 @@ For a local checkout of this repository, use `uses: ./` after checkout. The
 Action's `safe` smoke mode is the default; set `smoke-mode: live` only when the
 click is intentionally allowed to cause real side effects. See
 [`examples/github-action.yml`](examples/github-action.yml) and
-[`action.yml`](action.yml) for the full input set. The `@v0.2.2` tag is created
+[`action.yml`](action.yml) for the full input set. The `@v0.2.3` tag is created
 only after the same commit passes the full cross-platform CI matrix.
 
 ## Python API

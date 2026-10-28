@@ -48,6 +48,35 @@ Start now</button>
         '<rect width="120" height="120" fill="#ddd"/></svg>',
         encoding="utf-8",
     )
+    (root / "ratio.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="19">'
+        '<rect width="24" height="19" fill="#ddd"/></svg>',
+        encoding="utf-8",
+    )
+    (root / "overlay.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport"
+content="width=device-width"><title>Overlay calibration</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:32px}
+.overlay{position:fixed;top:0;width:250px;height:100vh}
+.offscreen{left:-250px}.visible{left:10vw;width:80vw;height:80vh}
+</style></head><body><main><h1>Overlay calibration</h1>
+<p>Only overlays intersecting the viewport are delivery risks.</p></main>
+<div id="offscreen" class="overlay offscreen"></div>
+<div id="modal" class="overlay visible"></div></body></html>""",
+        encoding="utf-8",
+    )
+    (root / "media.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport"
+content="width=device-width"><title>Media calibration</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:32px}
+</style></head><body><main><h1>Media calibration</h1>
+<p>Small icon rounding is not a delivery-blocking distortion.</p>
+<img id="tiny" src="/ratio.svg" width="8" height="7" alt="Small rounded icon">
+<img id="distorted" src="/pixel.svg" width="100" height="200" alt="Distorted hero">
+<img id="correct" src="/pixel.svg" width="120" height="120" alt="Correct image">
+</main></body></html>""",
+        encoding="utf-8",
+    )
     (root / "broken.html").write_text(
         """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
 <title>Broken page</title><style>body{margin:0;font-size:16px}.wide{width:2400px;height:20px}
@@ -230,7 +259,59 @@ def test_broken_page_finds_real_defects(served: LocalServer, tmp_path: Path) -> 
     )
     codes = {issue.code for issue in report.issues}
     assert report.status == "fail"
-    assert {"horizontal_overflow", "console_error", "unreadable_font", "broken_image"} <= codes
+    assert {
+        "horizontal_overflow",
+        "console_error",
+        "unreadable_font",
+        "broken_image",
+        "resource_failure",
+    } <= codes
+    network_issue = next(issue for issue in report.issues if issue.code == "resource_failure")
+    details = network_issue.evidence["failure_details"]
+    assert details[0]["kind"] == "http_error"
+    assert details[0]["resource_type"] == "image"
+    assert details[0]["frame_url"] == served.url("broken.html")
+    assert details[0]["same_origin"] is True
+    assert details[0]["status"] == 404
+
+
+def test_offscreen_fixed_overlay_is_not_a_huge_overlay(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("overlay.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+        ),
+        output_dir=tmp_path,
+        smoke=False,
+    )
+    overlays = [issue for issue in report.issues if issue.code == "huge_overlay"]
+    assert len(overlays) == 1
+    assert overlays[0].evidence["selector"] == "#modal"
+    assert overlays[0].evidence["coverage"] >= 0.64
+
+
+def test_tiny_media_rounding_is_not_reported_as_distortion(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("media.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+        ),
+        output_dir=tmp_path,
+        smoke=False,
+    )
+    distortion = next(issue for issue in report.issues if issue.code == "media_distortion")
+    selectors = {item["selector"] for item in distortion.evidence["media"]}
+    assert "#distorted" in selectors
+    assert "#tiny" not in selectors
+    assert "#correct" not in selectors
 
 
 def test_safe_smoke_blocks_state_changing_requests(
