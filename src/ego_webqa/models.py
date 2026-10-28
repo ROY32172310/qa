@@ -42,6 +42,7 @@ class AuditReport:
     duration_ms: int
     settings: dict[str, Any]
     runtime: dict[str, Any] = field(default_factory=dict)
+    smoke_runs: list[dict[str, Any]] = field(default_factory=list)
     schema_version: str = "1.0"
 
     def to_dict(self) -> dict[str, Any]:
@@ -60,6 +61,7 @@ class AuditReport:
             "issues": [issue.to_dict() for issue in self.issues],
             "viewports": self.viewports,
             "smoke": self.smoke,
+            "smoke_runs": self.smoke_runs,
             "screenshots": self.screenshots,
             "settings": self.settings,
             "runtime": self.runtime,

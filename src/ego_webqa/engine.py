@@ -43,6 +43,8 @@ def audit(
     out_dir.mkdir(parents=True, exist_ok=True)
     shot_dir = out_dir / "screenshots"
     shot_dir.mkdir(parents=True, exist_ok=True)
+    if cfg.storage_state and not Path(cfg.storage_state).is_file():
+        raise AuditRuntimeError(f"storage state file does not exist: {cfg.storage_state}")
 
     try:
         from playwright.sync_api import sync_playwright
@@ -55,6 +57,7 @@ def audit(
     issues: list[Issue] = []
     viewport_results: list[dict[str, Any]] = []
     screenshots: list[str] = []
+    smoke_runs: list[dict[str, Any]] = []
     smoke_result: dict[str, Any] = {
         "enabled": smoke,
         "performed": False,
@@ -74,13 +77,16 @@ def audit(
                         cfg,
                         viewport,
                         shot_dir,
-                        run_smoke=smoke and index == 0,
+                        artifact_base=out_dir,
+                        run_smoke=smoke and _should_run_smoke(cfg, index),
                     )
                     viewport_results.append(result["measurements"])
                     issues.extend(result["issues"])
                     screenshots.extend(result["screenshots"])
                     if result.get("smoke", {}).get("performed"):
-                        smoke_result = result["smoke"]
+                        smoke_runs.append(result["smoke"])
+                        if not smoke_result.get("performed"):
+                            smoke_result = result["smoke"]
             finally:
                 browser.close()
     except AuditRuntimeError:
@@ -95,12 +101,17 @@ def audit(
         issues=issues,
         viewports=viewport_results,
         smoke=smoke_result,
+        smoke_runs=smoke_runs,
         screenshots=screenshots,
         started_at=started.isoformat(),
         duration_ms=duration_ms,
         settings=cfg.to_dict(),
         runtime=runtime,
     )
+
+
+def _should_run_smoke(cfg: Settings, index: int) -> bool:
+    return cfg.smoke_scope == "all" or index == 0
 
 
 def _launch_browser(playwright: Any, requested: str) -> tuple[Any, str]:
@@ -128,6 +139,7 @@ def _audit_viewport(
     cfg: Settings,
     viewport: Viewport,
     shot_dir: Path,
+    artifact_base: Path,
     *,
     run_smoke: bool,
 ) -> dict[str, Any]:
@@ -149,6 +161,15 @@ def _audit_viewport(
         "is_mobile": viewport.mobile,
         "has_touch": viewport.mobile,
     }
+    if cfg.extra_http_headers:
+        context_options["extra_http_headers"] = dict(cfg.extra_http_headers)
+    if cfg.http_username:
+        context_options["http_credentials"] = {
+            "username": cfg.http_username,
+            "password": cfg.http_password,
+        }
+    if cfg.storage_state:
+        context_options["storage_state"] = cfg.storage_state
     user_agent = viewport.user_agent or (MOBILE_USER_AGENT if viewport.mobile else "")
     if user_agent:
         context_options["user_agent"] = user_agent
@@ -161,7 +182,9 @@ def _audit_viewport(
         "console",
         lambda message: (
             console_errors.append(str(message.text)[:300])
-            if message.type == "error" and not _matches_any(str(message.text), console_ignores)
+            if message.type == "error"
+            and not _is_ignorable_console_error(message)
+            and not _matches_any(str(message.text), console_ignores)
             else None
         ),
     )
@@ -174,6 +197,14 @@ def _audit_viewport(
     page.on("response", lambda response: responses.append(response))
 
     navigation_status = 0
+    readiness: dict[str, Any] = {
+        "ready_selector": cfg.ready_selector or None,
+        "ready_selector_found": None if not cfg.ready_selector else False,
+        "network_idle_requested": cfg.wait_for_network_idle,
+        "network_idle_reached": None,
+        "network_idle_timed_out": None,
+        "fonts_ready": None,
+    }
     measurements: dict[str, Any] = {
         "viewport": viewport.to_dict(),
         "status": "error",
@@ -186,12 +217,23 @@ def _audit_viewport(
         stage = "ready_selector"
         if cfg.ready_selector:
             page.wait_for_selector(cfg.ready_selector, state="visible", timeout=cfg.timeout_ms)
+            readiness["ready_selector_found"] = True
         stage = "network_idle"
         if cfg.wait_for_network_idle:
-            with contextlib.suppress(Exception):
+            try:
                 page.wait_for_load_state("networkidle", timeout=min(cfg.timeout_ms, 3_000))
+                readiness["network_idle_reached"] = True
+                readiness["network_idle_timed_out"] = False
+            except Exception:  # noqa: BLE001 - bounded readiness is advisory
+                readiness["network_idle_reached"] = False
+                readiness["network_idle_timed_out"] = True
         stage = "probe"
         page.wait_for_timeout(cfg.settle_ms)
+        try:
+            page.evaluate("() => document.fonts ? document.fonts.ready.then(() => true) : true")
+            readiness["fonts_ready"] = True
+        except Exception:  # noqa: BLE001 - font readiness is advisory
+            readiness["fonts_ready"] = False
         snapshot = page.evaluate(COLLECT_JS, _probe_config(cfg))
         if cfg.profile == "accessibility":
             snapshot["accessibility"] = page.evaluate(ACCESSIBILITY_JS)
@@ -207,12 +249,14 @@ def _audit_viewport(
             "page_errors": list(page_errors),
             "network": network,
             "timing": timing,
+            "readiness": readiness,
             "measurements": snapshot,
         }
         screenshot = shot_dir / f"{_safe_name(viewport.name)}.png"
         page.screenshot(path=str(screenshot), full_page=False)
-        screenshots.append(str(screenshot))
-        summary["screenshot"] = str(screenshot)
+        screenshot_ref = _artifact_ref(screenshot, artifact_base)
+        screenshots.append(screenshot_ref)
+        summary["screenshot"] = screenshot_ref
         measurements = summary
         issues = _issues_for_viewport(summary, cfg)
 
@@ -222,8 +266,9 @@ def _audit_viewport(
                 after_shot = shot_dir / f"{_safe_name(viewport.name)}-after-smoke.png"
                 with contextlib.suppress(Exception):
                     page.screenshot(path=str(after_shot), full_page=False)
-                    screenshots.append(str(after_shot))
-                    smoke["screenshot"] = str(after_shot)
+                    after_ref = _artifact_ref(after_shot, artifact_base)
+                    screenshots.append(after_ref)
+                    smoke["screenshot"] = after_ref
                 issues.extend(_issues_for_smoke(smoke))
     except Exception as exc:  # noqa: BLE001 - one viewport must not hide the others
         navigation_error = str(exc)[:500]
@@ -237,6 +282,7 @@ def _audit_viewport(
             "viewport": viewport.to_dict(),
             "status": "error",
             "http_status": navigation_status,
+            "readiness": readiness,
             "error": navigation_error,
             "console_errors": list(console_errors),
             "page_errors": list(page_errors),
@@ -275,13 +321,16 @@ def _network_summary(
     request_failures: Sequence[str],
     request_ignores: tuple[re.Pattern[str], ...] = (),
 ) -> dict[str, Any]:
+    included = [
+        response for response in responses if not _matches_any(str(response.url), request_ignores)
+    ]
     total_bytes = 0
     failed = [
         failure
         for failure in request_failures
         if not _matches_any(failure.split(" (", 1)[0], request_ignores)
     ]
-    for response in responses:
+    for response in included:
         try:
             status = int(response.status)
         except Exception:  # noqa: BLE001
@@ -295,7 +344,8 @@ def _network_summary(
         except Exception:  # noqa: BLE001
             pass
     return {
-        "request_count": len(responses),
+        "request_count": len(included),
+        "ignored_request_count": len(responses) - len(included),
         "transfer_bytes": total_bytes,
         "failures": failed[:30],
         "failure_count": len(failed),
@@ -307,6 +357,17 @@ def _is_ignorable_failure(
     request_ignores: tuple[re.Pattern[str], ...] = (),
 ) -> bool:
     return urlsplit(url).path.lower().endswith("/favicon.ico") or _matches_any(url, request_ignores)
+
+
+def _is_ignorable_console_error(message: Any) -> bool:
+    """Ignore the browser's automatic failed favicon request."""
+
+    text = str(getattr(message, "text", ""))
+    if not text.startswith("Failed to load resource: the server responded with a status of "):
+        return False
+    location = getattr(message, "location", None) or {}
+    url = str(location.get("url", "")) if hasattr(location, "get") else ""
+    return bool(url) and _is_ignorable_failure(url)
 
 
 def _compile_patterns(patterns: Sequence[str]) -> tuple[re.Pattern[str], ...]:
@@ -506,6 +567,19 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
     network = summary["network"]
     bytes_used = int(network.get("transfer_bytes") or 0)
     requests = int(network.get("request_count") or 0)
+    readiness = summary.get("readiness") or {}
+    if readiness.get("network_idle_timed_out"):
+        issues.append(
+            Issue(
+                "network_idle_timeout",
+                "warning",
+                "network did not reach idle before the bounded readiness deadline",
+                name,
+                "Ignore known polling endpoints or use a ready_selector for continuously "
+                "active pages.",
+                {"timeout_ms": min(cfg.timeout_ms, 3_000)},
+            )
+        )
     budget_severity: Severity | None = None
     threshold = ""
     if bytes_used > cfg.transfer_error_bytes or requests > cfg.request_error_count:
@@ -673,14 +747,14 @@ def _run_smoke(
                 "ctaPattern": cfg.cta_pattern,
                 "navPattern": cfg.nav_pattern,
                 "ignore": list(cfg.ignore_selectors),
-                "settleMs": max(cfg.settle_ms, 600),
+                "settleMs": cfg.smoke_settle_ms,
             },
         )
     except Exception as exc:  # noqa: BLE001 - navigation can tear down the execution context
         with contextlib.suppress(Exception):
             page.wait_for_load_state("domcontentloaded", timeout=min(cfg.timeout_ms, 3_000))
         with contextlib.suppress(Exception):
-            page.wait_for_timeout(max(cfg.settle_ms, 600))
+            page.wait_for_timeout(cfg.smoke_settle_ms)
         assertions_after: list[dict[str, Any]] = []
         with contextlib.suppress(Exception):
             assertions_after = page.evaluate(SMOKE_ASSERTIONS_JS, assertion_config) or []
@@ -721,6 +795,7 @@ def _run_smoke(
             "new_page_count": new_page_count,
             "observed_effect": observed_effect,
             "assertion_configured": assertion_configured,
+            "assertion_required": cfg.smoke_require_assertion,
             "success": success,
             "page_error_count": len(actionable_page_errors),
             "page_errors": actionable_page_errors[:10],
@@ -825,6 +900,13 @@ def _is_blocked_network_error(error: str) -> bool:
         "err_blocked_by_client",
     )
     return any(marker in lowered for marker in markers)
+
+
+def _artifact_ref(path: Path, output_dir: Path) -> str:
+    try:
+        return path.relative_to(output_dir).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def _safe_name(name: str) -> str:

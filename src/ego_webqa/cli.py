@@ -9,7 +9,12 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from . import __version__
-from .config import Settings, Viewport, load_settings
+from .config import (
+    Settings,
+    Viewport,
+    apply_auth_environment,
+    load_settings,
+)
 from .engine import AuditRuntimeError, audit
 from .reporting import write_reports
 from .server import LocalServer
@@ -69,6 +74,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="regular expression the URL must newly match after the CTA click",
     )
     parser.add_argument(
+        "--smoke-scope",
+        choices=("first", "all"),
+        help="run the CTA smoke in the first viewport or every viewport",
+    )
+    parser.add_argument(
+        "--smoke-settle-ms",
+        type=int,
+        help="time to wait after clicking the CTA before evaluating evidence",
+    )
+    parser.add_argument(
+        "--smoke-require-assertion",
+        action="store_true",
+        help="require a selector or URL assertion for CTA success",
+    )
+    parser.add_argument(
+        "--storage-state",
+        help="Playwright storage-state JSON file for an authenticated preview",
+    )
+    parser.add_argument(
         "--browser-channel",
         help="Chrome channel, e.g. chrome, chrome-beta, msedge",
     )
@@ -115,13 +139,21 @@ def _settings(args: argparse.Namespace) -> Settings:
         updates["smoke_success_selector"] = args.smoke_success_selector
     if args.smoke_success_url_pattern is not None:
         updates["smoke_success_url_pattern"] = args.smoke_success_url_pattern
+    if args.smoke_scope is not None:
+        updates["smoke_scope"] = args.smoke_scope
+    if args.smoke_settle_ms is not None:
+        updates["smoke_settle_ms"] = args.smoke_settle_ms
+    if args.smoke_require_assertion:
+        updates["smoke_require_assertion"] = True
+    if args.storage_state is not None:
+        updates["storage_state"] = args.storage_state
     if args.browser_channel is not None:
         updates["browser_channel"] = args.browser_channel
     if args.smoke_mode is not None:
         updates["smoke_mode"] = args.smoke_mode
     if args.fail_on_warn:
         updates["fail_on_warn"] = True
-    return Settings.from_mapping(updates, base=cfg)
+    return apply_auth_environment(Settings.from_mapping(updates, base=cfg))
 
 
 def main(argv: Sequence[str] | None = None) -> int:

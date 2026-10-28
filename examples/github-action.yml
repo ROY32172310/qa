@@ -7,10 +7,13 @@ jobs:
   webqa:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: ROY32172310/qa@v0.2.0
+      - uses: actions/checkout@v5
+      - uses: ROY32172310/qa@v0.2.1
         with:
           url: ${{ vars.PREVIEW_URL }}
           profile: accessibility
           fail-on-warn: "true"
+          smoke-scope: all
+          smoke-require-assertion: "true"
+          smoke-success-selector: "#thank-you"
           artifact-name: webqa-${{ github.event.pull_request.number }}

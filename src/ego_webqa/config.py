@@ -7,10 +7,12 @@ does not import another ego package.
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, get_type_hints
 
 DEFAULT_CTA_PATTERN = (
@@ -26,6 +28,9 @@ MOBILE_USER_AGENT = (
     "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
 )
+HTTP_USERNAME_ENV = "EGO_WEBQA_HTTP_USERNAME"
+HTTP_PASSWORD_ENV = "EGO_WEBQA_HTTP_PASSWORD"
+HTTP_HEADERS_ENV = "EGO_WEBQA_EXTRA_HTTP_HEADERS"
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,16 +124,29 @@ class Settings:
     smoke_selector: str = ""
     smoke_success_selector: str = ""
     smoke_success_url_pattern: str = ""
+    smoke_scope: str = "first"
+    smoke_settle_ms: int = 800
+    smoke_require_assertion: bool = False
     smoke_mode: str = "safe"
     ignore_selectors: tuple[str, ...] = ()
     ignore_console_patterns: tuple[str, ...] = ()
     ignore_request_patterns: tuple[str, ...] = ()
+    extra_http_headers: Mapping[str, str] = field(default_factory=dict)
+    storage_state: str = ""
+    http_username: str = ""
+    http_password: str = ""
     browser_channel: str = ""
     fail_on_warn: bool = False
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self._validate_types()
+        object.__setattr__(
+            self,
+            "extra_http_headers",
+            MappingProxyType(dict(self.extra_http_headers)),
+        )
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
         if self.profile not in {"baseline", "accessibility"}:
             raise ValueError("profile must be 'baseline' or 'accessibility'")
         if not self.viewports:
@@ -176,6 +194,26 @@ class Settings:
             raise ValueError("request_error_count must be >= request_warn_count")
         if self.smoke_mode not in {"safe", "live"}:
             raise ValueError("smoke_mode must be 'safe' or 'live'")
+        if self.smoke_scope not in {"first", "all"}:
+            raise ValueError("smoke_scope must be 'first' or 'all'")
+        if self.smoke_settle_ms < 0:
+            raise ValueError("smoke_settle_ms must be non-negative")
+        if self.smoke_require_assertion and not (
+            self.smoke_success_selector or self.smoke_success_url_pattern
+        ):
+            raise ValueError(
+                "smoke_require_assertion requires smoke_success_selector "
+                "or smoke_success_url_pattern"
+            )
+        if bool(self.http_username) != bool(self.http_password):
+            raise ValueError("http_username and http_password must be configured together")
+        for header_name, header_value in self.extra_http_headers.items():
+            if not isinstance(header_name, str) or not isinstance(header_value, str):
+                raise ValueError("extra_http_headers must map strings to strings")
+            if not header_name or "\r" in header_name or "\n" in header_name or ":" in header_name:
+                raise ValueError(f"invalid HTTP header name: {header_name!r}")
+            if "\r" in header_value or "\n" in header_value:
+                raise ValueError(f"HTTP header {header_name!r} contains a newline")
         try:
             re.compile(self.cta_pattern)
             re.compile(self.nav_pattern)
@@ -238,6 +276,12 @@ class Settings:
                 if not isinstance(value, dict):
                     raise ValueError("metadata must be an object")
                 changes[key] = dict(value)
+            elif key == "extra_http_headers":
+                if not isinstance(value, dict) or not all(
+                    isinstance(name, str) and isinstance(item, str) for name, item in value.items()
+                ):
+                    raise ValueError("extra_http_headers must be an object of strings")
+                changes[key] = dict(value)
             else:
                 hints = get_type_hints(cls)
                 changes[key] = _coerce_mapping_scalar(key, value, hints[key])
@@ -272,10 +316,17 @@ class Settings:
             "smoke_selector": self.smoke_selector,
             "smoke_success_selector": self.smoke_success_selector,
             "smoke_success_url_pattern": self.smoke_success_url_pattern,
+            "smoke_scope": self.smoke_scope,
+            "smoke_settle_ms": self.smoke_settle_ms,
+            "smoke_require_assertion": self.smoke_require_assertion,
             "smoke_mode": self.smoke_mode,
             "ignore_selectors": list(self.ignore_selectors),
             "ignore_console_patterns": list(self.ignore_console_patterns),
             "ignore_request_patterns": list(self.ignore_request_patterns),
+            "extra_http_headers": {name: "<redacted>" for name in sorted(self.extra_http_headers)},
+            "storage_state": bool(self.storage_state),
+            "http_username": "<redacted>" if self.http_username else "",
+            "http_password": "<redacted>" if self.http_password else "",
             "browser_channel": self.browser_channel,
             "fail_on_warn": self.fail_on_warn,
             "metadata": dict(self.metadata),
@@ -293,6 +344,27 @@ def load_settings(path: str | Path) -> Settings:
     if not isinstance(data, dict):
         raise ValueError("config root must be a JSON object")
     return Settings.from_mapping(data)
+
+
+def apply_auth_environment(settings: Settings) -> Settings:
+    """Apply preview credentials from environment variables."""
+
+    updates: dict[str, Any] = {}
+    username = os.environ.get(HTTP_USERNAME_ENV)
+    password = os.environ.get(HTTP_PASSWORD_ENV)
+    if username is not None or password is not None:
+        updates["http_username"] = username or ""
+        updates["http_password"] = password or ""
+    headers = os.environ.get(HTTP_HEADERS_ENV)
+    if headers:
+        try:
+            parsed_headers = json.loads(headers)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"{HTTP_HEADERS_ENV} must contain a JSON object") from exc
+        if not isinstance(parsed_headers, dict):
+            raise ValueError(f"{HTTP_HEADERS_ENV} must contain a JSON object")
+        updates["extra_http_headers"] = parsed_headers
+    return Settings.from_mapping(updates, base=settings)
 
 
 def _coerce_mapping_scalar(name: str, value: Any, expected: Any) -> Any:

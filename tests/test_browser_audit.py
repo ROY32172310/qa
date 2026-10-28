@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import base64
+import http.server
 import importlib.util
+import json
+import subprocess
+import sys
+import threading
 from pathlib import Path
 
 import pytest
@@ -48,6 +54,14 @@ button{height:20px;width:20px}.small{font-size:8px}</style></head><body>
 <img src="/missing.png" width="100" height="100" alt="missing">
 <button onclick="void 0">Buy</button><script>console.error("bad production log")</script>
 </body></html>""",
+        encoding="utf-8",
+    )
+    (root / "missing-favicon.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
+<link rel="icon" href="/favicon.ico"><title>Missing favicon</title><style>
+body{margin:0;font:16px/1.5 system-ui}main{padding:32px}</style></head>
+<body><main><h1>Favicons are not delivery blockers</h1>
+<p>A missing icon must not fail an otherwise usable page.</p></main></body></html>""",
         encoding="utf-8",
     )
     (root / "side-effect.html").write_text(
@@ -107,6 +121,33 @@ main{max-width:720px;padding:32px;margin:auto}button{min-width:48px;min-height:4
 </main></body></html>""",
         encoding="utf-8",
     )
+    (root / "shadow.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
+<title>Shadow page</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:32px}
+</style></head><body><main><h1>Shadow component</h1><p>Composed tree fixture.</p></main>
+<shadow-demo></shadow-demo><script>
+const host = document.querySelector("shadow-demo");
+const root = host.attachShadow({mode: "open"});
+root.innerHTML = `<button id="shadow-cta" style="width:20px;height:20px;font-size:16px"
+onclick="this.getRootNode().querySelector('#shadow-result').textContent='Started'">
+Start now</button>
+<span id="shadow-result"></span>
+<span id="shadow-small" style="font-size:8px">shadow tiny text</span>
+<img id="shadow-image" src="/missing-shadow.png" width="40" height="40">
+<button id="shadow-unnamed" style="width:48px;height:48px"></button>`;
+</script></body></html>""",
+        encoding="utf-8",
+    )
+    (root / "network-active.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
+<title>Active network</title><style>body{margin:0;font:16px/1.5 system-ui}main{padding:32px}
+</style></head><body><main><h1>Continuously active page</h1>
+<p>This fixture deliberately never reaches network idle.</p></main><script>
+setInterval(() => fetch("/pixel.svg?t=" + Date.now()).catch(() => {}), 80);
+</script></body></html>""",
+        encoding="utf-8",
+    )
     server = LocalServer(root)
     yield server
     server.close()
@@ -128,12 +169,29 @@ def test_clean_page_passes(served: LocalServer, tmp_path: Path) -> None:
     assert report.smoke["changed"] is True
     assert report.smoke["success"] is True
     assert all(assertion["matched"] for assertion in report.smoke["assertions"])
-    assert Path(report.screenshots[0]).is_file()
+    assert (tmp_path / report.screenshots[0]).is_file()
     environment = report.viewports[0]["measurements"]["environment"]
     assert report.viewports[0]["measurements"]["viewport"]["width"] == 390
     assert "Mobile" in environment["userAgent"]
     assert environment["maxTouchPoints"] > 0
     assert environment["coarsePointer"] is True
+
+
+def test_missing_favicon_does_not_create_console_error(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("missing-favicon.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=50,
+        ),
+        output_dir=tmp_path,
+        smoke=False,
+    )
+    assert report.status == "pass", report.to_dict()["issues"]
+    assert report.viewports[0]["console_errors"] == []
 
 
 def test_broken_page_finds_real_defects(served: LocalServer, tmp_path: Path) -> None:
@@ -370,3 +428,232 @@ def test_accessibility_profile_accepts_clean_page(
         "missing_page_title",
         "positive_tabindex",
     } & {issue.code for issue in report.issues}
+
+
+def test_smoke_runs_in_every_configured_viewport(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("clean.html"),
+        settings=Settings(
+            viewports=(
+                Viewport(390, 844, "mobile", mobile=True),
+                Viewport(1280, 800, "desktop"),
+            ),
+            settle_ms=0,
+            smoke_scope="all",
+            smoke_settle_ms=10,
+            smoke_success_selector="#result",
+            smoke_success_url_pattern=r"#started$",
+        ),
+        output_dir=tmp_path,
+    )
+    assert [run["viewport"] for run in report.smoke_runs] == ["mobile", "desktop"]
+    assert all(run["success"] for run in report.smoke_runs)
+    assert {run["assertion_required"] for run in report.smoke_runs} == {False}
+
+
+def test_shadow_dom_cta_and_dom_evidence_are_actionable(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("shadow.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+            smoke_settle_ms=10,
+            smoke_success_selector="#shadow-result",
+        ),
+        output_dir=tmp_path,
+    )
+    assert report.smoke["found"] is True
+    assert report.smoke["success"] is True
+    measurements = report.viewports[0]["measurements"]
+    assert "#shadow-image" in {image["selector"] for image in measurements["brokenImages"]}
+    assert "#shadow-small" in {row["selector"] for row in measurements["tinyFonts"]}
+    assert "#shadow-cta" in {row["selector"] for row in measurements["smallTargets"]}
+
+
+def test_accessibility_checks_cross_shadow_boundaries(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("shadow.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+            profile="accessibility",
+        ),
+        output_dir=tmp_path,
+        smoke=False,
+    )
+    missing_names = next(issue for issue in report.issues if issue.code == "control_missing_name")
+    missing_alt = next(issue for issue in report.issues if issue.code == "image_missing_alt")
+    assert "#shadow-unnamed" in {row["selector"] for row in missing_names.evidence["controls"]}
+    assert "#shadow-image" in {row["selector"] for row in missing_alt.evidence["images"]}
+
+
+def test_network_idle_timeout_is_recorded_without_hiding_page_results(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("network-active.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+            timeout_ms=1_200,
+            wait_for_network_idle=True,
+        ),
+        output_dir=tmp_path,
+        smoke=False,
+    )
+    readiness = report.viewports[0]["readiness"]
+    assert readiness["network_idle_requested"] is True
+    assert readiness["network_idle_reached"] is False
+    assert readiness["network_idle_timed_out"] is True
+    assert "network_idle_timeout" in {issue.code for issue in report.issues}
+    assert report.viewports[0]["status"] == "ok"
+
+
+def test_authenticated_preview_inputs_work_together(tmp_path: Path) -> None:
+    site = tmp_path / "site"
+    site.mkdir()
+    (site / "private.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport"
+content="width=device-width"><title>Private preview</title><style>
+body{margin:0;font:16px/1.5 system-ui}main{padding:32px}</style></head>
+<body><main><h1>Authenticated preview</h1><p>All three access controls passed.</p>
+</main></body></html>""",
+        encoding="utf-8",
+    )
+    expected_auth = "Basic " + base64.b64encode(b"preview-user:preview-password").decode()
+
+    class GuardedHandler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            super().__init__(*args, directory=str(site), **kwargs)
+
+        def log_message(self, format: str, *args: object) -> None:
+            del format, args
+
+        def do_GET(self) -> None:
+            valid = (
+                self.headers.get("Authorization") == expected_auth
+                and self.headers.get("X-Preview-Key") == "agent-key"
+                and "session=ready" in (self.headers.get("Cookie") or "")
+            )
+            if not valid:
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", 'Basic realm="preview"')
+                self.end_headers()
+                return
+            super().do_GET()
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), GuardedHandler)
+    server.daemon_threads = True
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    url = f"http://127.0.0.1:{server.server_address[1]}/private.html"
+    state = tmp_path / "state.json"
+    state.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "session",
+                        "value": "ready",
+                        "domain": "127.0.0.1",
+                        "path": "/",
+                        "expires": -1,
+                        "httpOnly": False,
+                        "secure": False,
+                        "sameSite": "Lax",
+                    }
+                ],
+                "origins": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    viewports = (Viewport(390, 844, "mobile", mobile=True),)
+    try:
+        denied = audit(
+            url,
+            settings=Settings(viewports=viewports, settle_ms=0),
+            output_dir=tmp_path / "denied",
+            smoke=False,
+        )
+        assert {issue.code for issue in denied.issues} == {"http_error"}
+
+        allowed = audit(
+            url,
+            settings=Settings(
+                viewports=viewports,
+                settle_ms=0,
+                storage_state=str(state),
+                extra_http_headers={"X-Preview-Key": "agent-key"},
+                http_username="preview-user",
+                http_password="preview-password",
+            ),
+            output_dir=tmp_path / "allowed",
+            smoke=False,
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+    assert allowed.viewports[0]["title"] == "Private preview"
+    assert "http_error" not in {issue.code for issue in allowed.issues}
+    assert allowed.settings["extra_http_headers"] == {"X-Preview-Key": "<redacted>"}
+    assert "agent-key" not in json.dumps(allowed.to_dict())
+
+
+def test_concurrent_agent_invocations_have_isolated_reports(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    target = served.url("clean.html")
+    commands = []
+    for name in ("agent-a", "agent-b"):
+        output = tmp_path / name
+        commands.append(
+            (
+                output,
+                [
+                    sys.executable,
+                    "-m",
+                    "ego_webqa",
+                    target,
+                    "--out",
+                    str(output),
+                    "--viewports",
+                    "390x844:mobile",
+                    "--no-smoke",
+                    "--json",
+                ],
+            )
+        )
+    processes = [
+        subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        for _, command in commands
+    ]
+    completed = [process.communicate(timeout=60) for process in processes]
+    for (output, _), process, (stdout, stderr) in zip(
+        commands,
+        processes,
+        completed,
+        strict=True,
+    ):
+        assert process.returncode == 0, stderr or stdout
+        payload = json.loads((output / "report.json").read_text(encoding="utf-8"))
+        assert payload["schema_version"] == "1.0"
+        assert payload["screenshots"] == ["screenshots/mobile.png"]
+        assert (output / payload["screenshots"][0]).is_file()

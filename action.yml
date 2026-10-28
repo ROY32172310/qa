@@ -50,6 +50,34 @@ inputs:
     description: URL regex that must newly match after the CTA click
     required: false
     default: ""
+  smoke-scope:
+    description: Run CTA smoke in the first viewport or all viewports
+    required: false
+    default: first
+  smoke-settle-ms:
+    description: Milliseconds to wait after the CTA click
+    required: false
+    default: "800"
+  smoke-require-assertion:
+    description: Require a selector or URL assertion for CTA success
+    required: false
+    default: "false"
+  storage-state:
+    description: Playwright storage-state JSON file for authenticated previews
+    required: false
+    default: ""
+  http-username:
+    description: HTTP Basic username; pass from a GitHub secret
+    required: false
+    default: ""
+  http-password:
+    description: HTTP Basic password; pass from a GitHub secret
+    required: false
+    default: ""
+  extra-http-headers:
+    description: JSON object of additional HTTP headers; pass from a GitHub secret
+    required: false
+    default: ""
   fail-on-warn:
     description: Make warnings fail the audit
     required: false
@@ -83,7 +111,7 @@ runs:
   using: composite
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ inputs.python-version }}
 
@@ -118,8 +146,15 @@ runs:
         WEBQA_SMOKE_SELECTOR: ${{ inputs.smoke-selector }}
         WEBQA_SUCCESS_SELECTOR: ${{ inputs.smoke-success-selector }}
         WEBQA_SUCCESS_URL: ${{ inputs.smoke-success-url-pattern }}
+        WEBQA_SMOKE_SCOPE: ${{ inputs.smoke-scope }}
+        WEBQA_SMOKE_SETTLE_MS: ${{ inputs.smoke-settle-ms }}
+        WEBQA_SMOKE_REQUIRE_ASSERTION: ${{ inputs.smoke-require-assertion }}
+        WEBQA_STORAGE_STATE: ${{ inputs.storage-state }}
         WEBQA_FAIL_ON_WARN: ${{ inputs.fail-on-warn }}
         WEBQA_BROWSER_CHANNEL: ${{ inputs.browser-channel }}
+        EGO_WEBQA_HTTP_USERNAME: ${{ inputs.http-username }}
+        EGO_WEBQA_HTTP_PASSWORD: ${{ inputs.http-password }}
+        EGO_WEBQA_EXTRA_HTTP_HEADERS: ${{ inputs.extra-http-headers }}
       run: |
         set -euo pipefail
         args=(
@@ -151,6 +186,14 @@ runs:
         fi
         if [[ -n "$WEBQA_SUCCESS_URL" ]]; then
           args+=(--smoke-success-url-pattern "$WEBQA_SUCCESS_URL")
+        fi
+        args+=(--smoke-scope "$WEBQA_SMOKE_SCOPE")
+        args+=(--smoke-settle-ms "$WEBQA_SMOKE_SETTLE_MS")
+        if [[ "$WEBQA_SMOKE_REQUIRE_ASSERTION" == "true" ]]; then
+          args+=(--smoke-require-assertion)
+        fi
+        if [[ -n "$WEBQA_STORAGE_STATE" ]]; then
+          args+=(--storage-state "$WEBQA_STORAGE_STATE")
         fi
         if [[ "$WEBQA_FAIL_ON_WARN" == "true" ]]; then
           args+=(--fail-on-warn)

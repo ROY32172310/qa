@@ -7,15 +7,100 @@ from __future__ import annotations
 
 COLLECT_JS = r"""
 (cfg) => {
-  const ignored = (el) => cfg.ignore.some(sel => {
-    try { return el.closest(sel); } catch (_) { return false; }
-  });
+  const composedParent = (el) => {
+    if (!el) return null;
+    if (el.parentElement) return el.parentElement;
+    const root = el.getRootNode && el.getRootNode();
+    return root && root.host ? root.host : null;
+  };
+  const allElements = (selector, root = document) => {
+    const found = [];
+    const visit = (scope) => {
+      for (const el of scope.children) {
+        try {
+          if (el.matches(selector)) found.push(el);
+        } catch (_) {}
+        if (el.shadowRoot) visit(el.shadowRoot);
+        visit(el);
+      }
+    };
+    visit(root);
+    return found;
+  };
+  const composedText = (root) => {
+    let text = "";
+    const addDirectText = (el) => {
+      for (const node of el.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) text += node.nodeValue || "";
+      }
+    };
+    addDirectText(root);
+    const visit = (scope) => {
+      for (const el of scope.children) {
+        addDirectText(el);
+        if (el.shadowRoot) visit(el.shadowRoot);
+        visit(el);
+      }
+    };
+    visit(root);
+    return text;
+  };
+  const composedClosest = (el, selector) => {
+    for (let node = el; node; node = composedParent(node)) {
+      try {
+        if (node.matches && node.matches(selector)) return node;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  };
+  const ignored = (el) => cfg.ignore.some(sel => composedClosest(el, sel));
+  const cssEscape = (value) => (
+    window.CSS && CSS.escape
+      ? CSS.escape(String(value))
+      : String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&")
+  );
+  const selectorFor = (el) => {
+    if (!el || !el.tagName) return "";
+    if (el.id) return "#" + cssEscape(el.id);
+    const testId = el.getAttribute("data-testid");
+    if (testId) return '[data-testid="' + String(testId).replace(/"/g, '\\"') + '"]';
+    const parts = [];
+    for (let node = el; node && node.nodeType === 1 && node !== document.documentElement;
+      node = composedParent(node)) {
+      let part = node.tagName.toLowerCase();
+      const treeParent = node.parentElement || (
+        node.getRootNode && node.getRootNode().children ? node.getRootNode() : null
+      );
+      if (treeParent) {
+        const same = [...treeParent.children].filter(child => child.tagName === node.tagName);
+        if (same.length > 1) part += ":nth-of-type(" + (same.indexOf(node) + 1) + ")";
+      }
+      parts.unshift(part);
+      if (node.id) {
+        parts[0] = "#" + cssEscape(node.id);
+        break;
+      }
+      if (parts.length >= 6) break;
+    }
+    return parts.join(" > ");
+  };
+  const box = (el) => {
+    const r = el.getBoundingClientRect();
+    return {
+      x: Math.round(r.x),
+      y: Math.round(r.y),
+      width: Math.round(r.width),
+      height: Math.round(r.height),
+    };
+  };
   const visible = (el) => {
     const r = el.getBoundingClientRect();
     const st = getComputedStyle(el);
     if (r.width <= 2 || r.height <= 2) return false;
     if (st.display === "none" || st.visibility === "hidden") return false;
-    for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
+    for (let n = el; n && n !== document.documentElement; n = composedParent(n)) {
       const parentStyle = getComputedStyle(n);
       if (parentStyle.display === "none" || parentStyle.visibility === "hidden") return false;
       if (parseFloat(parentStyle.opacity || "1") < 0.05) return false;
@@ -31,24 +116,31 @@ COLLECT_JS = r"""
   ).trim().replace(/\s+/g, " ").slice(0, 80);
   const controlSelector =
     "button,a[href],[role=button],input[type=submit],input[type=button],.btn,.cta";
-  const controls = [...document.querySelectorAll(controlSelector)]
+  const controls = allElements(controlSelector)
     .filter(el => visible(el) && !ignored(el) && !el.disabled &&
       el.getAttribute("aria-disabled") !== "true");
   const smallTargets = controls
     .map(el => {
       const r = el.getBoundingClientRect();
-      return {label: label(el), width: Math.round(r.width), height: Math.round(r.height)};
+      return {
+        label: label(el),
+        selector: selectorFor(el),
+        width: Math.round(r.width),
+        height: Math.round(r.height),
+        box: box(el),
+      };
     })
     .filter(x => x.width < cfg.minTap || x.height < cfg.minTap);
-  const tinyFonts = [...document.querySelectorAll("*")]
+  const tinyFonts = allElements("*")
     .filter(el => el.children.length === 0 && (el.textContent || "").trim() &&
       visible(el) && !ignored(el))
     .map(el => ({
       label: label(el).slice(0, 40),
+      selector: selectorFor(el),
       px: Number(parseFloat(getComputedStyle(el).fontSize).toFixed(2)),
     }))
     .filter(x => x.px > 0 && x.px < cfg.minFont);
-  const hugeOverlays = [...document.querySelectorAll("body *")]
+  const hugeOverlays = allElements("*")
     .filter(el => {
       if (!visible(el) || ignored(el)) return false;
       const st = getComputedStyle(el);
@@ -57,12 +149,21 @@ COLLECT_JS = r"""
       const r = el.getBoundingClientRect();
       return (r.width * r.height) / (innerWidth * innerHeight) > cfg.overlayRatio;
     })
-    .map(el => ({label: String(el.className || el.id || el.tagName).slice(0, 60)}));
-  const brokenImages = [...document.images]
+    .map(el => ({
+      label: String(el.className || el.id || el.tagName).slice(0, 60),
+      selector: selectorFor(el),
+      box: box(el),
+    }));
+  const brokenImages = allElements("img")
     .filter(img => visible(img) && !ignored(img) && img.complete && img.naturalWidth === 0)
-    .map(img => ({src: (img.currentSrc || img.src || "").slice(0, 180), alt: img.alt || ""}));
+    .map(img => ({
+      src: (img.currentSrc || img.src || "").slice(0, 180),
+      alt: img.alt || "",
+      selector: selectorFor(img),
+      box: box(img),
+    }));
   const distortedMedia = [];
-  for (const el of document.querySelectorAll("canvas,img,video")) {
+  for (const el of allElements("canvas,img,video")) {
     if (!visible(el) || ignored(el)) continue;
     const st = getComputedStyle(el);
     if (st.objectFit && st.objectFit !== "fill") continue;
@@ -86,8 +187,10 @@ COLLECT_JS = r"""
     if (deviation > cfg.aspectTolerance) {
       distortedMedia.push({
         label: label(el).slice(0, 40) || el.tagName.toLowerCase(),
+        selector: selectorFor(el),
         natural: [nw, nh],
         shown: [Math.round(r.width), Math.round(r.height)],
+        box: box(el),
         deviation: Number(deviation.toFixed(3)),
       });
     }
@@ -105,8 +208,8 @@ COLLECT_JS = r"""
       0,
       document.documentElement.scrollWidth - document.documentElement.clientWidth
     ),
-    textLength: (document.body && document.body.innerText || "").trim().length,
-    elementCount: document.querySelectorAll("body *").length,
+    textLength: (document.body && composedText(document.body) || "").trim().length,
+    elementCount: document.body ? allElements("*", document.body).length : 0,
     controlCount: controls.length,
     smallTargets,
     tinyFonts,
@@ -156,9 +259,55 @@ READ_TIMING_JS = r"""
 
 SMOKE_JS = r"""
 async (cfg) => {
-  const ignored = (el) => cfg.ignore.some(sel => {
-    try { return el.closest(sel); } catch (_) { return false; }
-  });
+  const composedParent = (el) => {
+    if (!el) return null;
+    if (el.parentElement) return el.parentElement;
+    const root = el.getRootNode && el.getRootNode();
+    return root && root.host ? root.host : null;
+  };
+  const allElements = (selector, root = document) => {
+    const found = [];
+    const visit = (scope) => {
+      for (const el of scope.children) {
+        try {
+          if (el.matches(selector)) found.push(el);
+        } catch (_) {}
+        if (el.shadowRoot) visit(el.shadowRoot);
+        visit(el);
+      }
+    };
+    visit(root);
+    return found;
+  };
+  const composedClosest = (el, selector) => {
+    for (let node = el; node; node = composedParent(node)) {
+      try {
+        if (node.matches && node.matches(selector)) return node;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  };
+  const ignored = (el) => cfg.ignore.some(sel => composedClosest(el, sel));
+  const composedText = (root) => {
+    let text = "";
+    const addDirectText = (el) => {
+      for (const node of el.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) text += node.nodeValue || "";
+      }
+    };
+    addDirectText(root);
+    const visit = (scope) => {
+      for (const el of scope.children) {
+        addDirectText(el);
+        if (el.shadowRoot) visit(el.shadowRoot);
+        visit(el);
+      }
+    };
+    visit(root);
+    return text;
+  };
   const visible = (el) => {
     const r = el.getBoundingClientRect();
     const st = getComputedStyle(el);
@@ -167,16 +316,16 @@ async (cfg) => {
   };
   const state = () => ({
     htmlLength: document.body ? document.body.innerHTML.length : 0,
-    elementCount: document.querySelectorAll("body *").length,
-    textLength: document.body ? (document.body.innerText || "").trim().length : 0,
-    fieldCount: document.querySelectorAll("input,select,textarea").length,
-    dialogCount: document.querySelectorAll("[role=dialog],dialog[open]").length,
+    elementCount: document.body ? allElements("*", document.body).length : 0,
+    textLength: document.body ? composedText(document.body).trim().length : 0,
+    fieldCount: allElements("input,select,textarea").length,
+    dialogCount: allElements("[role=dialog],dialog[open]").length,
     url: location.href,
   });
   let target = null;
   let label = "";
   if (cfg.selector) {
-    target = document.querySelector(cfg.selector);
+    target = allElements(cfg.selector).find(el => visible(el) && !ignored(el)) || null;
     if (target && (!visible(target) || ignored(target))) target = null;
     label = target
       ? ((target.getAttribute("aria-label") || target.textContent || "").trim().slice(0, 60))
@@ -184,9 +333,9 @@ async (cfg) => {
   } else {
     const cta = new RegExp(cfg.ctaPattern, "i");
     const nav = new RegExp(cfg.navPattern, "i");
-    const controls = [...document.querySelectorAll(
+    const controls = allElements(
       "button,a[href],[role=button],input[type=submit],input[type=button],.btn,.cta"
-    )].filter(el => visible(el) && !ignored(el) && !el.disabled);
+    ).filter(el => visible(el) && !ignored(el) && !el.disabled);
     for (const el of controls) {
       const text = (
         el.getAttribute("aria-label") || el.textContent || el.value || ""
@@ -203,7 +352,7 @@ async (cfg) => {
     const results = [];
     if (cfg.successSelector) {
       try {
-        const successTarget = document.querySelector(cfg.successSelector);
+        const successTarget = allElements(cfg.successSelector).find(visible) || null;
         results.push({
           type: "selector",
           selector: cfg.successSelector,
@@ -282,6 +431,20 @@ async (cfg) => {
 
 SMOKE_ASSERTIONS_JS = r"""
 (cfg) => {
+  const allElements = (selector, root = document) => {
+    const found = [];
+    const visit = (scope) => {
+      for (const el of scope.children) {
+        try {
+          if (el.matches(selector)) found.push(el);
+        } catch (_) {}
+        if (el.shadowRoot) visit(el.shadowRoot);
+        visit(el);
+      }
+    };
+    visit(root);
+    return found;
+  };
   const visible = (el) => {
     const rect = el.getBoundingClientRect();
     const style = getComputedStyle(el);
@@ -291,7 +454,7 @@ SMOKE_ASSERTIONS_JS = r"""
   const results = [];
   if (cfg.successSelector) {
     try {
-      const target = document.querySelector(cfg.successSelector);
+      const target = allElements(cfg.successSelector).find(visible) || null;
       results.push({
         type: "selector",
         selector: cfg.successSelector,
@@ -330,21 +493,93 @@ SMOKE_ASSERTIONS_JS = r"""
 
 ACCESSIBILITY_JS = r"""
 () => {
+  const composedParent = (el) => {
+    if (!el) return null;
+    if (el.parentElement) return el.parentElement;
+    const root = el.getRootNode && el.getRootNode();
+    return root && root.host ? root.host : null;
+  };
+  const allElements = (selector, root = document) => {
+    const found = [];
+    const visit = (scope) => {
+      for (const el of scope.children) {
+        try {
+          if (el.matches(selector)) found.push(el);
+        } catch (_) {}
+        if (el.shadowRoot) visit(el.shadowRoot);
+        visit(el);
+      }
+    };
+    visit(root);
+    return found;
+  };
+  const composedClosest = (el, selector) => {
+    for (let node = el; node; node = composedParent(node)) {
+      try {
+        if (node.matches && node.matches(selector)) return node;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  };
+  const cssEscape = (value) => (
+    window.CSS && CSS.escape
+      ? CSS.escape(String(value))
+      : String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&")
+  );
+  const selectorFor = (el) => {
+    if (!el || !el.tagName) return "";
+    if (el.id) return "#" + cssEscape(el.id);
+    const testId = el.getAttribute("data-testid");
+    if (testId) return '[data-testid="' + String(testId).replace(/"/g, '\\"') + '"]';
+    const parts = [];
+    for (let node = el; node && node.nodeType === 1 && node !== document.documentElement;
+      node = composedParent(node)) {
+      let part = node.tagName.toLowerCase();
+      const treeParent = node.parentElement || (
+        node.getRootNode && node.getRootNode().children ? node.getRootNode() : null
+      );
+      if (treeParent) {
+        const same = [...treeParent.children].filter(child => child.tagName === node.tagName);
+        if (same.length > 1) part += ":nth-of-type(" + (same.indexOf(node) + 1) + ")";
+      }
+      parts.unshift(part);
+      if (node.id) {
+        parts[0] = "#" + cssEscape(node.id);
+        break;
+      }
+      if (parts.length >= 6) break;
+    }
+    return parts.join(" > ");
+  };
+  const rootLabels = new WeakMap();
+  let rootSequence = 0;
+  const rootLabel = (root) => {
+    if (root === document) return "document";
+    if (!rootLabels.has(root)) {
+      rootSequence += 1;
+      rootLabels.set(root, "shadow-" + rootSequence);
+    }
+    return rootLabels.get(root);
+  };
   const visible = (el) => {
     const rect = el.getBoundingClientRect();
     const style = getComputedStyle(el);
     if (rect.width <= 2 || rect.height <= 2) return false;
     if (style.display === "none" || style.visibility === "hidden") return false;
     if (parseFloat(style.opacity || "1") < 0.05) return false;
-    for (let node = el.parentElement; node && node !== document.documentElement;
-      node = node.parentElement) {
+    for (let node = composedParent(el); node && node !== document.documentElement;
+      node = composedParent(node)) {
       const parentStyle = getComputedStyle(node);
       if (parentStyle.display === "none" || parentStyle.visibility === "hidden") return false;
       if (parseFloat(parentStyle.opacity || "1") < 0.05) return false;
     }
     return true;
   };
-  const accessibleText = (el) => {
+  const accessibleText = (el, seen = new Set()) => {
+    if (!el || seen.has(el)) return "";
+    seen.add(el);
     let text = "";
     for (const node of [...el.childNodes]) {
       if (node.nodeType === Node.TEXT_NODE) {
@@ -358,14 +593,20 @@ ACCESSIBILITY_JS = r"""
           text += ` ${child.alt} `;
           continue;
         }
-        text += accessibleText(child);
+        text += accessibleText(child, seen);
       }
     }
+    if (el.shadowRoot) text += accessibleText(el.shadowRoot, seen);
     return text.replace(/\s+/g, " ").trim();
   };
-  const idText = (ids) => ids
+  const byId = (origin, id) => {
+    const root = origin.getRootNode ? origin.getRootNode() : document;
+    if (root.getElementById) return root.getElementById(id);
+    return allElements("#" + cssEscape(id), root)[0] || null;
+  };
+  const idText = (origin, ids) => ids
     .split(/\s+/)
-    .map(id => document.getElementById(id))
+    .map(id => byId(origin, id))
     .filter(Boolean)
     .map(accessibleText)
     .filter(Boolean)
@@ -374,7 +615,7 @@ ACCESSIBILITY_JS = r"""
     const ariaLabel = (el.getAttribute("aria-label") || "").trim();
     if (ariaLabel) return ariaLabel;
     const labelledBy = (el.getAttribute("aria-labelledby") || "").trim();
-    if (labelledBy && idText(labelledBy)) return idText(labelledBy);
+    if (labelledBy && idText(el, labelledBy)) return idText(el, labelledBy);
     if (el.labels && el.labels.length) {
       const labelText = [...el.labels].map(accessibleText).filter(Boolean).join(" ");
       if (labelText) return labelText;
@@ -392,29 +633,40 @@ ACCESSIBILITY_JS = r"""
   ).slice(0, 80);
   const focusableSelector =
     "a[href],button,input:not([type=hidden]),select,textarea,[tabindex],[contenteditable=true]";
-  const controls = [...document.querySelectorAll(
+  const controls = allElements(
     "a[href],button,input:not([type=hidden]),select,textarea,[role=button],[role=link]"
-  )].filter(visible);
+  ).filter(visible);
   const missingNames = controls
     .filter(el => !accessibleName(el))
-    .map(el => ({tag: el.tagName.toLowerCase(), label: label(el)}));
-  const imagesMissingAlt = [...document.images]
+    .map(el => ({
+      tag: el.tagName.toLowerCase(),
+      label: label(el),
+      selector: selectorFor(el),
+    }));
+  const imagesMissingAlt = allElements("img")
     .filter(img => visible(img) && !img.hasAttribute("alt"))
-    .map(img => ({src: (img.currentSrc || img.src || "").slice(0, 180)}));
+    .map(img => ({
+      src: (img.currentSrc || img.src || "").slice(0, 180),
+      selector: selectorFor(img),
+    }));
   const idCounts = new Map();
-  for (const el of document.querySelectorAll("[id]")) {
+  for (const el of allElements("[id]")) {
     const id = el.id;
     if (!id) continue;
-    idCounts.set(id, (idCounts.get(id) || 0) + 1);
+    const scope = rootLabel(el.getRootNode());
+    const key = scope + "\u0000" + id;
+    const current = idCounts.get(key) || {id, scope, count: 0};
+    current.count += 1;
+    idCounts.set(key, current);
   }
-  const duplicateIds = [...idCounts.entries()]
-    .filter(([, count]) => count > 1)
-    .map(([id, count]) => ({id, count}));
-  const headings = [...document.querySelectorAll("h1,h2,h3,h4,h5,h6")]
+  const duplicateIds = [...idCounts.values()]
+    .filter(item => item.count > 1);
+  const headings = allElements("h1,h2,h3,h4,h5,h6")
     .filter(visible)
     .map(el => ({
       level: Number(el.tagName.slice(1)),
       label: accessibleText(el).slice(0, 80),
+      selector: selectorFor(el),
     }));
   const headingSkips = [];
   for (let index = 1; index < headings.length; index += 1) {
@@ -426,13 +678,17 @@ ACCESSIBILITY_JS = r"""
       });
     }
   }
-  const positiveTabindex = [...document.querySelectorAll("[tabindex]")]
+  const positiveTabindex = allElements("[tabindex]")
     .filter(visible)
-    .map(el => ({tabindex: Number(el.getAttribute("tabindex")), label: label(el)}))
+    .map(el => ({
+      tabindex: Number(el.getAttribute("tabindex")),
+      label: label(el),
+      selector: selectorFor(el),
+    }))
     .filter(item => Number.isFinite(item.tabindex) && item.tabindex > 0);
-  const hiddenFocusable = [...document.querySelectorAll(focusableSelector)]
-    .filter(el => visible(el) && el.closest("[aria-hidden=true]"))
-    .map(el => ({label: label(el)}));
+  const hiddenFocusable = allElements(focusableSelector)
+    .filter(el => visible(el) && composedClosest(el, "[aria-hidden=true]"))
+    .map(el => ({label: label(el), selector: selectorFor(el)}));
   return {
     lang: (document.documentElement.lang || "").trim(),
     title: (document.title || "").trim(),

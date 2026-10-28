@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import MappingProxyType
 
 import pytest
 
@@ -85,6 +86,60 @@ def test_mapping_accepts_noise_patterns() -> None:
     assert settings.smoke_success_selector == "#success"
     assert settings.smoke_success_url_pattern == "/complete$"
     assert settings.profile == "accessibility"
+
+
+def test_authenticated_settings_are_immutable_and_redacted() -> None:
+    settings = Settings(
+        extra_http_headers={
+            "Authorization": "Bearer top-secret",
+            "X-Preview-Key": "header-secret",
+        },
+        storage_state="/tmp/session.json",
+        http_username="preview-user",
+        http_password="password-secret",
+        metadata={"agent": "qa"},
+    )
+    assert isinstance(settings.extra_http_headers, MappingProxyType)
+    assert isinstance(settings.metadata, MappingProxyType)
+    payload = settings.to_dict()
+    assert payload["extra_http_headers"] == {
+        "Authorization": "<redacted>",
+        "X-Preview-Key": "<redacted>",
+    }
+    assert payload["storage_state"] is True
+    assert payload["http_username"] == "<redacted>"
+    assert payload["http_password"] == "<redacted>"
+    serialized = json.dumps(payload)
+    assert "top-secret" not in serialized
+    assert "header-secret" not in serialized
+    assert "password-secret" not in serialized
+
+
+@pytest.mark.parametrize(
+    ("headers", "message"),
+    [
+        ({"Bad:Name": "ok"}, "invalid HTTP header name"),
+        ({"": "ok"}, "invalid HTTP header name"),
+        ({"X-Test": "line\r\ninjection"}, "contains a newline"),
+    ],
+)
+def test_http_header_injection_is_rejected(
+    headers: dict[str, str],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        Settings(extra_http_headers=headers)
+
+
+def test_smoke_and_auth_contract_validation() -> None:
+    with pytest.raises(ValueError, match="smoke_scope"):
+        Settings(smoke_scope="everywhere")
+    with pytest.raises(ValueError, match="smoke_settle_ms"):
+        Settings(smoke_settle_ms=-1)
+    with pytest.raises(ValueError, match="smoke_require_assertion"):
+        Settings(smoke_require_assertion=True)
+    with pytest.raises(ValueError, match="configured together"):
+        Settings(http_username="user")
 
 
 def test_direct_settings_rejects_invalid_types() -> None:

@@ -11,6 +11,8 @@ from ego_webqa.engine import (
     _is_ignorable_failure,
     _issues_for_smoke,
     _issues_for_viewport,
+    _network_summary,
+    _should_run_smoke,
 )
 
 
@@ -188,3 +190,49 @@ def test_private_helpers() -> None:
     )
     assert _is_blocked_network_error("TypeError: Failed to fetch")
     assert not _is_blocked_network_error("ReferenceError: checkout is not defined")
+
+
+def test_ignored_requests_do_not_count_toward_budget() -> None:
+    class Request:
+        def __init__(self, size: int) -> None:
+            self._size = size
+
+        def sizes(self) -> dict[str, int]:
+            return {"responseBodySize": self._size}
+
+    class Response:
+        def __init__(self, url: str, status: int, size: int) -> None:
+            self.url = url
+            self.status = status
+            self.request = Request(size)
+
+    summary = _network_summary(
+        [
+            Response("https://example.test/app.js", 200, 42),
+            Response("https://example.test/analytics/collect", 500, 1_000_000),
+        ],
+        ["https://example.test/analytics/collect (net::ERR_FAILED)"],
+        (re.compile(r"/analytics/"),),
+    )
+    assert summary == {
+        "request_count": 1,
+        "ignored_request_count": 1,
+        "transfer_bytes": 42,
+        "failures": [],
+        "failure_count": 0,
+    }
+
+
+def test_network_idle_timeout_is_visible_as_warning() -> None:
+    summary = _summary(readiness={"network_idle_timed_out": True})
+    issues = _issues_for_viewport(summary, Settings(timeout_ms=5_000))
+    assert [(issue.code, issue.severity) for issue in issues] == [
+        ("network_idle_timeout", "warning")
+    ]
+
+
+def test_smoke_scope_controls_viewport_runs() -> None:
+    assert _should_run_smoke(Settings(), 0)
+    assert not _should_run_smoke(Settings(), 1)
+    assert _should_run_smoke(Settings(smoke_scope="all"), 0)
+    assert _should_run_smoke(Settings(smoke_scope="all"), 4)

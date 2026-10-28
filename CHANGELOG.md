@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.1 - 2026-10-28
+
+- Add authenticated preview support through storage state, HTTP Basic credentials,
+  and additional request headers without exposing secrets in command lines.
+- Run CTA smoke checks across every viewport when requested and support an
+  explicit assertion-required contract.
+- Exclude ignored requests from both request and transfer budgets.
+- Record readiness evidence for ready selectors, fonts, and network idle.
+- Ignore the browser's automatic failed favicon request instead of reporting it as
+  a page console error.
+- Add composed-tree Shadow DOM discovery and actionable selectors to DOM and
+  accessibility evidence.
+- Make screenshot references portable and relative to the report directory.
+- Add multi-agent-safe machine invocation documentation and deterministic
+  JUnit diagnostics for cross-platform CI.
+- Add an optional MCP stdio server with a structured `audit_web_page` tool for
+  agent-native blocking and repair loops.
+- Fix the Windows Chromium installation path and update GitHub Actions runtimes.
+
 ## 0.2.0 - 2026-10-28
 
 - Fix the public SARIF tool URI.

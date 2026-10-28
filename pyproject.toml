@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ego-webqa"
-version = "0.2.0"
+version = "0.2.1"
 description = "Deterministic delivery QA for AI-generated web pages"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,6 +15,7 @@ keywords = ["playwright", "web-qa", "accessibility", "ai-generated", "delivery"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
   "Topic :: Software Development :: Quality Assurance",
@@ -23,9 +24,11 @@ classifiers = [
 dependencies = ["playwright>=1.48"]
 
 [project.optional-dependencies]
+mcp = ["mcp>=2.2,<3"]
 dev = [
   "black>=24",
   "build>=1.2",
+  "mcp>=2.2,<3",
   "mypy>=1.11",
   "PyYAML>=6",
   "pytest>=8",
@@ -36,6 +39,7 @@ dev = [
 
 [project.scripts]
 ego-webqa = "ego_webqa.cli:main"
+ego-webqa-mcp = "ego_webqa.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

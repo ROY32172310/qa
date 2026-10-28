@@ -25,6 +25,32 @@ browser installation, and artifact upload; audit policy remains in
 `Settings`. Action inputs are passed through environment variables and a Bash
 argument array rather than interpolated into an executable script.
 
+## Multi-agent boundary
+
+Each `audit()` call or CLI process owns its Playwright instance, browser,
+per-viewport contexts, local static server, and output directory. Settings are
+frozen, mapping values are immutable, and reports are assembled per call. Agents
+can therefore run in separate processes against the same target as long as each
+selects a distinct output directory.
+
+The stable integration surface is:
+
+- exit code: `0` pass/warn, `1` blocking issue, `2` invocation/runtime failure;
+- `report.json` and `--json` output with explicit `schema_version`;
+- relative screenshot references inside the report directory;
+- JUnit and SARIF generated from the same issue list.
+
+Sensitive headers, HTTP Basic credentials, and storage-state content are
+accepted but never copied into the report. CI callers should provide secrets
+through environment variables.
+
+`mcp_server.py` is an optional protocol adapter over the same `audit()` and
+reporting functions. It does not contain a second QA implementation. An MCP
+tool call creates an isolated audit and returns the full versioned report as
+structured content; blocking status is mapped to the protocol's tool-error
+channel. The base package keeps its single Playwright runtime dependency, while
+the `mcp` extra adds the protocol SDK for agent hosts.
+
 ## Deliberate exclusions
 
 The core does not know about:
