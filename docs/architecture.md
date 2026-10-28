@@ -1,6 +1,6 @@
 # Architecture
 
-`ego-webqa` is intentionally split into five pieces:
+`ego-webqa` is intentionally split into five core pieces:
 
 1. `config.py`: public configuration and the only threshold source of truth.
 2. `probes.py`: browser-side facts, with no pass/fail decisions.
@@ -10,6 +10,20 @@
 
 The core package has one runtime dependency: Playwright. Browser binaries are
 installed separately.
+
+## Profiles
+
+`baseline` covers delivery behavior across the configured viewport matrix.
+`accessibility` adds deterministic document and interaction checks while
+reusing the same browser facts, threshold model, issue model, and reporters.
+Profile selection changes the issue rules, not the report schema.
+
+## CI adapter
+
+`action.yml` is a thin composite Action over the CLI. It owns runner setup,
+browser installation, and artifact upload; audit policy remains in
+`Settings`. Action inputs are passed through environment variables and a Bash
+argument array rather than interpolated into an executable script.
 
 ## Deliberate exclusions
 
@@ -29,4 +43,3 @@ the deterministic core.
 The JSON report uses `schema_version`. New optional fields may be added inside
 the same major schema. Removing or changing existing field semantics requires a
 new schema version.
-

@@ -106,7 +106,7 @@ def to_sarif(report: AuditReport) -> dict[str, Any]:
                 "tool": {
                     "driver": {
                         "name": "ego-webqa",
-                        "informationUri": "https://github.com/roy/ego-webqa",
+                        "informationUri": "https://github.com/ROY32172310/qa",
                         "rules": list(rules.values()),
                     }
                 },

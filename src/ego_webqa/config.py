@@ -11,7 +11,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, get_type_hints
 
 DEFAULT_CTA_PATTERN = (
     r"开始|立即|马上|提交|预约|预订|下单|购买|报名|领取|生成|创建|保存|发送|"
@@ -21,6 +21,10 @@ DEFAULT_CTA_PATTERN = (
 DEFAULT_NAV_PATTERN = (
     r"首页|返回|上一|下一|更多|登录|注册|导航|home|back|previous|next|more|login|sign in|"
     r"sign up|register|navigation|nav"
+)
+MOBILE_USER_AGENT = (
+    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
 )
 
 
@@ -32,12 +36,22 @@ class Viewport:
     height: int
     name: str = ""
     device_scale_factor: float = 1.0
+    mobile: bool = False
+    user_agent: str = ""
 
     def __post_init__(self) -> None:
+        if type(self.width) is not int or type(self.height) is not int:
+            raise ValueError("viewport dimensions must be integers")
         if self.width < 200 or self.height < 200:
             raise ValueError("viewport dimensions must both be at least 200")
+        if type(self.device_scale_factor) not in {int, float}:
+            raise ValueError("device_scale_factor must be a number")
         if self.device_scale_factor <= 0:
             raise ValueError("device_scale_factor must be positive")
+        if not isinstance(self.mobile, bool):
+            raise ValueError("viewport.mobile must be a boolean")
+        if not isinstance(self.user_agent, str):
+            raise ValueError("viewport.user_agent must be a string")
         if not self.name:
             object.__setattr__(self, "name", f"{self.width}x{self.height}")
 
@@ -52,7 +66,9 @@ class Viewport:
         match = re.fullmatch(r"(\d+)x(\d+)", text.lower())
         if not match:
             raise ValueError(f"invalid viewport {value!r}; expected WIDTHxHEIGHT[:NAME]")
-        return cls(int(match.group(1)), int(match.group(2)), name)
+        width = int(match.group(1))
+        mobile = width <= 600 or name.lower() in {"mobile", "phone"}
+        return cls(width, int(match.group(2)), name, mobile=mobile)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -60,11 +76,13 @@ class Viewport:
             "width": self.width,
             "height": self.height,
             "device_scale_factor": self.device_scale_factor,
+            "mobile": self.mobile,
+            "user_agent": self.user_agent,
         }
 
 
 DEFAULT_VIEWPORTS = (
-    Viewport(390, 844, "mobile"),
+    Viewport(390, 844, "mobile", mobile=True),
     Viewport(768, 1024, "tablet"),
     Viewport(1280, 800, "desktop"),
 )
@@ -75,8 +93,11 @@ class Settings:
     """All deterministic checks are configured here, with no hidden selectors."""
 
     viewports: tuple[Viewport, ...] = DEFAULT_VIEWPORTS
+    profile: str = "baseline"
     timeout_ms: int = 15_000
     settle_ms: int = 350
+    ready_selector: str = ""
+    wait_for_network_idle: bool = False
     min_tap_target_px: float = 44.0
     hard_font_px: float = 10.0
     min_font_px: float = 12.0
@@ -96,16 +117,48 @@ class Settings:
     cta_pattern: str = DEFAULT_CTA_PATTERN
     nav_pattern: str = DEFAULT_NAV_PATTERN
     smoke_selector: str = ""
+    smoke_success_selector: str = ""
+    smoke_success_url_pattern: str = ""
+    smoke_mode: str = "safe"
     ignore_selectors: tuple[str, ...] = ()
+    ignore_console_patterns: tuple[str, ...] = ()
+    ignore_request_patterns: tuple[str, ...] = ()
     browser_channel: str = ""
     fail_on_warn: bool = False
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        self._validate_types()
+        if self.profile not in {"baseline", "accessibility"}:
+            raise ValueError("profile must be 'baseline' or 'accessibility'")
         if not self.viewports:
             raise ValueError("at least one viewport is required")
+        if len(self.viewports) > 12:
+            raise ValueError("at most 12 viewports are supported")
         if self.timeout_ms < 1 or self.settle_ms < 0:
             raise ValueError("timeouts must be non-negative")
+        positive = {
+            "min_tap_target_px": self.min_tap_target_px,
+            "hard_font_px": self.hard_font_px,
+            "min_font_px": self.min_font_px,
+        }
+        for name, value in positive.items():
+            if value <= 0:
+                raise ValueError(f"{name} must be positive")
+        non_negative = {
+            "small_issue_report_min": self.small_issue_report_min,
+            "overflow_tolerance_px": self.overflow_tolerance_px,
+            "blank_text_chars": self.blank_text_chars,
+            "blank_element_count": self.blank_element_count,
+            "fcp_warn_ms": self.fcp_warn_ms,
+            "transfer_warn_bytes": self.transfer_warn_bytes,
+            "request_warn_count": self.request_warn_count,
+        }
+        for name, value in non_negative.items():
+            if value < 0:
+                raise ValueError(f"{name} must be non-negative")
+        if self.min_font_px < self.hard_font_px:
+            raise ValueError("min_font_px must be greater than or equal to hard_font_px")
         ratios = {
             "overlay_ratio": self.overlay_ratio,
             "aspect_tolerance": self.aspect_tolerance,
@@ -121,11 +174,38 @@ class Settings:
             raise ValueError("transfer_error_bytes must be >= transfer_warn_bytes")
         if self.request_error_count < self.request_warn_count:
             raise ValueError("request_error_count must be >= request_warn_count")
+        if self.smoke_mode not in {"safe", "live"}:
+            raise ValueError("smoke_mode must be 'safe' or 'live'")
         try:
             re.compile(self.cta_pattern)
             re.compile(self.nav_pattern)
+            if self.smoke_success_url_pattern:
+                re.compile(self.smoke_success_url_pattern)
+            for pattern in self.ignore_console_patterns:
+                re.compile(pattern)
+            for pattern in self.ignore_request_patterns:
+                re.compile(pattern)
         except re.error as exc:
-            raise ValueError(f"invalid CTA/navigation regular expression: {exc}") from exc
+            raise ValueError(f"invalid configuration regular expression: {exc}") from exc
+
+    def _validate_types(self) -> None:
+        hints = get_type_hints(type(self))
+        for name in type(self).__dataclass_fields__:
+            value = getattr(self, name)
+            if name == "viewports":
+                if not isinstance(value, tuple) or not all(
+                    isinstance(item, Viewport) for item in value
+                ):
+                    raise ValueError("viewports must be a tuple of Viewport values")
+            elif name in {
+                "ignore_console_patterns",
+                "ignore_request_patterns",
+                "ignore_selectors",
+            }:
+                if not isinstance(value, tuple) or not all(isinstance(item, str) for item in value):
+                    raise ValueError(f"{name} must be a tuple of strings")
+            else:
+                _validate_scalar_type(name, value, hints[name])
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, Any], base: Settings | None = None) -> Settings:
@@ -146,23 +226,31 @@ class Settings:
                     item if isinstance(item, Viewport) else Viewport.parse(str(item))
                     for item in value
                 )
-            elif key == "ignore_selectors":
+            elif key in {
+                "ignore_console_patterns",
+                "ignore_request_patterns",
+                "ignore_selectors",
+            }:
                 if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-                    raise ValueError("ignore_selectors must be a list of strings")
+                    raise ValueError(f"{key} must be a list of strings")
                 changes[key] = tuple(value)
             elif key == "metadata":
                 if not isinstance(value, dict):
                     raise ValueError("metadata must be an object")
                 changes[key] = dict(value)
             else:
-                changes[key] = value
+                hints = get_type_hints(cls)
+                changes[key] = _coerce_mapping_scalar(key, value, hints[key])
         return replace(current, **changes)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "viewports": [viewport.to_dict() for viewport in self.viewports],
+            "profile": self.profile,
             "timeout_ms": self.timeout_ms,
             "settle_ms": self.settle_ms,
+            "ready_selector": self.ready_selector,
+            "wait_for_network_idle": self.wait_for_network_idle,
             "min_tap_target_px": self.min_tap_target_px,
             "hard_font_px": self.hard_font_px,
             "min_font_px": self.min_font_px,
@@ -182,7 +270,12 @@ class Settings:
             "cta_pattern": self.cta_pattern,
             "nav_pattern": self.nav_pattern,
             "smoke_selector": self.smoke_selector,
+            "smoke_success_selector": self.smoke_success_selector,
+            "smoke_success_url_pattern": self.smoke_success_url_pattern,
+            "smoke_mode": self.smoke_mode,
             "ignore_selectors": list(self.ignore_selectors),
+            "ignore_console_patterns": list(self.ignore_console_patterns),
+            "ignore_request_patterns": list(self.ignore_request_patterns),
             "browser_channel": self.browser_channel,
             "fail_on_warn": self.fail_on_warn,
             "metadata": dict(self.metadata),
@@ -200,3 +293,40 @@ def load_settings(path: str | Path) -> Settings:
     if not isinstance(data, dict):
         raise ValueError("config root must be a JSON object")
     return Settings.from_mapping(data)
+
+
+def _coerce_mapping_scalar(name: str, value: Any, expected: Any) -> Any:
+    if expected is bool:
+        if type(value) is not bool:
+            raise ValueError(f"{name} must be a boolean")
+        return value
+    if expected is int:
+        if type(value) is not int:
+            raise ValueError(f"{name} must be an integer")
+        return value
+    if expected is float:
+        if type(value) not in {int, float}:
+            raise ValueError(f"{name} must be a number")
+        return float(value)
+    if expected is str:
+        if not isinstance(value, str):
+            raise ValueError(f"{name} must be a string")
+        return value
+    raise ValueError(f"{name} does not support JSON configuration")
+
+
+def _validate_scalar_type(name: str, value: Any, expected: Any) -> None:
+    if expected is bool:
+        valid = type(value) is bool
+    elif expected is int:
+        valid = type(value) is int
+    elif expected is float:
+        valid = type(value) in {int, float}
+    elif expected is str:
+        valid = isinstance(value, str)
+    elif expected is Mapping or getattr(expected, "__origin__", None) is Mapping:
+        valid = isinstance(value, Mapping)
+    else:
+        valid = True
+    if not valid:
+        raise ValueError(f"{name} has an invalid type")

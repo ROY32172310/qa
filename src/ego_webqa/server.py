@@ -6,6 +6,7 @@ import functools
 import http.server
 import threading
 from pathlib import Path
+from urllib.parse import quote
 
 
 class _QuietHandler(http.server.SimpleHTTPRequestHandler):
@@ -30,7 +31,7 @@ class LocalServer:
 
     def url(self, filename: str = "index.html") -> str:
         clean = filename.lstrip("/")
-        return f"http://127.0.0.1:{self.port}/{clean}"
+        return f"http://127.0.0.1:{self.port}/{quote(clean, safe='/')}"
 
     def close(self) -> None:
         self._server.shutdown()

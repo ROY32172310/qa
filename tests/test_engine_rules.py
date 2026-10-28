@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pytest
 
 from ego_webqa.config import Settings
-from ego_webqa.engine import _is_ignorable_failure, _issues_for_smoke, _issues_for_viewport
+from ego_webqa.engine import (
+    _is_blocked_network_error,
+    _is_ignorable_failure,
+    _issues_for_smoke,
+    _issues_for_viewport,
+)
 
 
 def _summary(**updates: Any) -> dict[str, Any]:
@@ -134,8 +140,51 @@ def test_smoke_classification() -> None:
         _issues_for_smoke({"found": True, "label": "Buy", "changed": True, "new_page_count": 0})
         == []
     )
+    assert (
+        _issues_for_smoke(
+            {
+                "found": True,
+                "label": "Buy",
+                "changed": False,
+                "new_page_count": 0,
+                "blocked_request_count": 1,
+            }
+        )
+        == []
+    )
+    assert [
+        issue.code
+        for issue in _issues_for_smoke(
+            {
+                "found": True,
+                "label": "Buy",
+                "changed": True,
+                "success": False,
+                "assertion_configured": True,
+                "assertions": [{"type": "selector", "selector": "#success", "matched": False}],
+            }
+        )
+    ] == ["cta_assertion_failed"]
+    assert (
+        _issues_for_smoke(
+            {
+                "found": True,
+                "label": "Buy",
+                "changed": False,
+                "success": True,
+                "assertion_configured": True,
+            }
+        )
+        == []
+    )
 
 
 def test_private_helpers() -> None:
     assert _is_ignorable_failure("https://example.test/favicon.ico")
     assert not _is_ignorable_failure("https://example.test/app.js")
+    assert _is_ignorable_failure(
+        "https://example.test/analytics/error.js",
+        (re.compile(r"/analytics/"),),
+    )
+    assert _is_blocked_network_error("TypeError: Failed to fetch")
+    assert not _is_blocked_network_error("ReferenceError: checkout is not defined")

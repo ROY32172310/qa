@@ -96,6 +96,11 @@ COLLECT_JS = r"""
     title: document.title || "",
     url: location.href,
     viewport: {width: innerWidth, height: innerHeight},
+    environment: {
+      userAgent: navigator.userAgent,
+      maxTouchPoints: navigator.maxTouchPoints || 0,
+      coarsePointer: matchMedia("(pointer: coarse)").matches,
+    },
     overflowX: Math.max(
       0,
       document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -194,6 +199,46 @@ async (cfg) => {
     }
   }
   if (!target) return {found: false};
+  const assertionResults = () => {
+    const results = [];
+    if (cfg.successSelector) {
+      try {
+        const successTarget = document.querySelector(cfg.successSelector);
+        results.push({
+          type: "selector",
+          selector: cfg.successSelector,
+          matched: !!(successTarget && visible(successTarget)),
+        });
+      } catch (err) {
+        results.push({
+          type: "selector",
+          selector: cfg.successSelector,
+          matched: false,
+          error: String(err).slice(0, 160),
+        });
+      }
+    }
+    if (cfg.successUrlPattern) {
+      try {
+        const successUrl = new RegExp(cfg.successUrlPattern, "i");
+        results.push({
+          type: "url",
+          pattern: cfg.successUrlPattern,
+          matched: successUrl.test(location.href),
+          url: location.href,
+        });
+      } catch (err) {
+        results.push({
+          type: "url",
+          pattern: cfg.successUrlPattern,
+          matched: false,
+          error: String(err).slice(0, 160),
+        });
+      }
+    }
+    return results;
+  };
+  const assertionsBefore = assertionResults();
   const before = state();
   let clickError = "";
   try {
@@ -211,6 +256,192 @@ async (cfg) => {
     before.dialogCount !== after.dialogCount ||
     before.url !== after.url
   );
-  return {found: true, label, changed, clickError, before, after};
+  const assertions = assertionResults().map((result, index) => ({
+    ...result,
+    matchedBefore: !!assertionsBefore[index].matched,
+    matchedAfter: !!result.matched,
+    matched: !!result.matched && !assertionsBefore[index].matched,
+  }));
+  const assertionConfigured = assertions.length > 0;
+  const assertionMatched = assertionConfigured
+    ? assertions.every(assertion => assertion.matched)
+    : null;
+  return {
+    found: true,
+    label,
+    changed,
+    assertions,
+    assertionConfigured,
+    assertionMatched,
+    clickError,
+    before,
+    after,
+  };
+}
+"""
+
+SMOKE_ASSERTIONS_JS = r"""
+(cfg) => {
+  const visible = (el) => {
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return rect.width > 2 && rect.height > 2 && style.display !== "none" &&
+      style.visibility !== "hidden" && parseFloat(style.opacity || "1") >= 0.05;
+  };
+  const results = [];
+  if (cfg.successSelector) {
+    try {
+      const target = document.querySelector(cfg.successSelector);
+      results.push({
+        type: "selector",
+        selector: cfg.successSelector,
+        matched: !!(target && visible(target)),
+      });
+    } catch (err) {
+      results.push({
+        type: "selector",
+        selector: cfg.successSelector,
+        matched: false,
+        error: String(err).slice(0, 160),
+      });
+    }
+  }
+  if (cfg.successUrlPattern) {
+    try {
+      const pattern = new RegExp(cfg.successUrlPattern, "i");
+      results.push({
+        type: "url",
+        pattern: cfg.successUrlPattern,
+        matched: pattern.test(location.href),
+        url: location.href,
+      });
+    } catch (err) {
+      results.push({
+        type: "url",
+        pattern: cfg.successUrlPattern,
+        matched: false,
+        error: String(err).slice(0, 160),
+      });
+    }
+  }
+  return results;
+}
+"""
+
+ACCESSIBILITY_JS = r"""
+() => {
+  const visible = (el) => {
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    if (rect.width <= 2 || rect.height <= 2) return false;
+    if (style.display === "none" || style.visibility === "hidden") return false;
+    if (parseFloat(style.opacity || "1") < 0.05) return false;
+    for (let node = el.parentElement; node && node !== document.documentElement;
+      node = node.parentElement) {
+      const parentStyle = getComputedStyle(node);
+      if (parentStyle.display === "none" || parentStyle.visibility === "hidden") return false;
+      if (parseFloat(parentStyle.opacity || "1") < 0.05) return false;
+    }
+    return true;
+  };
+  const accessibleText = (el) => {
+    let text = "";
+    for (const node of [...el.childNodes]) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        text += node.nodeValue || "";
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const child = node;
+        if (child.getAttribute("aria-hidden") === "true") continue;
+        const style = getComputedStyle(child);
+        if (style.display === "none" || style.visibility === "hidden") continue;
+        if (child.tagName === "IMG" && child.alt) {
+          text += ` ${child.alt} `;
+          continue;
+        }
+        text += accessibleText(child);
+      }
+    }
+    return text.replace(/\s+/g, " ").trim();
+  };
+  const idText = (ids) => ids
+    .split(/\s+/)
+    .map(id => document.getElementById(id))
+    .filter(Boolean)
+    .map(accessibleText)
+    .filter(Boolean)
+    .join(" ");
+  const accessibleName = (el) => {
+    const ariaLabel = (el.getAttribute("aria-label") || "").trim();
+    if (ariaLabel) return ariaLabel;
+    const labelledBy = (el.getAttribute("aria-labelledby") || "").trim();
+    if (labelledBy && idText(labelledBy)) return idText(labelledBy);
+    if (el.labels && el.labels.length) {
+      const labelText = [...el.labels].map(accessibleText).filter(Boolean).join(" ");
+      if (labelText) return labelText;
+    }
+    if (el.tagName === "IMG" && el.alt) return el.alt.trim();
+    if (["submit", "button", "reset"].includes((el.type || "").toLowerCase()) && el.value) {
+      return String(el.value).trim();
+    }
+    const text = accessibleText(el);
+    if (text) return text;
+    return (el.getAttribute("title") || "").trim();
+  };
+  const label = (el) => (
+    accessibleName(el) || el.id || el.getAttribute("name") || el.tagName.toLowerCase()
+  ).slice(0, 80);
+  const focusableSelector =
+    "a[href],button,input:not([type=hidden]),select,textarea,[tabindex],[contenteditable=true]";
+  const controls = [...document.querySelectorAll(
+    "a[href],button,input:not([type=hidden]),select,textarea,[role=button],[role=link]"
+  )].filter(visible);
+  const missingNames = controls
+    .filter(el => !accessibleName(el))
+    .map(el => ({tag: el.tagName.toLowerCase(), label: label(el)}));
+  const imagesMissingAlt = [...document.images]
+    .filter(img => visible(img) && !img.hasAttribute("alt"))
+    .map(img => ({src: (img.currentSrc || img.src || "").slice(0, 180)}));
+  const idCounts = new Map();
+  for (const el of document.querySelectorAll("[id]")) {
+    const id = el.id;
+    if (!id) continue;
+    idCounts.set(id, (idCounts.get(id) || 0) + 1);
+  }
+  const duplicateIds = [...idCounts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([id, count]) => ({id, count}));
+  const headings = [...document.querySelectorAll("h1,h2,h3,h4,h5,h6")]
+    .filter(visible)
+    .map(el => ({
+      level: Number(el.tagName.slice(1)),
+      label: accessibleText(el).slice(0, 80),
+    }));
+  const headingSkips = [];
+  for (let index = 1; index < headings.length; index += 1) {
+    if (headings[index].level > headings[index - 1].level + 1) {
+      headingSkips.push({
+        from: headings[index - 1].level,
+        to: headings[index].level,
+        label: headings[index].label,
+      });
+    }
+  }
+  const positiveTabindex = [...document.querySelectorAll("[tabindex]")]
+    .filter(visible)
+    .map(el => ({tabindex: Number(el.getAttribute("tabindex")), label: label(el)}))
+    .filter(item => Number.isFinite(item.tabindex) && item.tabindex > 0);
+  const hiddenFocusable = [...document.querySelectorAll(focusableSelector)]
+    .filter(el => visible(el) && el.closest("[aria-hidden=true]"))
+    .map(el => ({label: label(el)}));
+  return {
+    lang: (document.documentElement.lang || "").trim(),
+    title: (document.title || "").trim(),
+    missingNames,
+    imagesMissingAlt,
+    duplicateIds,
+    headingSkips,
+    positiveTabindex,
+    hiddenFocusable,
+  };
 }
 """

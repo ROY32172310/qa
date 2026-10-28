@@ -42,6 +42,9 @@ def test_machine_report_formats(tmp_path: Path) -> None:
     assert len(suite.findall("testcase/failure")) == 1
     sarif = to_sarif(report)
     assert sarif["runs"][0]["results"][0]["ruleId"] == "dead_primary_cta"
+    assert (
+        sarif["runs"][0]["tool"]["driver"]["informationUri"] == "https://github.com/ROY32172310/qa"
+    )
 
 
 def test_warning_and_empty_junit() -> None:

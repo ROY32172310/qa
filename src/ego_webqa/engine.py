@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import re
 import time
 from collections.abc import Sequence
 from datetime import datetime, timezone
@@ -10,9 +11,16 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from .config import Settings, Viewport
+from .config import MOBILE_USER_AGENT, Settings, Viewport
 from .models import AuditReport, Issue, Severity, derive_status
-from .probes import ARM_LAYOUT_SHIFT_JS, COLLECT_JS, READ_TIMING_JS, SMOKE_JS
+from .probes import (
+    ACCESSIBILITY_JS,
+    ARM_LAYOUT_SHIFT_JS,
+    COLLECT_JS,
+    READ_TIMING_JS,
+    SMOKE_ASSERTIONS_JS,
+    SMOKE_JS,
+)
 
 
 class AuditRuntimeError(RuntimeError):
@@ -47,7 +55,11 @@ def audit(
     issues: list[Issue] = []
     viewport_results: list[dict[str, Any]] = []
     screenshots: list[str] = []
-    smoke_result: dict[str, Any] = {"enabled": smoke, "performed": False}
+    smoke_result: dict[str, Any] = {
+        "enabled": smoke,
+        "performed": False,
+        "mode": cfg.smoke_mode if smoke else None,
+    }
     runtime: dict[str, Any] = {}
 
     try:
@@ -129,10 +141,18 @@ def _audit_viewport(
         "performed": False,
         "viewport": viewport.name,
     }
-    context = browser.new_context(
-        viewport={"width": viewport.width, "height": viewport.height},
-        device_scale_factor=viewport.device_scale_factor,
-    )
+    console_ignores = _compile_patterns(cfg.ignore_console_patterns)
+    request_ignores = _compile_patterns(cfg.ignore_request_patterns)
+    context_options: dict[str, Any] = {
+        "viewport": {"width": viewport.width, "height": viewport.height},
+        "device_scale_factor": viewport.device_scale_factor,
+        "is_mobile": viewport.mobile,
+        "has_touch": viewport.mobile,
+    }
+    user_agent = viewport.user_agent or (MOBILE_USER_AGENT if viewport.mobile else "")
+    if user_agent:
+        context_options["user_agent"] = user_agent
+    context = browser.new_context(**context_options)
     page = context.new_page()
     page.set_default_timeout(cfg.timeout_ms)
     page.add_init_script(ARM_LAYOUT_SHIFT_JS)
@@ -140,7 +160,9 @@ def _audit_viewport(
     page.on(
         "console",
         lambda message: (
-            console_errors.append(str(message.text)[:300]) if message.type == "error" else None
+            console_errors.append(str(message.text)[:300])
+            if message.type == "error" and not _matches_any(str(message.text), console_ignores)
+            else None
         ),
     )
     page.on(
@@ -157,13 +179,24 @@ def _audit_viewport(
         "status": "error",
     }
     issues: list[Issue]
+    stage = "navigation"
     try:
         response = page.goto(target, wait_until="load", timeout=cfg.timeout_ms)
         navigation_status = response.status if response is not None else 0
+        stage = "ready_selector"
+        if cfg.ready_selector:
+            page.wait_for_selector(cfg.ready_selector, state="visible", timeout=cfg.timeout_ms)
+        stage = "network_idle"
+        if cfg.wait_for_network_idle:
+            with contextlib.suppress(Exception):
+                page.wait_for_load_state("networkidle", timeout=min(cfg.timeout_ms, 3_000))
+        stage = "probe"
         page.wait_for_timeout(cfg.settle_ms)
         snapshot = page.evaluate(COLLECT_JS, _probe_config(cfg))
+        if cfg.profile == "accessibility":
+            snapshot["accessibility"] = page.evaluate(ACCESSIBILITY_JS)
         timing = page.evaluate(READ_TIMING_JS) or {}
-        network = _network_summary(responses, failed_requests)
+        network = _network_summary(responses, failed_requests, request_ignores)
         summary = {
             "viewport": viewport.to_dict(),
             "title": snapshot.get("title", ""),
@@ -183,7 +216,7 @@ def _audit_viewport(
         measurements = summary
         issues = _issues_for_viewport(summary, cfg)
 
-        if run_smoke:
+        if run_smoke and navigation_status < 400:
             smoke = _run_smoke(page, cfg, page_errors, viewport.name)
             if smoke.get("performed"):
                 after_shot = shot_dir / f"{_safe_name(viewport.name)}-after-smoke.png"
@@ -194,6 +227,12 @@ def _audit_viewport(
                 issues.extend(_issues_for_smoke(smoke))
     except Exception as exc:  # noqa: BLE001 - one viewport must not hide the others
         navigation_error = str(exc)[:500]
+        issue_code = "ready_selector_not_found" if stage == "ready_selector" else "load_error"
+        hint = (
+            "Wait for the SPA to render the configured ready_selector."
+            if issue_code == "ready_selector_not_found"
+            else "Check the target URL, authentication, and network availability."
+        )
         measurements = {
             "viewport": viewport.to_dict(),
             "status": "error",
@@ -204,11 +243,11 @@ def _audit_viewport(
         }
         issues = [
             Issue(
-                code="load_error",
+                code=issue_code,
                 severity="error",
                 viewport=viewport.name,
                 message=f"page could not be audited: {navigation_error}",
-                hint="Check the target URL, authentication, and network availability.",
+                hint=hint,
             )
         ]
     finally:
@@ -231,15 +270,23 @@ def _probe_config(cfg: Settings) -> dict[str, Any]:
     }
 
 
-def _network_summary(responses: Sequence[Any], request_failures: Sequence[str]) -> dict[str, Any]:
+def _network_summary(
+    responses: Sequence[Any],
+    request_failures: Sequence[str],
+    request_ignores: tuple[re.Pattern[str], ...] = (),
+) -> dict[str, Any]:
     total_bytes = 0
-    failed: list[str] = list(request_failures)
+    failed = [
+        failure
+        for failure in request_failures
+        if not _matches_any(failure.split(" (", 1)[0], request_ignores)
+    ]
     for response in responses:
         try:
             status = int(response.status)
         except Exception:  # noqa: BLE001
             status = 0
-        if status >= 400 and not _is_ignorable_failure(response.url):
+        if status >= 400 and not _is_ignorable_failure(response.url, request_ignores):
             failed.append(f"HTTP {status} {response.url}")
         try:
             size = int(response.request.sizes().get("responseBodySize") or 0)
@@ -255,8 +302,19 @@ def _network_summary(responses: Sequence[Any], request_failures: Sequence[str]) 
     }
 
 
-def _is_ignorable_failure(url: str) -> bool:
-    return urlsplit(url).path.lower().endswith("/favicon.ico")
+def _is_ignorable_failure(
+    url: str,
+    request_ignores: tuple[re.Pattern[str], ...] = (),
+) -> bool:
+    return urlsplit(url).path.lower().endswith("/favicon.ico") or _matches_any(url, request_ignores)
+
+
+def _compile_patterns(patterns: Sequence[str]) -> tuple[re.Pattern[str], ...]:
+    return tuple(re.compile(pattern) for pattern in patterns)
+
+
+def _matches_any(value: str, patterns: Sequence[re.Pattern[str]]) -> bool:
+    return any(pattern.search(value) for pattern in patterns)
 
 
 def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
@@ -273,6 +331,7 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
                 name,
             )
         )
+        return issues
     if summary.get("page_errors"):
         issues.append(
             Issue(
@@ -466,6 +525,107 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
                 {"bytes": bytes_used, "requests": requests},
             )
         )
+    issues.extend(_issues_for_accessibility(data, name))
+    return issues
+
+
+def _issues_for_accessibility(data: dict[str, Any], viewport: str) -> list[Issue]:
+    accessibility = data.get("accessibility")
+    if not isinstance(accessibility, dict):
+        return []
+    issues: list[Issue] = []
+    if not accessibility.get("lang"):
+        issues.append(
+            Issue(
+                "missing_html_lang",
+                "warning",
+                "document language is not declared",
+                viewport,
+                'Set the html lang attribute, for example <html lang="zh-CN">.',
+            )
+        )
+    if not accessibility.get("title"):
+        issues.append(
+            Issue(
+                "missing_page_title",
+                "warning",
+                "document title is empty",
+                viewport,
+                "Give every page a unique, descriptive title.",
+            )
+        )
+    missing_names = accessibility.get("missingNames") or []
+    if missing_names:
+        issues.append(
+            Issue(
+                "control_missing_name",
+                "error",
+                f"{len(missing_names)} interactive control(s) have no accessible name",
+                viewport,
+                "Add visible text, a label, aria-label, or aria-labelledby.",
+                {"controls": missing_names[:10]},
+            )
+        )
+    missing_alt = accessibility.get("imagesMissingAlt") or []
+    if missing_alt:
+        issues.append(
+            Issue(
+                "image_missing_alt",
+                "error",
+                f"{len(missing_alt)} visible image(s) have no alt attribute",
+                viewport,
+                'Describe meaningful images; use alt="" only for decorative images.',
+                {"images": missing_alt[:10]},
+            )
+        )
+    duplicate_ids = accessibility.get("duplicateIds") or []
+    if duplicate_ids:
+        issues.append(
+            Issue(
+                "duplicate_id",
+                "warning",
+                f"{len(duplicate_ids)} duplicate HTML id value(s) were found",
+                viewport,
+                "Use unique ids so labels and ARIA references resolve deterministically.",
+                {"ids": duplicate_ids[:10]},
+            )
+        )
+    heading_skips = accessibility.get("headingSkips") or []
+    if heading_skips:
+        issues.append(
+            Issue(
+                "heading_level_skip",
+                "warning",
+                f"{len(heading_skips)} heading level jump(s) were found",
+                viewport,
+                "Keep heading levels sequential to preserve document navigation.",
+                {"jumps": heading_skips[:10]},
+            )
+        )
+    positive_tabindex = accessibility.get("positiveTabindex") or []
+    if positive_tabindex:
+        issues.append(
+            Issue(
+                "positive_tabindex",
+                "warning",
+                f"{len(positive_tabindex)} element(s) use a positive tabindex",
+                viewport,
+                "Use the natural DOM order and tabindex=0 or -1 only where required.",
+                {"elements": positive_tabindex[:10]},
+            )
+        )
+    hidden_focusable = accessibility.get("hiddenFocusable") or []
+    if hidden_focusable:
+        issues.append(
+            Issue(
+                "aria_hidden_focusable",
+                "error",
+                f"{len(hidden_focusable)} focusable element(s) are inside aria-hidden content",
+                viewport,
+                "Remove the element from the tab order or stop hiding its container.",
+                {"elements": hidden_focusable[:10]},
+            )
+        )
     return issues
 
 
@@ -477,11 +637,39 @@ def _run_smoke(
 ) -> dict[str, Any]:
     errors_before = len(page_errors)
     pages_before = len(page.context.pages)
+    blocked_requests: list[dict[str, str]] = []
+
+    def block_request(route: Any) -> None:
+        request = route.request
+        blocked_requests.append(
+            {
+                "method": str(request.method),
+                "resource_type": str(request.resource_type),
+                "url": str(request.url)[:300],
+            }
+        )
+        route.abort("blockedbyclient")
+
+    safe = cfg.smoke_mode == "safe"
+    if safe:
+        page.context.route("**/*", block_request)
+        page.context.set_offline(True)
+    assertion_config = {
+        "successSelector": cfg.smoke_success_selector,
+        "successUrlPattern": cfg.smoke_success_url_pattern,
+    }
+    assertions_before: list[dict[str, Any]] = []
+    if cfg.smoke_success_selector or cfg.smoke_success_url_pattern:
+        with contextlib.suppress(Exception):
+            assertions_before = page.evaluate(SMOKE_ASSERTIONS_JS, assertion_config) or []
+    url_before = page.url
     try:
         result = page.evaluate(
             SMOKE_JS,
             {
                 "selector": cfg.smoke_selector,
+                "successSelector": cfg.smoke_success_selector,
+                "successUrlPattern": cfg.smoke_success_url_pattern,
                 "ctaPattern": cfg.cta_pattern,
                 "navPattern": cfg.nav_pattern,
                 "ignore": list(cfg.ignore_selectors),
@@ -489,19 +677,56 @@ def _run_smoke(
             },
         )
     except Exception as exc:  # noqa: BLE001 - navigation can tear down the execution context
+        with contextlib.suppress(Exception):
+            page.wait_for_load_state("domcontentloaded", timeout=min(cfg.timeout_ms, 3_000))
+        with contextlib.suppress(Exception):
+            page.wait_for_timeout(max(cfg.settle_ms, 600))
+        assertions_after: list[dict[str, Any]] = []
+        with contextlib.suppress(Exception):
+            assertions_after = page.evaluate(SMOKE_ASSERTIONS_JS, assertion_config) or []
+        assertions = _merge_smoke_assertions(assertions_before, assertions_after)
         result = {
             "found": True,
-            "changed": len(page.context.pages) > pages_before,
+            "changed": len(page.context.pages) > pages_before or page.url != url_before,
             "clickError": str(exc)[:300],
             "execution_lost": True,
+            "assertions": assertions,
+            "assertionConfigured": bool(assertions),
+            "assertionMatched": bool(assertions)
+            and all(assertion["matched"] for assertion in assertions),
         }
+    finally:
+        if safe:
+            page.context.unroute("**/*", block_request)
     result = dict(result or {})
+    new_page_errors = page_errors[errors_before:]
+    suppressed_network_errors = [
+        error
+        for error in new_page_errors
+        if safe and blocked_requests and _is_blocked_network_error(error)
+    ]
+    actionable_page_errors = [
+        error for error in new_page_errors if error not in suppressed_network_errors
+    ]
+    new_page_count = max(0, len(page.context.pages) - pages_before)
+    assertion_configured = bool(cfg.smoke_success_selector or cfg.smoke_success_url_pattern)
+    observed_effect = bool(result.get("changed") or new_page_count or blocked_requests)
+    success = bool(result.get("assertionMatched")) if assertion_configured else observed_effect
     result.update(
         {
             "performed": True,
+            "mode": cfg.smoke_mode,
+            "offline": safe,
             "viewport": viewport_name,
-            "new_page_count": max(0, len(page.context.pages) - pages_before),
-            "page_error_count": max(0, len(page_errors) - errors_before),
+            "new_page_count": new_page_count,
+            "observed_effect": observed_effect,
+            "assertion_configured": assertion_configured,
+            "success": success,
+            "page_error_count": len(actionable_page_errors),
+            "page_errors": actionable_page_errors[:10],
+            "suppressed_network_errors": suppressed_network_errors[:10],
+            "blocked_request_count": len(blocked_requests),
+            "blocked_requests": blocked_requests[:10],
         }
     )
     return result
@@ -530,8 +755,33 @@ def _issues_for_smoke(smoke: dict[str, Any]) -> list[Issue]:
                 name,
             )
         )
-    if not smoke.get("changed") and not smoke.get("new_page_count"):
+    success = smoke.get("success")
+    if success is None:
+        success = bool(
+            smoke.get("changed")
+            or smoke.get("new_page_count")
+            or smoke.get("blocked_request_count")
+        )
+    if not success:
         detail = smoke.get("clickError") or "DOM, form fields, dialogs, and URL did not change"
+        if smoke.get("assertion_configured"):
+            failed_assertions = [
+                assertion
+                for assertion in smoke.get("assertions") or []
+                if not assertion.get("matched")
+            ]
+            issues.append(
+                Issue(
+                    "cta_assertion_failed",
+                    "error",
+                    f"clicking {smoke.get('label')!r} did not satisfy the success assertion",
+                    name,
+                    "Make the success selector visible, satisfy the URL pattern, or adjust "
+                    "the configured post-click assertion.",
+                    {"assertions": failed_assertions, "smoke": smoke},
+                )
+            )
+            return issues
         issues.append(
             Issue(
                 "dead_primary_cta",
@@ -543,6 +793,38 @@ def _issues_for_smoke(smoke: dict[str, Any]) -> list[Issue]:
             )
         )
     return issues
+
+
+def _merge_smoke_assertions(
+    before: Sequence[dict[str, Any]],
+    after: Sequence[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    merged = []
+    for index, current in enumerate(after):
+        previous = before[index] if index < len(before) else {}
+        matched_before = bool(previous.get("matched"))
+        matched_after = bool(current.get("matched"))
+        merged.append(
+            {
+                **current,
+                "matchedBefore": matched_before,
+                "matchedAfter": matched_after,
+                "matched": matched_after and not matched_before,
+            }
+        )
+    return merged
+
+
+def _is_blocked_network_error(error: str) -> bool:
+    lowered = error.lower()
+    markers = (
+        "failed to fetch",
+        "load failed",
+        "networkerror",
+        "net::err_failed",
+        "err_blocked_by_client",
+    )
+    return any(marker in lowered for marker in markers)
 
 
 def _safe_name(name: str) -> str:

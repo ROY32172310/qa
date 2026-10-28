@@ -1,0 +1,16 @@
+name: delivery-qa
+
+on:
+  pull_request:
+
+jobs:
+  webqa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ROY32172310/qa@v0.2.0
+        with:
+          url: ${{ vars.PREVIEW_URL }}
+          profile: accessibility
+          fail-on-warn: "true"
+          artifact-name: webqa-${{ github.event.pull_request.number }}

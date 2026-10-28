@@ -1,7 +1,14 @@
 {
+  "profile": "baseline",
   "viewports": ["390x844:mobile", "768x1024:tablet", "1280x800:desktop"],
+  "ready_selector": "",
+  "wait_for_network_idle": false,
   "min_tap_target_px": 44,
   "min_font_px": 12,
-  "ignore_selectors": [".third-party-chat-widget"]
+  "smoke_mode": "safe",
+  "smoke_success_selector": "",
+  "smoke_success_url_pattern": "",
+  "ignore_selectors": [".third-party-chat-widget"],
+  "ignore_console_patterns": [],
+  "ignore_request_patterns": []
 }
-

@@ -8,6 +8,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from . import __version__
 from .config import Settings, Viewport, load_settings
 from .engine import AuditRuntimeError, audit
 from .reporting import write_reports
@@ -24,42 +25,100 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--file", default="index.html", help="entry file under --dir")
     parser.add_argument("--config", help="JSON configuration file")
     parser.add_argument(
+        "--profile",
+        choices=("baseline", "accessibility"),
+        help="check profile (baseline or baseline plus accessibility checks)",
+    )
+    parser.add_argument(
         "--viewports",
         help="comma-separated WIDTHxHEIGHT[:NAME] list (default: 390x844,768x1024,1280x800)",
     )
     parser.add_argument("--out", default="webqa-report", help="artifact directory")
     parser.add_argument("--timeout-ms", type=int, help="navigation/action timeout")
+    parser.add_argument("--ready-selector", help="wait for this selector before probing")
+    parser.add_argument(
+        "--wait-for-network-idle",
+        action="store_true",
+        help="wait up to 3 seconds for network idle before probing",
+    )
     parser.add_argument(
         "--ignore-selector",
         action="append",
         default=[],
         help="selector to exclude",
     )
+    parser.add_argument(
+        "--ignore-console-pattern",
+        action="append",
+        default=[],
+        help="regular expression for known console.error noise",
+    )
+    parser.add_argument(
+        "--ignore-request-pattern",
+        action="append",
+        default=[],
+        help="regular expression for known failed-request noise",
+    )
     parser.add_argument("--smoke-selector", help="explicit primary CTA selector")
+    parser.add_argument(
+        "--smoke-success-selector",
+        help="selector that must transition to visible after the CTA click",
+    )
+    parser.add_argument(
+        "--smoke-success-url-pattern",
+        help="regular expression the URL must newly match after the CTA click",
+    )
     parser.add_argument(
         "--browser-channel",
         help="Chrome channel, e.g. chrome, chrome-beta, msedge",
     )
     parser.add_argument("--no-smoke", action="store_true", help="skip the primary-CTA click")
+    parser.add_argument(
+        "--smoke-mode",
+        choices=("safe", "live"),
+        help="safe blocks smoke-test network requests; live permits real side effects",
+    )
     parser.add_argument("--fail-on-warn", action="store_true", help="make warnings exit non-zero")
     parser.add_argument("--json", action="store_true", help="print the complete JSON report")
-    parser.add_argument("--version", action="version", version="ego-webqa 0.1.0")
+    parser.add_argument("--version", action="version", version=f"ego-webqa {__version__}")
     return parser
 
 
 def _settings(args: argparse.Namespace) -> Settings:
     cfg = load_settings(args.config) if args.config else Settings()
     updates: dict[str, object] = {}
+    if args.profile is not None:
+        updates["profile"] = args.profile
     if args.viewports:
         updates["viewports"] = [Viewport.parse(item) for item in args.viewports.split(",")]
     if args.timeout_ms is not None:
         updates["timeout_ms"] = args.timeout_ms
+    if args.ready_selector is not None:
+        updates["ready_selector"] = args.ready_selector
+    if args.wait_for_network_idle:
+        updates["wait_for_network_idle"] = True
     if args.ignore_selector:
         updates["ignore_selectors"] = [*cfg.ignore_selectors, *args.ignore_selector]
+    if args.ignore_console_pattern:
+        updates["ignore_console_patterns"] = [
+            *cfg.ignore_console_patterns,
+            *args.ignore_console_pattern,
+        ]
+    if args.ignore_request_pattern:
+        updates["ignore_request_patterns"] = [
+            *cfg.ignore_request_patterns,
+            *args.ignore_request_pattern,
+        ]
     if args.smoke_selector is not None:
         updates["smoke_selector"] = args.smoke_selector
+    if args.smoke_success_selector is not None:
+        updates["smoke_success_selector"] = args.smoke_success_selector
+    if args.smoke_success_url_pattern is not None:
+        updates["smoke_success_url_pattern"] = args.smoke_success_url_pattern
     if args.browser_channel is not None:
         updates["browser_channel"] = args.browser_channel
+    if args.smoke_mode is not None:
+        updates["smoke_mode"] = args.smoke_mode
     if args.fail_on_warn:
         updates["fail_on_warn"] = True
     return Settings.from_mapping(updates, base=cfg)
