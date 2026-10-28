@@ -15,6 +15,7 @@ from .config import (
     apply_auth_environment,
     load_settings,
 )
+from .dimensions import registry_payload
 from .engine import AuditRuntimeError, audit
 from .reporting import write_reports
 from .server import LocalServer
@@ -104,6 +105,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--fail-on-warn", action="store_true", help="make warnings exit non-zero")
     parser.add_argument("--json", action="store_true", help="print the complete JSON report")
+    parser.add_argument(
+        "--list-dimensions",
+        action="store_true",
+        help="print the closed dimension registry as JSON and exit",
+    )
     parser.add_argument("--version", action="version", version=f"ego-webqa {__version__}")
     return parser
 
@@ -167,6 +173,9 @@ def _json_text(payload: object, encoding: str) -> str:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.list_dimensions:
+        print(_json_text(registry_payload(), sys.stdout.encoding or "utf-8"))
+        return 0
     if not args.url and not args.dir:
         print("ego-webqa: provide a URL or --dir", file=sys.stderr)
         return 2
@@ -191,6 +200,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             output_dir=Path(args.out),
             smoke=not args.no_smoke,
         )
+        source: dict[str, str] = {"kind": "url"}
+        if args.dir:
+            source = {
+                "kind": "directory",
+                "directory": str(Path(args.dir).resolve()),
+                "file": args.file,
+            }
+        if args.config:
+            source["config"] = str(Path(args.config).resolve())
+        report.settings["source"] = source
         artifacts = write_reports(report, args.out)
     except (AuditRuntimeError, OSError, ValueError) as exc:
         print(f"ego-webqa: {exc}", file=sys.stderr)

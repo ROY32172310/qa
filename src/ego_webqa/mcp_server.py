@@ -14,25 +14,16 @@ from mcp.server.mcpserver import MCPServer
 from . import __version__
 from .config import Settings, Viewport, apply_auth_environment, load_settings
 from .engine import AuditRuntimeError, audit
-from .reporting import write_reports
+from .reporting import build_agent_summary, write_reports
 from .server import LocalServer
 
 TOOL_NAME = "audit_web_page"
 
 
 def _result(payload: dict[str, Any], *, is_error: bool) -> types.CallToolResult:
-    summary = {
+    summary = payload.get("agent_summary") or {
         "status": payload.get("status"),
         "counts": payload.get("counts"),
-        "issues": [
-            {
-                "code": issue["code"],
-                "severity": issue["severity"],
-                "viewport": issue["viewport"],
-                "message": issue["message"],
-            }
-            for issue in payload.get("issues", [])
-        ],
     }
     return types.CallToolResult(
         content=[
@@ -115,6 +106,16 @@ def audit_web_page(
                 local_server = LocalServer(directory)
                 target = local_server.url(file)
             report = audit(target, settings=cfg, output_dir=output, smoke=smoke)
+            source: dict[str, str] = {"kind": "url"}
+            if directory:
+                source = {
+                    "kind": "directory",
+                    "directory": str(Path(directory).resolve()),
+                    "file": file,
+                }
+            if config:
+                source["config"] = str(Path(config).resolve())
+            report.settings["source"] = source
             artifacts = write_reports(report, output)
         finally:
             if local_server is not None:
@@ -123,6 +124,7 @@ def audit_web_page(
         return _error_result(str(exc))
 
     payload = report.to_dict()
+    payload["agent_summary"] = build_agent_summary(report)
     payload["artifacts"] = artifacts
     payload["output_dir"] = str(output.resolve())
     return _result(payload, is_error=report.status == "fail")

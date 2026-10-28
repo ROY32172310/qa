@@ -20,4 +20,6 @@ other external side effect is explicitly intended. Use `--no-smoke` when even a
 DOM-only click is undesirable.
 
 The tool does not upload source code or screenshots. Artifacts are written
-locally unless the calling CI system uploads them.
+locally unless the calling CI system uploads them. Network evidence removes
+credentials, query strings, and fragments so signed URLs do not leak into
+Agent summaries.

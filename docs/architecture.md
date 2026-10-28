@@ -1,12 +1,13 @@
 # Architecture
 
-`ego-webqa` is intentionally split into five core pieces:
+`ego-webqa` is intentionally split into six core pieces:
 
 1. `config.py`: public configuration and the only threshold source of truth.
-2. `probes.py`: browser-side facts, with no pass/fail decisions.
-3. `engine.py`: Playwright orchestration and Python-side classification.
-4. `reporting.py`: stable JSON, JUnit, and SARIF adapters.
-5. `cli.py`: argument handling, local serving, and exit codes.
+2. `dimensions.py`: the closed, versioned registry of issue dimensions.
+3. `probes.py`: browser-side facts, with no pass/fail decisions.
+4. `engine.py`: Playwright orchestration and Python-side classification.
+5. `reporting.py`: full reports, Agent summaries, JUnit, and SARIF adapters.
+6. `cli.py`: argument handling, local serving, and exit codes.
 
 The core package has one runtime dependency: Playwright. Browser binaries are
 installed separately.
@@ -27,16 +28,22 @@ argument array rather than interpolated into an executable script.
 
 ## Multi-agent boundary
 
-Each `audit()` call or CLI process owns its Playwright instance, browser,
+Each `audit()` call or CLI process owns its Playwright lifecycles, browsers,
 per-viewport contexts, local static server, and output directory. Settings are
 frozen, mapping values are immutable, and reports are assembled per call. Agents
 can therefore run in separate processes against the same target as long as each
 selects a distinct output directory.
 
+Within one call, up to three viewports run concurrently in independent threads,
+each with its own Playwright runtime and browser. Results are reassembled in
+configured viewport order; cookies, browser state, screenshots, and evidence
+remain isolated.
+
 The stable integration surface is:
 
 - exit code: `0` pass/warn, `1` blocking issue, `2` invocation/runtime failure;
 - `report.json` and `--json` output with explicit `schema_version`;
+- `agent_summary.json` with root-cause aggregation and repair commands;
 - relative screenshot references inside the report directory;
 - JUnit and SARIF generated from the same issue list.
 
@@ -47,13 +54,28 @@ through environment variables.
 `mcp_server.py` is an optional protocol adapter over the same `audit()` and
 reporting functions. It does not contain a second QA implementation. An MCP
 tool call creates an isolated audit and returns the full versioned report as
-structured content; blocking status is mapped to the protocol's tool-error
-channel. The base package keeps its single Playwright runtime dependency, while
-the `mcp` extra adds the protocol SDK for agent hosts.
+structured content plus the compact Agent summary; blocking status is mapped to
+the protocol's tool-error channel. The base package keeps its single Playwright
+runtime dependency, while the `mcp` extra adds the protocol SDK for agent hosts.
 
-## Deliberate exclusions
+## Dimension registry
 
-The core does not know about:
+`dimensions.py` is the single source of truth for issue identity. Every emitted
+issue must resolve to a registered dimension while reports are serialized.
+Registry entries carry a stable id and version, detector ownership, default
+severity, introducing release, profile, and parameter names. New checks enter
+the registry as advisory warnings until real-site evidence supports blocking.
+
+The registry is not user-extensible. Configuration can change exposed values,
+but it cannot invent a dimension or arbitrary assertion.
+
+## Scope and deliberate exclusions
+
+The report covers multi-viewport geometry and deterministic baseline UX facts.
+Business-path correctness, cross-browser rendering parity, security,
+observability, and accessibility certification require separate verification.
+
+The core also does not know about:
 
 - a deployment service or short-link provider;
 - user/work/share identities;

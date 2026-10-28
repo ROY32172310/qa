@@ -1,6 +1,6 @@
 # ego-webqa
 
-Deterministic delivery QA for AI-generated web pages, H5 demos, and PWAs.
+Deterministic coarse delivery QA for AI-generated web pages, H5 demos, and PWAs.
 
 Point it at a URL. It opens the page in a real Chromium browser, checks a
 mobile/tablet/desktop matrix, safely probes the primary call to action, and
@@ -68,12 +68,19 @@ artifact directory without rewriting paths:
 ```text
 webqa-report/
 ├── report.json
+├── agent_summary.json
 ├── junit.xml
 ├── report.sarif
 └── screenshots/
 ```
 
 Add `--fail-on-warn` for CI gates that require a completely clean report.
+
+`agent_summary.json` is the compact Agent-facing view. Repeated findings are
+aggregated by registered dimension, so the same root cause across several
+viewports produces one repair item with affected triggers and a reproducible
+command. MCP callers receive the same summary as structured content and as the
+short text result.
 
 ## Checks
 
@@ -91,6 +98,7 @@ Blocking errors:
 
 Warnings:
 
+- DOM rendered, but the `load` event exceeded its bounded deadline
 - small hit targets below 44px
 - secondary text below 12px
 - oversized fixed overlays
@@ -100,6 +108,18 @@ Warnings:
 
 The browser probe reports facts. All thresholds and pass/fail decisions live in
 [`src/ego_webqa/config.py`](src/ego_webqa/config.py).
+
+### Dimensions
+
+Issue codes belong to a closed, versioned registry in
+[`src/ego_webqa/dimensions.py`](src/ego_webqa/dimensions.py). Reports reject an
+unregistered code, and each Agent summary item carries the dimension id,
+version, detector, and default severity. Docs and integrations can inspect the
+same source of truth without parsing prose:
+
+```bash
+ego-webqa --list-dimensions
+```
 
 ### Profiles
 
@@ -186,7 +206,7 @@ list.
 The audit engine runs on Linux, macOS, and Windows with Python 3.10 or newer.
 CI exercises the same test suite on all three operating systems.
 
-Every `audit()` or CLI invocation owns its browser process, browser context,
+Every `audit()` or CLI invocation owns its browser lifecycle, browser contexts,
 static local server, and output directory. There is no shared mutable audit
 state, so multiple agents can run concurrently when each supplies a unique
 `--out` directory:
@@ -201,6 +221,10 @@ ego-webqa "$PREVIEW_URL" --out "webqa/$AGENT_ID" --json \
 `schema_version` governs compatibility; JUnit and SARIF are derived from the
 same in-memory issue list. Agents should treat exit code `0` as pass/warn, `1`
 as blocking findings, and `2` as an invocation or browser failure.
+
+Within one audit, up to three viewports render in isolated browsers
+concurrently. This bounds slow-site wall time without sharing cookies, network
+state, screenshots, or mutable evidence between viewports.
 
 ### MCP server
 
@@ -259,7 +283,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ROY32172310/qa@v0.2.1
+      - uses: ROY32172310/qa@v0.2.2
         with:
           url: ${{ vars.PREVIEW_URL }}
           profile: accessibility
@@ -277,7 +301,7 @@ For a local checkout of this repository, use `uses: ./` after checkout. The
 Action's `safe` smoke mode is the default; set `smoke-mode: live` only when the
 click is intentionally allowed to cause real side effects. See
 [`examples/github-action.yml`](examples/github-action.yml) and
-[`action.yml`](action.yml) for the full input set. The `@v0.2.1` tag is created
+[`action.yml`](action.yml) for the full input set. The `@v0.2.2` tag is created
 only after the same commit passes the full cross-platform CI matrix.
 
 ## Python API
@@ -290,6 +314,14 @@ print(report.status)
 ```
 
 ## Scope and independence
+
+This is a deterministic coarse gate for obvious delivery failures. It does not
+prove that a business flow works, that every supported browser matches, or that
+the page is secure.
+
+Fixed report scope:
+
+> 本报告仅覆盖多终端几何与基础体验的确定性粗检；业务主路径、跨浏览器兼容、安全合规需另行验证。
 
 This repository is a standalone extraction of the general-purpose delivery
 checks originally proven inside the ego project. It has no dependency on

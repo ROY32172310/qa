@@ -9,6 +9,13 @@ Every check should answer a concrete delivery question and have:
 3. a stable, actionable diagnostic;
 4. evidence in the JSON report;
 5. thresholds in `config.py`, not duplicated inside JavaScript.
+6. an entry in the closed `dimensions.py` registry with version and detector
+   ownership.
+
+New dimensions start as advisory warnings. Promote one to blocking only after
+real-site evidence shows its false-positive rate is acceptable. The registry
+coverage test must continue to prove that every emitted issue code is
+registered.
 
 Do not add checks that depend on one product's DOM class names, deployment
 service, user identity, or application framework.
@@ -32,4 +39,3 @@ in the test suite.
 Describe the user-visible failure the rule catches, include a minimal fixture,
 and state what stays out of scope. Avoid rules that only express a visual
 preference.
-

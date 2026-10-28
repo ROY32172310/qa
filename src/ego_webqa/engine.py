@@ -6,10 +6,12 @@ import contextlib
 import re
 import time
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from .config import MOBILE_USER_AGENT, Settings, Viewport
 from .models import AuditReport, Issue, Severity, derive_status
@@ -45,6 +47,15 @@ def audit(
     shot_dir.mkdir(parents=True, exist_ok=True)
     if cfg.storage_state and not Path(cfg.storage_state).is_file():
         raise AuditRuntimeError(f"storage state file does not exist: {cfg.storage_state}")
+    if len(cfg.viewports) > 1:
+        return _audit_concurrently(
+            target,
+            cfg,
+            out_dir,
+            smoke=smoke,
+            started=started,
+            started_perf=started_perf,
+        )
 
     try:
         from playwright.sync_api import sync_playwright
@@ -107,6 +118,68 @@ def audit(
         duration_ms=duration_ms,
         settings=cfg.to_dict(),
         runtime=runtime,
+    )
+
+
+def _audit_concurrently(
+    target: str,
+    cfg: Settings,
+    out_dir: Path,
+    *,
+    smoke: bool,
+    started: datetime,
+    started_perf: float,
+) -> AuditReport:
+    def run(index: int, viewport: Viewport) -> AuditReport:
+        return audit(
+            target,
+            settings=replace(cfg, viewports=(viewport,)),
+            output_dir=out_dir,
+            smoke=smoke and _should_run_smoke(cfg, index),
+        )
+
+    try:
+        with ThreadPoolExecutor(max_workers=min(3, len(cfg.viewports))) as pool:
+            futures = [
+                pool.submit(run, index, viewport) for index, viewport in enumerate(cfg.viewports)
+            ]
+            reports = [future.result() for future in futures]
+    except AuditRuntimeError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - parallel browser launch failures use exit code 2
+        raise AuditRuntimeError(f"parallel browser execution failed: {exc}") from exc
+
+    issues = [issue for report in reports for issue in report.issues]
+    viewport_results = [row for report in reports for row in report.viewports]
+    screenshots = [shot for report in reports for shot in report.screenshots]
+    smoke_runs = [run for report in reports for run in report.smoke_runs]
+    performed = next(
+        (report.smoke for report in reports if report.smoke.get("performed")),
+        {
+            "enabled": smoke,
+            "performed": False,
+            "mode": cfg.smoke_mode if smoke else None,
+        },
+    )
+    channels = sorted(
+        {
+            str(report.runtime.get("browser_channel"))
+            for report in reports
+            if report.runtime.get("browser_channel")
+        }
+    )
+    return AuditReport(
+        target=target,
+        status=derive_status(issues, cfg.fail_on_warn),
+        issues=issues,
+        viewports=viewport_results,
+        smoke=performed,
+        smoke_runs=smoke_runs,
+        screenshots=screenshots,
+        started_at=started.isoformat(),
+        duration_ms=round((time.monotonic() - started_perf) * 1000),
+        settings=cfg.to_dict(),
+        runtime={"browser_channel": ",".join(channels)},
     )
 
 
@@ -198,6 +271,11 @@ def _audit_viewport(
 
     navigation_status = 0
     readiness: dict[str, Any] = {
+        "navigation_wait_until": "domcontentloaded",
+        "dom_content_loaded": False,
+        "load_event_reached": None,
+        "load_event_timed_out": None,
+        "load_event_timeout_ms": min(cfg.timeout_ms, 3_000),
         "ready_selector": cfg.ready_selector or None,
         "ready_selector_found": None if not cfg.ready_selector else False,
         "network_idle_requested": cfg.wait_for_network_idle,
@@ -212,8 +290,17 @@ def _audit_viewport(
     issues: list[Issue]
     stage = "navigation"
     try:
-        response = page.goto(target, wait_until="load", timeout=cfg.timeout_ms)
+        response = page.goto(target, wait_until="domcontentloaded", timeout=cfg.timeout_ms)
+        readiness["dom_content_loaded"] = True
         navigation_status = response.status if response is not None else 0
+        stage = "load_event"
+        try:
+            page.wait_for_load_state("load", timeout=readiness["load_event_timeout_ms"])
+            readiness["load_event_reached"] = True
+            readiness["load_event_timed_out"] = False
+        except Exception:  # noqa: BLE001 - rendered DOM remains auditable
+            readiness["load_event_reached"] = False
+            readiness["load_event_timed_out"] = True
         stage = "ready_selector"
         if cfg.ready_selector:
             page.wait_for_selector(cfg.ready_selector, state="visible", timeout=cfg.timeout_ms)
@@ -328,15 +415,17 @@ def _network_summary(
     failed = [
         failure
         for failure in request_failures
-        if not _matches_any(failure.split(" (", 1)[0], request_ignores)
+        if not _is_ignorable_failure(failure.split(" (", 1)[0], request_ignores)
+        and not _is_ignorable_request_failure(failure)
     ]
+    failed = [_clean_request_failure(failure) for failure in failed]
     for response in included:
         try:
             status = int(response.status)
         except Exception:  # noqa: BLE001
             status = 0
         if status >= 400 and not _is_ignorable_failure(response.url, request_ignores):
-            failed.append(f"HTTP {status} {response.url}")
+            failed.append(f"HTTP {status} {_redact_url(str(response.url))}")
         try:
             size = int(response.request.sizes().get("responseBodySize") or 0)
             if size > 0:
@@ -356,18 +445,42 @@ def _is_ignorable_failure(
     url: str,
     request_ignores: tuple[re.Pattern[str], ...] = (),
 ) -> bool:
-    return urlsplit(url).path.lower().endswith("/favicon.ico") or _matches_any(url, request_ignores)
+    parsed = urlsplit(url)
+    if parsed.scheme and parsed.scheme.lower() not in {"http", "https", "ws", "wss"}:
+        return True
+    return parsed.path.lower().endswith("/favicon.ico") or _matches_any(url, request_ignores)
+
+
+def _is_ignorable_request_failure(failure: str) -> bool:
+    """Intentional aborts are not evidence that a required resource is broken."""
+
+    return "net::ERR_ABORTED" in failure
+
+
+def _clean_request_failure(failure: str) -> str:
+    raw_url, separator, detail = failure.partition(" (")
+    if not separator:
+        return _redact_url(raw_url)
+    return f"{_redact_url(raw_url)} ({detail}"
+
+
+def _redact_url(url: str) -> str:
+    """Keep endpoint identity while removing credentials, query, and fragment."""
+
+    parsed = urlsplit(url)
+    if not parsed.scheme:
+        return url.split("#", 1)[0].split("?", 1)[0]
+    netloc = parsed.netloc.rsplit("@", 1)[-1]
+    return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
 
 
 def _is_ignorable_console_error(message: Any) -> bool:
-    """Ignore the browser's automatic failed favicon request."""
+    """Ignore browser-generated transport noise already covered by network evidence."""
 
     text = str(getattr(message, "text", ""))
-    if not text.startswith("Failed to load resource: the server responded with a status of "):
-        return False
-    location = getattr(message, "location", None) or {}
-    url = str(location.get("url", "")) if hasattr(location, "get") else ""
-    return bool(url) and _is_ignorable_failure(url)
+    return text.startswith("Failed to load resource: ") or text.startswith(
+        "Not allowed to launch '"
+    )
 
 
 def _compile_patterns(patterns: Sequence[str]) -> tuple[re.Pattern[str], ...]:
@@ -568,6 +681,21 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
     bytes_used = int(network.get("transfer_bytes") or 0)
     requests = int(network.get("request_count") or 0)
     readiness = summary.get("readiness") or {}
+    if readiness.get("load_event_timed_out"):
+        issues.append(
+            Issue(
+                "slow_load_event",
+                "warning",
+                "page DOM rendered but the load event exceeded its bounded deadline",
+                name,
+                "Find slow or hanging resources; use a ready_selector when the page is usable "
+                "before every asset finishes.",
+                {
+                    "timeout_ms": readiness.get("load_event_timeout_ms"),
+                    "ready_selector": readiness.get("ready_selector"),
+                },
+            )
+        )
     if readiness.get("network_idle_timed_out"):
         issues.append(
             Issue(
@@ -719,7 +847,7 @@ def _run_smoke(
             {
                 "method": str(request.method),
                 "resource_type": str(request.resource_type),
-                "url": str(request.url)[:300],
+                "url": _redact_url(str(request.url))[:300],
             }
         )
         route.abort("blockedbyclient")

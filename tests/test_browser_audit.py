@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import http.server
 import importlib.util
 import json
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -175,6 +177,29 @@ def test_clean_page_passes(served: LocalServer, tmp_path: Path) -> None:
     assert "Mobile" in environment["userAgent"]
     assert environment["maxTouchPoints"] > 0
     assert environment["coarsePointer"] is True
+
+
+def test_default_viewports_keep_stable_order_during_parallel_execution(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("clean.html"),
+        settings=Settings(settle_ms=0),
+        output_dir=tmp_path,
+        smoke=False,
+    )
+    assert [row["viewport"]["name"] for row in report.viewports] == [
+        "mobile",
+        "tablet",
+        "desktop",
+    ]
+    assert report.screenshots == [
+        "screenshots/mobile.png",
+        "screenshots/tablet.png",
+        "screenshots/desktop.png",
+    ]
+    assert all((tmp_path / screenshot).is_file() for screenshot in report.screenshots)
 
 
 def test_missing_favicon_does_not_create_console_error(
@@ -516,6 +541,71 @@ def test_network_idle_timeout_is_recorded_without_hiding_page_results(
     assert readiness["network_idle_reached"] is False
     assert readiness["network_idle_timed_out"] is True
     assert "network_idle_timeout" in {issue.code for issue in report.issues}
+
+
+def test_slow_load_event_keeps_rendered_page_auditable(tmp_path: Path) -> None:
+    html = b"""<!doctype html><html lang="en"><head>
+<meta name="viewport" content="width=device-width">
+<title>Slow asset</title><style>
+body{margin:0;font:16px/1.5 system-ui}main{padding:32px}img{width:80px;height:80px}
+</style></head><body><main><h1>Rendered before load</h1>
+<p>This page remains auditable while a late image is still pending.</p>
+<img src="/slow.svg" width="80" height="80" alt="Delayed sample">
+</main></body></html>"""
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"></svg>'
+
+    class SlowHandler(http.server.BaseHTTPRequestHandler):
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            super().__init__(*args, **kwargs)
+
+        def log_message(self, format: str, *args: object) -> None:
+            del format, args
+
+        def do_GET(self) -> None:
+            if self.path == "/":
+                body = html
+                content_type = "text/html; charset=utf-8"
+            elif self.path == "/slow.svg":
+                time.sleep(0.6)
+                body = svg
+                content_type = "image/svg+xml"
+            else:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+                self.wfile.write(body)
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), SlowHandler)
+    server.daemon_threads = True
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        report = audit(
+            f"http://127.0.0.1:{server.server_address[1]}/",
+            settings=Settings(
+                viewports=(Viewport(390, 844, "mobile", mobile=True),),
+                settle_ms=0,
+                timeout_ms=120,
+            ),
+            output_dir=tmp_path,
+            smoke=False,
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+    readiness = report.viewports[0]["readiness"]
+    assert readiness["dom_content_loaded"] is True
+    assert readiness["load_event_reached"] is False
+    assert readiness["load_event_timed_out"] is True
+    assert [(issue.code, issue.severity) for issue in report.issues] == [
+        ("slow_load_event", "warning")
+    ]
     assert report.viewports[0]["status"] == "ok"
 
 

@@ -78,8 +78,11 @@ def test_mcp_tool_returns_blocking_evidence(
     payload = result.structured_content
     assert payload["status"] == "pass"
     assert payload["counts"] == {"error": 0, "warning": 0}
+    assert payload["agent_summary"]["status"] == "pass"
+    assert payload["agent_summary"]["failed_items"] == []
     assert payload["screenshots"] == ["screenshots/mobile.png"]
     assert payload["artifacts"]["json"] == str(artifact_dir / "report.json")
+    assert (artifact_dir / "agent_summary.json").is_file()
     summary = json.loads(result.content[0].text)
     assert summary["status"] == "pass"
 
@@ -91,6 +94,7 @@ def test_mcp_tool_returns_blocking_evidence(
     )
     assert broken.is_error is True
     assert broken.structured_content["status"] == "fail"
+    assert broken.structured_content["agent_summary"]["failed_items"][0]["dimension_id"]
     assert "horizontal_overflow" in {issue["code"] for issue in broken.structured_content["issues"]}
 
 
@@ -99,6 +103,8 @@ def test_mcp_tool_validates_target_and_accepts_local_directory(
     tmp_path: Path,
 ) -> None:
     server, root = site
+    config_path = tmp_path / "webqa.json"
+    config_path.write_text("{}", encoding="utf-8")
     missing = audit_web_page(out_dir=str(tmp_path / "missing"))
     assert missing.is_error is True
     assert missing.structured_content["status"] == "error"
@@ -112,11 +118,17 @@ def test_mcp_tool_validates_target_and_accepts_local_directory(
 
     local = audit_web_page(
         directory=str(root),
+        config=str(config_path),
         out_dir=str(tmp_path / "local"),
         viewports=["390x844:mobile"],
         smoke=False,
     )
     assert local.structured_content["status"] == "pass"
+    source = local.structured_content["settings"]["source"]
+    assert source["kind"] == "directory"
+    assert source["directory"] == str(root.resolve())
+    assert source["file"] == "index.html"
+    assert source["config"] == str(config_path.resolve())
 
 
 def test_mcp_stdio_round_trip(site: tuple[LocalServer, Path], tmp_path: Path) -> None:

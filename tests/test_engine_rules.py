@@ -8,10 +8,13 @@ import pytest
 from ego_webqa.config import Settings
 from ego_webqa.engine import (
     _is_blocked_network_error,
+    _is_ignorable_console_error,
     _is_ignorable_failure,
+    _is_ignorable_request_failure,
     _issues_for_smoke,
     _issues_for_viewport,
     _network_summary,
+    _redact_url,
     _should_run_smoke,
 )
 
@@ -183,6 +186,7 @@ def test_smoke_classification() -> None:
 
 def test_private_helpers() -> None:
     assert _is_ignorable_failure("https://example.test/favicon.ico")
+    assert _is_ignorable_failure("openapp.example://product/42")
     assert not _is_ignorable_failure("https://example.test/app.js")
     assert _is_ignorable_failure(
         "https://example.test/analytics/error.js",
@@ -190,6 +194,22 @@ def test_private_helpers() -> None:
     )
     assert _is_blocked_network_error("TypeError: Failed to fetch")
     assert not _is_blocked_network_error("ReferenceError: checkout is not defined")
+
+
+def test_browser_transport_noise_is_not_double_counted_as_console_error() -> None:
+    class Message:
+        def __init__(self, text: str) -> None:
+            self.text = text
+
+    assert _is_ignorable_console_error(
+        Message("Failed to load resource: the server responded with a status of 403")
+    )
+    assert _is_ignorable_console_error(Message("Not allowed to launch 'openapp://product'"))
+    assert not _is_ignorable_console_error(Message("TypeError: checkout is not defined"))
+    assert _is_ignorable_request_failure("https://example.test/cancel (net::ERR_ABORTED)")
+    assert not _is_ignorable_request_failure(
+        "https://example.test/missing.js (net::ERR_FILE_NOT_FOUND)"
+    )
 
 
 def test_ignored_requests_do_not_count_toward_budget() -> None:
@@ -223,12 +243,51 @@ def test_ignored_requests_do_not_count_toward_budget() -> None:
     }
 
 
+def test_custom_protocol_launch_failures_are_not_resource_failures() -> None:
+    summary = _network_summary(
+        [],
+        ["openapp.example://product/42 (net::ERR_ABORTED)"],
+    )
+    assert summary["failures"] == []
+    assert summary["failure_count"] == 0
+
+
+def test_network_evidence_redacts_credentials_and_query_parameters() -> None:
+    class Request:
+        def sizes(self) -> dict[str, int]:
+            return {"responseBodySize": 42}
+
+    class Response:
+        url = "https://preview-user:secret@example.test/app.js?token=top-secret#debug"
+        status = 500
+        request = Request()
+
+    summary = _network_summary([Response()], [])
+    serialized = str(summary)
+    assert summary["failures"] == ["HTTP 500 https://example.test/app.js"]
+    assert "secret" not in serialized
+    assert "token" not in serialized
+    assert _redact_url(Response.url) == "https://example.test/app.js"
+
+
 def test_network_idle_timeout_is_visible_as_warning() -> None:
     summary = _summary(readiness={"network_idle_timed_out": True})
     issues = _issues_for_viewport(summary, Settings(timeout_ms=5_000))
     assert [(issue.code, issue.severity) for issue in issues] == [
         ("network_idle_timeout", "warning")
     ]
+
+
+def test_slow_load_event_is_advisory_when_dom_rendered() -> None:
+    summary = _summary(
+        readiness={
+            "dom_content_loaded": True,
+            "load_event_timed_out": True,
+            "load_event_timeout_ms": 3_000,
+        }
+    )
+    issues = _issues_for_viewport(summary, Settings())
+    assert [(issue.code, issue.severity) for issue in issues] == [("slow_load_event", "warning")]
 
 
 def test_smoke_scope_controls_viewport_runs() -> None:

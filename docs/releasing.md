@@ -21,8 +21,8 @@ Releases use PyPI Trusted Publishing. No PyPI token is stored in GitHub.
 4. Create and push an annotated tag:
 
    ```bash
-   git tag -a v0.2.1 -m "ego-webqa 0.2.1"
-   git push github v0.2.1
+   git tag -a v0.2.2 -m "ego-webqa 0.2.2"
+   git push github v0.2.2
    ```
 
 The release workflow rejects a tag that does not match the package version,

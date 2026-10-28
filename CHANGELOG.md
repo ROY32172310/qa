@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.2 - 2026-10-28
+
+- Add a closed, versioned dimension registry and expose it through
+  `ego-webqa --list-dimensions`.
+- Emit `agent_summary.json` with root-cause aggregation, selectors, affected
+  viewport combinations, repair hints, and reproducible commands.
+- Include the same agent summary in MCP structured and text results.
+- Keep a rendered page auditable when its `load` event exceeds the bounded
+  deadline; report the delayed load as an advisory warning instead of replacing
+  all page evidence with a navigation failure.
+- Deduplicate browser transport errors, ignore intentional request aborts and
+  custom-app launch attempts, and redact credentials/query data from network
+  evidence.
+- Run up to three isolated viewport browsers concurrently while preserving the
+  configured viewport order and per-call evidence isolation.
+- State the deterministic coarse-check boundary in reports and documentation.
+
 ## 0.2.1 - 2026-10-28
 
 - Add authenticated preview support through storage state, HTTP Basic credentials,
