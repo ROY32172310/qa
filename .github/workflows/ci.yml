@@ -35,6 +35,30 @@ jobs:
           python -m pytest -q --junitxml=test-results/pytest.xml
           --cov=ego_webqa --cov-branch --cov-report=term-missing
           --cov-report=xml --cov-report=json --cov-fail-under=90
+      - name: Summarize pytest failures
+        if: ${{ failure() }}
+        shell: python
+        run: |
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("test-results/pytest.xml")
+          if not report.is_file():
+              print("::error title=pytest::JUnit report was not created")
+              raise SystemExit(0)
+
+          for case in ET.parse(report).getroot().iter("testcase"):
+              failure = case.find("failure")
+              if failure is None:
+                  failure = case.find("error")
+              if failure is None:
+                  continue
+              name = f"{case.get('classname', '')}::{case.get('name', '')}".strip(":")
+              source = case.get("file", "unknown")
+              line = case.get("line", "0")
+              detail = (failure.get("message") or failure.text or "test failed").strip()
+              detail = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error file={source},line={line},title={name}::{detail[:3000]}")
       - run: ruff check .
       - run: black --check .
       - run: mypy
