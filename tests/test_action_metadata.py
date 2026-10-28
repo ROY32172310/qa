@@ -1,11 +1,26 @@
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _bash_executable() -> str:
+    if os.name == "nt":
+        program_files = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files"))
+        git_bash = program_files / "Git" / "bin" / "bash.exe"
+        if git_bash.is_file():
+            return str(git_bash)
+    executable = shutil.which("bash")
+    if executable is None:
+        pytest.skip("bash is required to validate the composite action")
+    return executable
 
 
 def test_composite_action_metadata_and_input_safety() -> None:
@@ -31,7 +46,13 @@ def test_composite_action_metadata_and_input_safety() -> None:
     assert any(step.get("uses") == "actions/upload-artifact@v4" for step in steps)
     # Binary input avoids Windows text-mode CRLF translation, which is not
     # meaningful to the Bash script that GitHub executes with LF endings.
-    subprocess.run(["bash", "-n"], input=script.encode("utf-8"), check=True)
+    completed = subprocess.run(
+        [_bash_executable(), "-n"],
+        input=script.encode("utf-8"),
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr.decode("utf-8", errors="replace")
 
 
 def test_example_action_workflow_uses_accessibility_profile() -> None:

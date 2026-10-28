@@ -56,9 +56,13 @@ jobs:
               name = f"{case.get('classname', '')}::{case.get('name', '')}".strip(":")
               source = case.get("file", "unknown")
               line = case.get("line", "0")
-              detail = (failure.get("message") or failure.text or "test failed").strip()
+              detail = "\n".join(
+                  part.strip()
+                  for part in (failure.get("message"), failure.text)
+                  if part and part.strip()
+              ) or "test failed"
               detail = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-              print(f"::error file={source},line={line},title={name}::{detail[:3000]}")
+              print(f"::error file={source},line={line},title={name}::{detail[:8000]}")
       - run: ruff check .
       - run: black --check .
       - run: mypy

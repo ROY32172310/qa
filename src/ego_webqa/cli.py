@@ -156,6 +156,15 @@ def _settings(args: argparse.Namespace) -> Settings:
     return apply_auth_environment(Settings.from_mapping(updates, base=cfg))
 
 
+def _json_text(payload: object, encoding: str) -> str:
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    try:
+        text.encode(encoding, errors="strict")
+    except UnicodeEncodeError:
+        return json.dumps(payload, ensure_ascii=True, indent=2)
+    return text
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if not args.url and not args.dir:
@@ -191,7 +200,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             server.close()
 
     if args.json:
-        print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+        print(_json_text(report.to_dict(), sys.stdout.encoding or "utf-8"))
     else:
         icon = {"pass": "PASS", "warn": "WARN", "fail": "FAIL"}[report.status]
         counts = report.to_dict()["counts"]

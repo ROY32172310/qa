@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from ego_webqa.cli import _settings, build_parser
+from ego_webqa.cli import _json_text, _settings, build_parser
 from ego_webqa.config import (
     HTTP_HEADERS_ENV,
     HTTP_PASSWORD_ENV,
@@ -72,6 +72,14 @@ def test_cli_viewport_and_selector_overrides() -> None:
 def test_cli_live_smoke_override() -> None:
     args = build_parser().parse_args(["https://example.com", "--smoke-mode", "live"])
     assert _settings(args).smoke_mode == "live"
+
+
+def test_json_output_escapes_unsupported_stdout_encoding() -> None:
+    payload = {"cta_pattern": "开始|立即"}
+    portable = _json_text(payload, "cp1252")
+    assert json.loads(portable) == payload
+    assert "\\u5f00\\u59cb" in portable
+    assert "开始" in _json_text(payload, "utf-8")
 
 
 def test_cli_auth_environment_keeps_secrets_off_argv(
