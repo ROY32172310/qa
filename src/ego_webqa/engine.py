@@ -18,6 +18,8 @@ from urllib.parse import urlsplit, urlunsplit
 from .config import (
     MOBILE_USER_AGENT,
     OVERRIDE_SEVERITY_TO_ISSUE,
+    SMOKE_ASSERTION_ACTIONS,
+    SMOKE_INTERACTION_ACTIONS,
     OverrideResolution,
     Settings,
     Viewport,
@@ -1453,7 +1455,7 @@ def _run_smoke(
     if cfg.smoke_flow:
         assertion_configured = True
         observed_effect = any(
-            step.get("status") == "passed" and step.get("action") in {"click", "fill", "press"}
+            step.get("status") == "passed" and step.get("action") in SMOKE_INTERACTION_ACTIONS
             for step in result.get("steps") or []
         )
         success = bool(result.get("assertionMatched"))
@@ -1536,7 +1538,7 @@ def _run_bounded_flow(page: Any, cfg: Settings) -> dict[str, Any]:
                         f"{text_source} did not match the configured text pattern "
                         f"(observed length: {len(observed)})"
                     )
-            if step.action in {"click", "fill", "press"} and cfg.smoke_settle_ms:
+            if step.action in SMOKE_INTERACTION_ACTIONS and cfg.smoke_settle_ms:
                 page.wait_for_timeout(cfg.smoke_settle_ms)
         except Exception as exc:  # noqa: BLE001 - each failed step is report evidence
             record["status"] = "failed"
@@ -1546,11 +1548,7 @@ def _run_bounded_flow(page: Any, cfg: Settings) -> dict[str, Any]:
         if failed_step is not None:
             break
 
-    assertions = [
-        step
-        for step in steps
-        if step.get("action") in {"expect_visible", "expect_url", "expect_text"}
-    ]
+    assertions = [step for step in steps if step.get("action") in SMOKE_ASSERTION_ACTIONS]
     assertion_matched = failed_step is None and bool(assertions)
     return {
         "found": True,
@@ -1654,7 +1652,7 @@ def _issues_for_flow_smoke(smoke: dict[str, Any], viewport: str) -> list[Issue]:
     if isinstance(failed_step, dict):
         action = str(failed_step.get("action") or "unknown")
         index = failed_step.get("index")
-        is_assertion = action in {"expect_visible", "expect_url", "expect_text"}
+        is_assertion = action in SMOKE_ASSERTION_ACTIONS
         detail = str(failed_step.get("error") or "step failed")
         evidence = {"step": failed_step, "flow": smoke}
         if is_assertion:

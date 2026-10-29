@@ -34,9 +34,9 @@ MOBILE_USER_AGENT = (
 HTTP_USERNAME_ENV = "EGO_WEBQA_HTTP_USERNAME"
 HTTP_PASSWORD_ENV = "EGO_WEBQA_HTTP_PASSWORD"
 HTTP_HEADERS_ENV = "EGO_WEBQA_EXTRA_HTTP_HEADERS"
-SMOKE_STEP_ACTIONS = frozenset(
-    {"click", "fill", "press", "expect_visible", "expect_url", "expect_text"}
-)
+SMOKE_INTERACTION_ACTIONS = frozenset({"click", "fill", "press"})
+SMOKE_ASSERTION_ACTIONS = frozenset({"expect_visible", "expect_url", "expect_text"})
+SMOKE_STEP_ACTIONS = SMOKE_INTERACTION_ACTIONS | SMOKE_ASSERTION_ACTIONS
 BROWSER_ENGINES = frozenset({"chromium", "firefox", "webkit"})
 OVERRIDE_SEVERITIES = frozenset({"block", "warn"})
 OVERRIDABLE_PARAMETER_FIELDS = MappingProxyType(
@@ -525,20 +525,19 @@ class Settings:
                     "smoke_flow cannot be combined with smoke_selector or "
                     "single-step success assertions"
                 )
-            action_actions = {"click", "fill", "press"}
-            assertion_actions = {"expect_visible", "expect_url", "expect_text"}
             first_action = next(
                 (
                     index
                     for index, step in enumerate(self.smoke_flow)
-                    if step.action in action_actions
+                    if step.action in SMOKE_INTERACTION_ACTIONS
                 ),
                 None,
             )
             if first_action is None:
                 raise ValueError("smoke_flow requires at least one click, fill, or press action")
             if not any(
-                step.action in assertion_actions for step in self.smoke_flow[first_action + 1 :]
+                step.action in SMOKE_ASSERTION_ACTIONS
+                for step in self.smoke_flow[first_action + 1 :]
             ):
                 raise ValueError(
                     "smoke_flow requires an expect_visible, expect_url, or expect_text "
