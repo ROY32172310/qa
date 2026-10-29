@@ -58,7 +58,7 @@ jobs:
       contents: read
       id-token: write
     env:
-      MCP_PUBLISHER_VERSION: v1.8.1
+      MCP_PUBLISHER_VERSION: v1.8.6
     steps:
       - uses: actions/checkout@v5
       - name: Install cosign

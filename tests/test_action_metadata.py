@@ -115,7 +115,7 @@ def test_release_workflow_publishes_mcp_registry_metadata_after_pypi() -> None:
     job = workflow["jobs"]["mcp-registry"]
     assert job["needs"] == "publish"
     assert job["permissions"] == {"contents": "read", "id-token": "write"}
-    assert job["env"]["MCP_PUBLISHER_VERSION"] == "v1.8.1"
+    assert job["env"]["MCP_PUBLISHER_VERSION"] == "v1.8.6"
 
     script = "\n".join(f"{step.get('if', '')}\n{step.get('run', '')}" for step in job["steps"])
     assert "cosign verify-blob" in script
