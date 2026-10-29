@@ -1,0 +1,50 @@
+# ego-webqa
+
+> Deterministic, MCP-native delivery QA for AI-generated web pages.
+
+ego-webqa is a self-hosted Python MCP server and CLI. It renders a page with
+Playwright, runs a narrow eight-viewport mobile matrix at 1x and 1.5x text
+scale with and without safe-area insets, and returns reproducible evidence for
+obvious layout, runtime, resource, and bounded CTA failures. Reports include
+selector-level findings, repair directions, affected trigger combinations, and
+commands that reproduce the run.
+
+## Start
+
+- Install the MCP server: `uvx ego-webqa mcp`
+- Run one CLI audit: `ego-webqa https://your-preview.example --out .qa/first-trial`
+- PyPI: https://pypi.org/project/ego-webqa/
+- Source: https://github.com/ROY32172310/qa
+- Official MCP Registry: `io.github.ROY32172310/qa`
+- 15-minute first-trial protocol:
+  https://github.com/ROY32172310/qa/blob/master/docs/first-trial.md
+- Result feedback:
+  https://github.com/ROY32172310/qa/issues/new?template=result-feedback.yml
+
+## MCP contract
+
+The server exposes one tool, `audit_web_page`. It accepts a URL or a local
+static directory and returns a pass/warn/fail decision with a compact Agent
+summary and paths to the full JSON, JUnit, SARIF, screenshots, and governed
+configuration evidence. Use it after generating or repairing a web page and
+before claiming that page is ready to deliver.
+
+## Evidence
+
+- Interactive before/after board: https://roy32172310.github.io/qa/
+- Real-page dogfood report:
+  https://github.com/ROY32172310/qa/blob/master/docs/real-world-dogfood-2026-10-29.md
+- Repair case study:
+  https://github.com/ROY32172310/qa/blob/master/docs/case-study-vocabulary-repair-2026-10-29.md
+- Benchmark baseline:
+  https://github.com/ROY32172310/qa/blob/master/docs/benchmark-2026-10-29-v0.6.0.md
+
+## Boundaries
+
+ego-webqa is a deterministic coarse gate, not a general QA platform. It does
+not prove business-flow correctness, secure implementation, accessibility
+compliance, visual-regression equivalence, cross-browser parity, or real-device
+Safari compatibility. Playwright WebKit is not a real-device Safari claim.
+
+The public site presents precomputed evidence. It does not accept arbitrary
+URLs for server-side auditing.

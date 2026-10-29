@@ -65,6 +65,18 @@ def test_demo_json_is_the_verified_dogfood_run() -> None:
     assert after["summary"]["unique_root_causes"] == 1
 
 
+def test_demo_llms_txt_declares_the_agent_discovery_contract() -> None:
+    text = (DEMO / "llms.txt").read_text(encoding="utf-8")
+    normalized = " ".join(text.split())
+
+    assert text.startswith("# ego-webqa\n")
+    assert "`uvx ego-webqa mcp`" in text
+    assert "`audit_web_page`" in text
+    assert "https://roy32172310.github.io/qa/" in text
+    assert "does not prove business-flow correctness" in normalized
+    assert "does not accept arbitrary URLs for server-side auditing" in normalized
+
+
 def test_pages_workflow_publishes_only_the_static_demo() -> None:
     workflow = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
 
