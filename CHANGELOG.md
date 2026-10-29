@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.1 - 2026-10-29
+
+- Add a public 118-case synthetic benchmark with clean controls and positive
+  fixtures covering all 34 registered dimensions, bounded flows, and the
+  accessibility profile.
+- Add benchmark precision, recall, blocking false-positive/false-negative, and
+  per-dimension latency reporting without importing detector thresholds into
+  the evaluator.
+- Run the benchmark on Linux CI and publish its machine-readable evidence as a
+  workflow artifact.
+- Fix the accessibility profile crashing on standard explicit `<label for>`
+  markup.
+- Report a CTA click exception as `cta_page_error` without also emitting the
+  less specific `dead_primary_cta` finding.
+
 ## 0.3.0 - 2026-10-29
 
 - Add an opt-in bounded smoke flow for short client-side delivery paths.
