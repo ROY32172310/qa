@@ -22,6 +22,7 @@ from .probes import (
     READ_TIMING_JS,
     SMOKE_ASSERTIONS_JS,
     SMOKE_JS,
+    TEXT_SCALE_JS,
 )
 
 
@@ -314,12 +315,18 @@ def _audit_viewport(
                 readiness["network_idle_timed_out"] = True
         stage = "probe"
         page.wait_for_timeout(cfg.settle_ms)
+        if viewport.text_scale > 1:
+            page.evaluate(TEXT_SCALE_JS, viewport.text_scale)
+            page.evaluate(ARM_LAYOUT_SHIFT_JS)
+            page.wait_for_timeout(min(cfg.settle_ms, 100))
         try:
             page.evaluate("() => document.fonts ? document.fonts.ready.then(() => true) : true")
             readiness["fonts_ready"] = True
         except Exception:  # noqa: BLE001 - font readiness is advisory
             readiness["fonts_ready"] = False
-        snapshot = page.evaluate(COLLECT_JS, _probe_config(cfg))
+        snapshot = page.evaluate(COLLECT_JS, _probe_config(cfg, viewport))
+        snapshot["environment"]["textScale"] = viewport.text_scale
+        snapshot["environment"]["safeAreaBottomPx"] = viewport.safe_area_bottom_px
         if cfg.profile == "accessibility":
             snapshot["accessibility"] = page.evaluate(ACCESSIBILITY_JS)
         timing = page.evaluate(READ_TIMING_JS) or {}
@@ -391,13 +398,14 @@ def _audit_viewport(
     }
 
 
-def _probe_config(cfg: Settings) -> dict[str, Any]:
+def _probe_config(cfg: Settings, viewport: Viewport) -> dict[str, Any]:
     return {
         "minTap": cfg.min_tap_target_px,
         "minFont": cfg.min_font_px,
         "overlayRatio": cfg.overlay_ratio,
         "aspectTolerance": cfg.aspect_tolerance,
         "aspectMinPx": cfg.aspect_min_rendered_px,
+        "safeBottom": viewport.safe_area_bottom_px,
         "ignore": list(cfg.ignore_selectors),
     }
 
@@ -731,14 +739,21 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
         )
     overflow = int(data.get("overflowX") or 0)
     if overflow > cfg.overflow_tolerance_px:
+        text_scale = float(summary.get("viewport", {}).get("text_scale") or 1.0)
+        code = "text_scale_layout_break" if text_scale > 1 else "horizontal_overflow"
+        message = (
+            f"page is {overflow}px wider than the viewport at {text_scale:g}x text scale"
+            if text_scale > 1
+            else f"page is {overflow}px wider than the viewport"
+        )
         issues.append(
             Issue(
-                "horizontal_overflow",
+                code,
                 "error",
-                f"page is {overflow}px wider than the viewport",
+                message,
                 name,
                 "Use max-width, responsive grids, and wrapping instead of fixed widths.",
-                {"overflow_px": overflow},
+                {"overflow_px": overflow, "text_scale": text_scale},
             )
         )
     if (
@@ -804,6 +819,20 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
                 name,
                 "Check for a class-name collision or a layer that lost its intended size.",
                 overlay,
+            )
+        )
+    safe_area_penetrations = data.get("safeAreaPenetrations") or []
+    if safe_area_penetrations:
+        required = safe_area_penetrations[0].get("required_gap_px", 0)
+        issues.append(
+            Issue(
+                "bottom_safe_area_penetration",
+                "error",
+                f"{len(safe_area_penetrations)} bottom-anchored element(s) enter the "
+                f"{required}px safe-area band",
+                name,
+                "Reserve max(16px, env(safe-area-inset-bottom)) around bottom controls.",
+                {"elements": safe_area_penetrations[:10]},
             )
         )
     if data.get("brokenImages"):

@@ -113,6 +113,8 @@ def test_agent_summary_aggregates_root_causes_and_reproduction() -> None:
                     "name": "mobile",
                     "width": 390,
                     "height": 844,
+                    "text_scale": 1.5,
+                    "safe_area_bottom_px": 34,
                 }
             },
             {
@@ -150,7 +152,7 @@ def test_agent_summary_aggregates_root_causes_and_reproduction() -> None:
         "mobile": [{"selector": "#buy", "text": "Buy"}],
         "desktop": [{"selector": "#buy", "text": "Buy"}],
     }
-    assert "390x844:mobile" in cta["reproduce"]
+    assert "390x844:mobile@1.5~34" in cta["reproduce"]
     assert "1280x800:desktop" in cta["reproduce"]
     assert "--profile accessibility" in cta["reproduce"]
     assert "--ready-selector '#app-ready'" in cta["reproduce"]

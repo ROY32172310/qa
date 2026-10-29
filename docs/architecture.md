@@ -12,6 +12,25 @@
 The core package has one runtime dependency: Playwright. Browser binaries are
 installed separately.
 
+## Viewport variants
+
+`Viewport` is the identity of one deterministic browser variant. Its public
+specification is
+`WIDTHxHEIGHT[:NAME][@TEXT_SCALE][~SAFE_BOTTOM_PX]`. The default matrix is the
+cartesian product of 360/390px widths, 1.0x/1.5x text scaling, and 0/34px
+simulated bottom safe areas. Explicit viewports replace that matrix.
+
+Text scaling is applied through Playwright after initial rendering and before
+layout facts are collected. A resulting width overflow is attributed to
+`text_scale_layout_break`; an ordinary width overflow remains
+`horizontal_overflow`. The 34px safe-area value is evidence for a deterministic
+bottom-layer geometry check, not a claim that Chromium emulates a specific
+physical device inset. Bottom fixed/sticky layers pass when they reserve enough
+padding or explicitly consume `env(safe-area-inset-bottom)`.
+
+The variant name, dimensions, text scale, and safe-area value are retained in
+per-viewport evidence, screenshot names, and Agent reproduction commands.
+
 ## Profiles
 
 `baseline` covers delivery behavior across the configured viewport matrix.
@@ -80,6 +99,28 @@ API against real local Chromium. The evaluator imports only the closed
 dimension registry to validate IDs and default severity. It does not import
 thresholds or detector branches, keeping the benchmark independent of the code
 under test.
+
+## Development quality gate
+
+`scripts/dev.py` is the cross-platform source of truth for routine repository
+checks. It runs from the current Python interpreter and sets the source path
+explicitly, so direct pytest collection, child CLI processes, local development,
+and CI resolve the same package.
+
+- `test`: pytest without coverage overhead;
+- `coverage`: pytest with JUnit output and line/branch coverage, failing below
+  90%;
+- `lint`: Ruff;
+- `format-check`: Black check mode;
+- `typecheck`: MyPy over the package, development script, and benchmark;
+- `benchmark`: the complete public Chromium corpus;
+- `package`: build and validate wheel/source distributions;
+- `check`: lint, formatting, types, and covered tests;
+- `full`: `check` followed by the complete benchmark.
+
+GitHub Actions and the release workflow call these tasks instead of maintaining
+duplicate command lists. A new mandatory quality gate belongs in this script
+and is covered by the repository tests.
 
 ## Dimension registry
 

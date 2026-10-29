@@ -13,9 +13,40 @@ def test_viewport_parse_named_and_default() -> None:
     assert Viewport.parse("390x844:mobile") == Viewport(390, 844, "mobile", mobile=True)
     assert Viewport.parse("390x844:desktop").mobile is True
     assert Viewport.parse("1280x800").name == "1280x800"
+    assert Viewport.parse("390x844:mobile-enlarged@1.5~34") == Viewport(
+        390,
+        844,
+        "mobile-enlarged",
+        mobile=True,
+        text_scale=1.5,
+        safe_area_bottom_px=34,
+    )
 
 
-@pytest.mark.parametrize("value", ["", "390", "a x b", "100x300", "390x844:extra:name"])
+def test_default_viewport_matrix_is_narrow_text_scaled_and_safe_area_aware() -> None:
+    viewports = Settings().viewports
+    assert len(viewports) == 8
+    assert {viewport.width for viewport in viewports} == {360, 390}
+    assert {viewport.text_scale for viewport in viewports} == {1.0, 1.5}
+    assert {viewport.safe_area_bottom_px for viewport in viewports} == {0, 34}
+    assert len({viewport.name for viewport in viewports}) == 8
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        "390",
+        "a x b",
+        "100x300",
+        "390x844:extra:name",
+        "390x844:mobile@wide",
+        "390x844:mobile~safe",
+        "390x844:mobile@0.5",
+        "390x844:mobile@2.5",
+        "390x844:mobile~101",
+    ],
+)
 def test_viewport_parse_rejects_invalid(value: str) -> None:
     with pytest.raises(ValueError):
         Viewport.parse(value)
@@ -262,3 +293,9 @@ def test_viewport_rejects_invalid_field_types() -> None:
         Viewport("390", 844)  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="device_scale_factor must be a number"):
         Viewport(390, 844, device_scale_factor="2")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="text_scale must be a number"):
+        Viewport(390, 844, text_scale="1.5")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="safe_area_bottom_px must be an integer"):
+        Viewport(390, 844, safe_area_bottom_px=34.0)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="viewport.name must be a string"):
+        Viewport(390, 844, name=1)  # type: ignore[arg-type]

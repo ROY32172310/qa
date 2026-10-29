@@ -15,7 +15,7 @@ python benchmarks/run.py
 ```
 
 The default run expands `suite.json`, starts a local fixture server, executes
-118 independent cases serially, and writes:
+122 independent cases serially, and writes:
 
 ```text
 benchmark-results/<timestamp>/

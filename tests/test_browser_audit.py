@@ -194,6 +194,48 @@ input,button{min-height:48px;font-size:16px}
 </main></body></html>""",
         encoding="utf-8",
     )
+    (root / "text-scale-clean.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
+<title>Text scale control</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:24px}
+.actions{display:flex;flex-wrap:wrap;gap:12px}button{min-height:48px;font-size:16px}
+</style></head><body><main><h1>Flexible enlarged text</h1>
+<p>This paragraph wraps inside the viewport when text is enlarged.</p>
+<div class="actions"><button>Review account</button><button>Contact support</button></div>
+</main></body></html>""",
+        encoding="utf-8",
+    )
+    (root / "text-scale-break.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
+<title>Text scale break</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:24px}
+.headline{font-size:30px;white-space:nowrap}button{min-height:48px;font-size:16px}
+</style></head><body><main><h1 class="headline">Quarterly account activity and status</h1>
+<p>Enlarged text must remain inside the viewport.</p><button>Continue</button>
+</main></body></html>""",
+        encoding="utf-8",
+    )
+    (root / "safe-area-clean.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport"
+content="width=device-width,viewport-fit=cover"><title>Safe area control</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:24px 24px 110px}
+.bottom{position:fixed;left:16px;right:16px;bottom:0;min-height:56px;
+padding:4px 12px env(safe-area-inset-bottom,0px);background:#17202a}
+button{width:100%;min-height:48px;font-size:16px}
+</style></head><body><main><h1>Preferences</h1><p>Content stays above the action bar.</p>
+</main><div class="bottom"><button>Save preferences</button></div></body></html>""",
+        encoding="utf-8",
+    )
+    (root / "safe-area-break.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
+<title>Safe area break</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:24px 24px 110px}
+.bottom{position:fixed;left:16px;right:16px;bottom:0;min-height:56px;
+padding:4px 12px;background:#17202a}button{width:100%;min-height:48px;font-size:16px}
+</style></head><body><main><h1>Preferences</h1><p>Content stays above the action bar.</p>
+</main><div class="bottom"><button>Save preferences</button></div></body></html>""",
+        encoding="utf-8",
+    )
     (root / "shadow.html").write_text(
         """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
 <title>Shadow page</title><style>
@@ -278,14 +320,24 @@ def test_default_viewports_keep_stable_order_during_parallel_execution(
         smoke=False,
     )
     assert [row["viewport"]["name"] for row in report.viewports] == [
-        "mobile",
-        "tablet",
-        "desktop",
+        "mobile-360-100-safe0",
+        "mobile-360-100-safe34",
+        "mobile-360-150-safe0",
+        "mobile-360-150-safe34",
+        "mobile-390-100-safe0",
+        "mobile-390-100-safe34",
+        "mobile-390-150-safe0",
+        "mobile-390-150-safe34",
     ]
     assert report.screenshots == [
-        "screenshots/mobile.png",
-        "screenshots/tablet.png",
-        "screenshots/desktop.png",
+        "screenshots/mobile-360-100-safe0.png",
+        "screenshots/mobile-360-100-safe34.png",
+        "screenshots/mobile-360-150-safe0.png",
+        "screenshots/mobile-360-150-safe34.png",
+        "screenshots/mobile-390-100-safe0.png",
+        "screenshots/mobile-390-100-safe34.png",
+        "screenshots/mobile-390-150-safe0.png",
+        "screenshots/mobile-390-150-safe34.png",
     ]
     assert all((tmp_path / screenshot).is_file() for screenshot in report.screenshots)
 
@@ -990,3 +1042,87 @@ def test_concurrent_agent_invocations_have_isolated_reports(
         assert payload["schema_version"] == "1.0"
         assert payload["screenshots"] == ["screenshots/mobile.png"]
         assert (output / payload["screenshots"][0]).is_file()
+
+
+def test_text_scaling_reports_layout_break_with_scale_evidence(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    viewport = Viewport(390, 844, "mobile-150", mobile=True, text_scale=1.5)
+    broken = audit(
+        served.url("text-scale-break.html"),
+        settings=Settings(viewports=(viewport,), settle_ms=0),
+        output_dir=tmp_path / "text-break",
+        smoke=False,
+    )
+    assert {issue.code for issue in broken.issues} == {"text_scale_layout_break"}
+    assert broken.issues[0].evidence["text_scale"] == 1.5
+    assert broken.viewports[0]["viewport"]["text_scale"] == 1.5
+    assert broken.viewports[0]["measurements"]["environment"]["textScale"] == 1.5
+
+    clean = audit(
+        served.url("text-scale-clean.html"),
+        settings=Settings(viewports=(viewport,), settle_ms=0),
+        output_dir=tmp_path / "text-clean",
+        smoke=False,
+    )
+    assert clean.issues == []
+
+
+def test_default_matrix_audits_eight_narrow_variants_with_unique_evidence(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("clean.html"),
+        settings=Settings(settle_ms=0),
+        output_dir=tmp_path / "default-matrix",
+        smoke=False,
+    )
+    assert len(report.viewports) == 8
+    assert len(report.screenshots) == 8
+    assert len(set(report.screenshots)) == 8
+    assert report.issues == []
+    assert {
+        (
+            row["viewport"]["width"],
+            row["viewport"]["text_scale"],
+            row["viewport"]["safe_area_bottom_px"],
+        )
+        for row in report.viewports
+    } == {
+        (width, text_scale, safe_area_bottom_px)
+        for width in (360, 390)
+        for text_scale in (1.0, 1.5)
+        for safe_area_bottom_px in (0, 34)
+    }
+
+
+def test_bottom_safe_area_penetration_has_clean_control(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    viewport = Viewport(
+        390,
+        844,
+        "mobile-safe-34",
+        mobile=True,
+        safe_area_bottom_px=34,
+    )
+    broken = audit(
+        served.url("safe-area-break.html"),
+        settings=Settings(viewports=(viewport,), settle_ms=0),
+        output_dir=tmp_path / "safe-break",
+        smoke=False,
+    )
+    assert {issue.code for issue in broken.issues} == {"bottom_safe_area_penetration"}
+    assert broken.issues[0].evidence["elements"][0]["required_gap_px"] == 34
+    assert broken.viewports[0]["viewport"]["safe_area_bottom_px"] == 34
+
+    clean = audit(
+        served.url("safe-area-clean.html"),
+        settings=Settings(viewports=(viewport,), settle_ms=0),
+        output_dir=tmp_path / "safe-clean",
+        smoke=False,
+    )
+    assert clean.issues == []

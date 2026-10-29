@@ -107,6 +107,33 @@ COLLECT_JS = r"""
     }
     return true;
   };
+  const declaresSafeAreaBottom = (el) => {
+    const pattern = /env\s*\(\s*safe-area-inset-bottom/i;
+    if (pattern.test(el.getAttribute("style") || "")) return true;
+    for (const sheet of [...document.styleSheets]) {
+      let rules;
+      try {
+        rules = sheet.cssRules;
+      } catch (_) {
+        continue;
+      }
+      const inspect = (items) => {
+        for (const rule of items || []) {
+          if (rule.cssRules && rule.cssRules.length) {
+            if (inspect(rule.cssRules)) return true;
+            continue;
+          }
+          if (!rule.selectorText || !pattern.test(rule.style.cssText || "")) continue;
+          try {
+            if (el.matches(rule.selectorText)) return true;
+          } catch (_) {}
+        }
+        return false;
+      };
+      if (inspect(rules)) return true;
+    }
+    return false;
+  };
   const label = (el) => (
     el.getAttribute("aria-label") ||
     el.textContent ||
@@ -156,6 +183,41 @@ COLLECT_JS = r"""
         selector: selectorFor(el),
         box: box(el),
         coverage: Number(coverage.toFixed(3)),
+      });
+    }
+  }
+  const safeAreaPenetrations = [];
+  if (cfg.safeBottom > 0) {
+    for (const el of allElements("*")) {
+      if (!visible(el) || ignored(el)) continue;
+      if (el.matches("html,body,main,[role=main]")) continue;
+      const style = getComputedStyle(el);
+      if (style.position !== "fixed" && style.position !== "sticky") continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < innerWidth * 0.45 || r.height < 24) continue;
+      if (r.bottom <= 0 || r.top >= innerHeight) continue;
+      const gap = Math.max(0, innerHeight - r.bottom);
+      if (gap >= cfg.safeBottom) continue;
+      if (parseFloat(style.paddingBottom || "0") >= cfg.safeBottom) continue;
+      let nestedInBottomLayer = false;
+      for (let node = composedParent(el); node; node = composedParent(node)) {
+        const parentStyle = getComputedStyle(node);
+        if (parentStyle.position === "fixed" || parentStyle.position === "sticky") {
+          const parentRect = node.getBoundingClientRect();
+          if (parentRect.height >= 24 && parentRect.bottom > innerHeight - cfg.safeBottom) {
+            nestedInBottomLayer = true;
+            break;
+          }
+        }
+      }
+      if (nestedInBottomLayer || declaresSafeAreaBottom(el)) continue;
+      safeAreaPenetrations.push({
+        label: label(el).slice(0, 60),
+        selector: selectorFor(el),
+        box: box(el),
+        bottom_gap_px: Math.round(gap),
+        required_gap_px: cfg.safeBottom,
+        position: style.position,
       });
     }
   }
@@ -220,9 +282,37 @@ COLLECT_JS = r"""
     smallTargets,
     tinyFonts,
     hugeOverlays,
+    safeAreaPenetrations: safeAreaPenetrations.slice(0, 10),
     brokenImages,
     distortedMedia,
   };
+}
+"""
+
+TEXT_SCALE_JS = r"""
+(scale) => {
+  const requested = Number(scale);
+  if (!Number.isFinite(requested) || requested <= 1) {
+    return {applied: false, textScale: 1, scaledElements: 0};
+  }
+  if (window.__ego_webqa_text_scale === requested) {
+    return {applied: true, textScale: requested, scaledElements: 0, reused: true};
+  }
+  const elements = [...document.querySelectorAll("*")];
+  const originals = new Map();
+  for (const el of elements) {
+    if (["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE"].includes(el.tagName)) continue;
+    const size = Number.parseFloat(getComputedStyle(el).fontSize);
+    if (Number.isFinite(size) && size > 0) originals.set(el, size);
+  }
+  let scaledElements = 0;
+  for (const [el, size] of originals) {
+    el.style.setProperty("font-size", `${size * requested}px`, "important");
+    scaledElements += 1;
+  }
+  window.__ego_webqa_text_scale = requested;
+  document.documentElement.dataset.egoWebqaTextScale = String(requested);
+  return {applied: true, textScale: requested, scaledElements};
 }
 """
 

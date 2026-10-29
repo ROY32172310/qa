@@ -4,6 +4,9 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 .coverage
+coverage.json
+coverage.xml
+test-results/
 build/
 dist/
 *.egg-info/

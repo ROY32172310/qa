@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ego-webqa"
-version = "0.3.1"
+version = "0.4.0"
 description = "Deterministic coarse delivery QA for AI-generated web pages"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -49,12 +49,19 @@ ego_webqa = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
+strict_config = true
+strict_markers = true
 markers = [
   "browser: requires Playwright and a Chromium-compatible browser",
 ]
 
 [tool.coverage.run]
+branch = true
 concurrency = ["greenlet", "thread"]
+
+[tool.coverage.report]
+fail_under = 90
 
 [tool.ruff]
 line-length = 100

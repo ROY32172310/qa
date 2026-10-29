@@ -19,7 +19,9 @@
     "narrow": "320x700:narrow",
     "mobile": "390x844:mobile",
     "tablet": "768x1024:tablet",
-    "desktop": "1280x800:desktop"
+    "desktop": "1280x800:desktop",
+    "text-scale": "390x844:text-scale@1.5",
+    "safe-area": "390x844:safe-area~34"
   },
   "cases": [
     {
@@ -390,6 +392,42 @@
       },
       "tags": ["smoke", "flow", "clean-control"],
       "rationale": "Safe mode blocks the mutation request while accepting the client-side result."
+    },
+    {
+      "id": "text-scale-clean",
+      "fixture": "text-scale-clean.html",
+      "variants": ["text-scale"],
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "tags": ["text-scale", "clean-control"],
+      "rationale": "Wrapping and flexible controls remain inside the viewport at 1.5x text scale."
+    },
+    {
+      "id": "text-scale-layout-break",
+      "fixture": "text-scale-break.html",
+      "variants": ["text-scale"],
+      "expected_issue_codes": ["text_scale_layout_break"],
+      "expected_clean": false,
+      "tags": ["text-scale", "blocking"],
+      "rationale": "A non-wrapping heading pushes the document beyond the viewport at 1.5x text scale."
+    },
+    {
+      "id": "safe-area-clean",
+      "fixture": "safe-area-clean.html",
+      "variants": ["safe-area"],
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "tags": ["safe-area", "clean-control"],
+      "rationale": "The bottom action bar explicitly reserves the device safe-area inset."
+    },
+    {
+      "id": "safe-area-penetration",
+      "fixture": "safe-area-penetration.html",
+      "variants": ["safe-area"],
+      "expected_issue_codes": ["bottom_safe_area_penetration"],
+      "expected_clean": false,
+      "tags": ["safe-area", "blocking"],
+      "rationale": "The fixed action bar is pinned into the simulated 34px bottom safe area."
     },
     {
       "id": "accessibility-clean",

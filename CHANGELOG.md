@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.0 - 2026-10-29
+
+- Replace the default device mix with a faster narrow-mobile matrix covering
+  360px and 390px widths, 1.0x and 1.5x text scaling, and 0px or 34px simulated
+  bottom safe areas.
+- Add blocking `text_scale_layout_break` and
+  `bottom_safe_area_penetration` dimensions with clean controls and positive
+  fixtures in the public benchmark.
+- Expand the public benchmark to 122 cases and 36 registered dimensions, with
+  a 122/122 exact-match regression baseline.
+- Preserve text scale and safe-area values in viewport evidence and generated
+  reproduction commands.
+- Add a cross-platform `scripts/dev.py` quality gate for tests, branch
+  coverage, Ruff, Black, MyPy, benchmarks, and package validation.
+- Run the same development entry point in GitHub Actions and release packaging
+  so local and remote checks do not drift.
+
 ## 0.3.1 - 2026-10-29
 
 - Add a public 118-case synthetic benchmark with clean controls and positive

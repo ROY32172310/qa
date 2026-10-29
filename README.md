@@ -3,8 +3,13 @@
 Deterministic coarse delivery QA for AI-generated web pages, H5 demos, and PWAs.
 
 Point it at a URL. It opens the page in a real Chromium browser, checks a
-mobile/tablet/desktop matrix, safely probes the primary call to action, and
-leaves screenshots plus machine-readable evidence behind.
+zero-config narrow-mobile matrix, safely probes the primary call to action, and
+leaves screenshots plus machine-readable evidence behind. The default eight
+variants combine:
+
+- 360px and 390px widths;
+- 1.0x and 1.5x text scaling;
+- 0px and 34px simulated bottom safe area.
 
 ## Why
 
@@ -47,7 +52,7 @@ ego-webqa https://example.com --browser-channel chrome
 ```bash
 ego-webqa https://example.com
 ego-webqa --dir ./dist --file index.html
-ego-webqa http://127.0.0.1:8000 --viewports 390x844,768x1024,1440x900
+ego-webqa http://127.0.0.1:8000 --viewports 390x844:mobile@1.5~34,1280x800:desktop
 ego-webqa https://example.com --ready-selector "#app-ready" --wait-for-network-idle
 ego-webqa https://example.com --smoke-success-selector "#thank-you"
 ego-webqa https://example.com --smoke-scope all --smoke-require-assertion \
@@ -61,6 +66,10 @@ Exit codes:
 - `0`: pass or warnings only
 - `1`: at least one blocking error
 - `2`: invalid invocation or browser/runtime failure
+
+`--viewports` accepts `WIDTHxHEIGHT[:NAME][@TEXT_SCALE][~SAFE_BOTTOM_PX]`.
+Explicit viewports replace the default matrix. Text scale must be between 1.0
+and 2.0; the simulated bottom safe area must be between 0 and 100px.
 
 Every run writes self-contained evidence. Screenshot references in JSON are
 relative to the report directory, so agents and CI can move the complete
@@ -94,6 +103,8 @@ count. Query strings and credentials are removed from all reported URLs.
 Blocking errors:
 
 - horizontal page overflow
+- layout break when text is enlarged
+- bottom controls penetrating the device safe area
 - JavaScript page errors and `console.error`
 - failed resources and HTTP errors
 - a nearly blank page
@@ -159,7 +170,7 @@ ego-webqa https://example.com --config examples/webqa.json
 ```json
 {
   "profile": "accessibility",
-  "viewports": ["390x844:mobile", "768x1024:tablet", "1280x800:desktop"],
+  "viewports": ["390x844:mobile@1.5~34", "1280x800:desktop"],
   "min_tap_target_px": 44,
   "min_font_px": 12,
   "ready_selector": "#app-ready",
@@ -333,7 +344,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ROY32172310/qa@v0.2.3
+      - uses: ROY32172310/qa@v0.4.0
         with:
           url: ${{ vars.PREVIEW_URL }}
           profile: accessibility
@@ -351,7 +362,7 @@ For a local checkout of this repository, use `uses: ./` after checkout. The
 Action's `safe` smoke mode is the default; set `smoke-mode: live` only when the
 click is intentionally allowed to cause real side effects. See
 [`examples/github-action.yml`](examples/github-action.yml) and
-[`action.yml`](action.yml) for the full input set. The `@v0.2.3` tag is created
+[`action.yml`](action.yml) for the full input set. The `@v0.4.0` tag is created
 only after the same commit passes the full cross-platform CI matrix.
 
 ## Python API
@@ -387,9 +398,9 @@ semantics. Product-specific checks belong in plugins, not in the core.
 
 ## Benchmark and trust
 
-The repository includes a public synthetic benchmark with 118 independent
+The repository includes a public synthetic benchmark with 122 independent
 cases across narrow, mobile, tablet, and desktop variants. It contains positive
-controls and clean controls for all 34 registered dimensions, including
+controls and clean controls for all 36 registered dimensions, including
 bounded flows and the accessibility profile. Ground truth is declared per
 scenario; the evaluator does not import detector thresholds to decide whether a
 result is correct.
@@ -401,9 +412,9 @@ python benchmarks/run.py
 The evaluator reports exact dimension matches, case precision/recall/F1,
 blocking false-positive and false-negative rates, dimension-level TP/FP/FN, and
 complete audit latency. It writes machine-readable evidence plus a Markdown
-summary. The 2026-10-29 baseline is 118/118 exact with P50 347ms, P95 1159ms,
-and max 3587ms in serial local Chromium:
-[`docs/benchmark-2026-10-29.md`](docs/benchmark-2026-10-29.md).
+summary. The 0.4.0 baseline is 122/122 exact with P50 341ms, P95 1165ms, and
+max 3610ms in serial local Chromium:
+[`docs/benchmark-2026-10-29-v0.4.0.md`](docs/benchmark-2026-10-29-v0.4.0.md).
 
 These results measure curated synthetic fixtures, not real-site coverage or
 cross-browser parity. The benchmark's value is regression pressure: its first
@@ -416,15 +427,22 @@ was recorded.
 ```bash
 python -m pip install -e '.[dev]'
 python -m playwright install chromium
-pytest
-ruff check .
-black --check .
-mypy
-python benchmarks/run.py
+python scripts/dev.py test
+python scripts/dev.py coverage
+python scripts/dev.py lint
+python scripts/dev.py format-check
+python scripts/dev.py typecheck
+python scripts/dev.py benchmark
+python scripts/dev.py package
+python scripts/dev.py check   # lint + format + MyPy + covered tests
+python scripts/dev.py full    # check + public Chromium benchmark
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) before adding a rule. Every rule needs a
-positive control and an observed failure mode.
+The same `scripts/dev.py` entry point is used by GitHub Actions on Linux,
+macOS, and Windows, preventing local and CI commands from drifting. Coverage
+enforces a 90% line/branch floor. See [CONTRIBUTING.md](CONTRIBUTING.md) before
+adding a rule. Every rule needs a positive control and an observed failure
+mode.
 
 ## License
 

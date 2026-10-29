@@ -20,8 +20,9 @@ jobs:
       - run: >-
           python -c "import os, tomllib; version = tomllib.load(open('pyproject.toml', 'rb'))['project']['version'];
           assert os.environ['GITHUB_REF_NAME'] == f'v{version}'"
-      - run: python -m build
-      - run: python -m twine check dist/*
+      - run: python -m playwright install --with-deps chromium
+      - run: python scripts/dev.py full
+      - run: python scripts/dev.py package
       - uses: actions/upload-artifact@v4
         with:
           name: python-package

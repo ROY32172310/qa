@@ -36,7 +36,7 @@ SMOKE_STEP_ACTIONS = frozenset({"click", "fill", "press", "expect_visible", "exp
 
 @dataclass(frozen=True, slots=True)
 class Viewport:
-    """A browser viewport used by the deterministic check matrix."""
+    """One concrete browser variant in the deterministic check matrix."""
 
     width: int
     height: int
@@ -44,6 +44,8 @@ class Viewport:
     device_scale_factor: float = 1.0
     mobile: bool = False
     user_agent: str = ""
+    text_scale: float = 1.0
+    safe_area_bottom_px: int = 0
 
     def __post_init__(self) -> None:
         if type(self.width) is not int or type(self.height) is not int:
@@ -54,27 +56,63 @@ class Viewport:
             raise ValueError("device_scale_factor must be a number")
         if self.device_scale_factor <= 0:
             raise ValueError("device_scale_factor must be positive")
+        if type(self.text_scale) not in {int, float}:
+            raise ValueError("text_scale must be a number")
+        if not 1.0 <= self.text_scale <= 2.0:
+            raise ValueError("text_scale must be between 1.0 and 2.0")
+        if type(self.safe_area_bottom_px) is not int:
+            raise ValueError("safe_area_bottom_px must be an integer")
+        if not 0 <= self.safe_area_bottom_px <= 100:
+            raise ValueError("safe_area_bottom_px must be between 0 and 100")
         if not isinstance(self.mobile, bool):
             raise ValueError("viewport.mobile must be a boolean")
+        if not isinstance(self.name, str):
+            raise ValueError("viewport.name must be a string")
         if not isinstance(self.user_agent, str):
             raise ValueError("viewport.user_agent must be a string")
         if not self.name:
-            object.__setattr__(self, "name", f"{self.width}x{self.height}")
+            suffix = ""
+            if self.text_scale != 1.0 or self.safe_area_bottom_px:
+                suffix = f"-{round(self.text_scale * 100):g}-safe{self.safe_area_bottom_px}"
+            object.__setattr__(self, "name", f"{self.width}x{self.height}{suffix}")
 
     @classmethod
     def parse(cls, value: str) -> Viewport:
-        """Parse ``390x844`` or ``390x844:mobile``."""
+        """Parse ``390x844[:NAME][@TEXT_SCALE][~SAFE_BOTTOM_PX]``."""
 
         text = value.strip()
+        text_scale = 1.0
+        safe_area_bottom_px = 0
+        if "~" in text:
+            text, raw_safe_area = text.rsplit("~", 1)
+            if not re.fullmatch(r"\d+", raw_safe_area):
+                raise ValueError(f"invalid safe-area value in viewport {value!r}")
+            safe_area_bottom_px = int(raw_safe_area)
+        if "@" in text:
+            text, raw_text_scale = text.rsplit("@", 1)
+            try:
+                text_scale = float(raw_text_scale)
+            except ValueError as exc:
+                raise ValueError(f"invalid text-scale value in viewport {value!r}") from exc
         name = ""
         if ":" in text:
             text, name = text.rsplit(":", 1)
         match = re.fullmatch(r"(\d+)x(\d+)", text.lower())
         if not match:
-            raise ValueError(f"invalid viewport {value!r}; expected WIDTHxHEIGHT[:NAME]")
+            raise ValueError(
+                f"invalid viewport {value!r}; "
+                "expected WIDTHxHEIGHT[:NAME][@TEXT_SCALE][~SAFE_BOTTOM_PX]"
+            )
         width = int(match.group(1))
         mobile = width <= 600 or name.lower() in {"mobile", "phone"}
-        return cls(width, int(match.group(2)), name, mobile=mobile)
+        return cls(
+            width,
+            int(match.group(2)),
+            name,
+            mobile=mobile,
+            text_scale=text_scale,
+            safe_area_bottom_px=safe_area_bottom_px,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -84,6 +122,8 @@ class Viewport:
             "device_scale_factor": self.device_scale_factor,
             "mobile": self.mobile,
             "user_agent": self.user_agent,
+            "text_scale": self.text_scale,
+            "safe_area_bottom_px": self.safe_area_bottom_px,
         }
 
 
@@ -158,10 +198,18 @@ class SmokeStep:
         return payload
 
 
-DEFAULT_VIEWPORTS = (
-    Viewport(390, 844, "mobile", mobile=True),
-    Viewport(768, 1024, "tablet"),
-    Viewport(1280, 800, "desktop"),
+DEFAULT_VIEWPORTS = tuple(
+    Viewport(
+        width,
+        height,
+        f"mobile-{width}-{round(text_scale * 100)}-safe{safe_area_bottom_px}",
+        mobile=True,
+        text_scale=text_scale,
+        safe_area_bottom_px=safe_area_bottom_px,
+    )
+    for width, height in ((360, 800), (390, 844))
+    for text_scale in (1.0, 1.5)
+    for safe_area_bottom_px in (0, 34)
 )
 
 

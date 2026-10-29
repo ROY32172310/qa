@@ -111,6 +111,22 @@ _DIMENSIONS = {
         severity="block",
         parameters=("overflow_tolerance_px",),
     ),
+    "text_scale_layout_break": _dimension(
+        "text_scale_layout_break",
+        "Content extends beyond the viewport when text is enlarged.",
+        "geometry",
+        severity="block",
+        introduced="0.4.0",
+        parameters=("overflow_tolerance_px", "text_scale"),
+    ),
+    "bottom_safe_area_penetration": _dimension(
+        "bottom_safe_area_penetration",
+        "Bottom-anchored content enters the device safe-area band.",
+        "geometry",
+        severity="block",
+        introduced="0.4.0",
+        parameters=("safe_area_bottom_px",),
+    ),
     "blank_page": _dimension(
         "blank_page",
         "The page contains almost no visible content.",

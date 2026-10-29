@@ -26,14 +26,19 @@ service, user identity, or application framework.
 ```bash
 python -m pip install -e '.[dev]'
 python -m playwright install chromium
-pytest
-ruff check .
-black --check .
-mypy
+python scripts/dev.py test
+python scripts/dev.py check
+python scripts/dev.py full
 ```
 
 Browser tests use a temporary local HTTP server. Do not depend on public sites
 in the test suite.
+
+`check` runs Ruff, Black's format check, MyPy for the package/benchmark/task
+runner, and pytest with branch coverage and a 90% floor. `full` additionally
+runs the public Chromium benchmark. CI calls the same tasks on Linux, macOS,
+and Windows; add any new mandatory quality gate to `scripts/dev.py` instead of
+embedding an unshared command in one workflow.
 
 The benchmark is part of the quality contract. `tests/test_benchmark.py` proves
 that the suite covers every registered dimension and that metrics distinguish

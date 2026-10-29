@@ -28,8 +28,13 @@ def test_engine_issue_codes_are_exactly_the_closed_registry() -> None:
             if isinstance(value, str):
                 emitted.add(value)
 
-    dynamic_navigation_codes = {"load_error", "ready_selector_not_found"}
-    assert emitted | dynamic_navigation_codes == set(DIMENSIONS)
+    dynamic_codes = {
+        "load_error",
+        "ready_selector_not_found",
+        "horizontal_overflow",
+        "text_scale_layout_break",
+    }
+    assert emitted | dynamic_codes == set(DIMENSIONS)
 
 
 def test_registered_dimensions_have_complete_metadata() -> None:

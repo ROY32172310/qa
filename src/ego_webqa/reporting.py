@@ -232,7 +232,14 @@ def _viewport_spec(name: str, viewport: dict[str, Any]) -> str:
     width = viewport.get("width")
     height = viewport.get("height")
     if isinstance(width, int) and isinstance(height, int):
-        return f"{width}x{height}:{name}"
+        spec = f"{width}x{height}:{name}"
+        text_scale = viewport.get("text_scale")
+        if isinstance(text_scale, (int, float)) and text_scale != 1.0:
+            spec += f"@{float(text_scale):g}"
+        safe_area_bottom_px = viewport.get("safe_area_bottom_px")
+        if isinstance(safe_area_bottom_px, int) and safe_area_bottom_px:
+            spec += f"~{safe_area_bottom_px}"
+        return spec
     return name
 
 

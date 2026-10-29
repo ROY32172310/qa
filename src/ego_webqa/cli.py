@@ -37,7 +37,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--viewports",
-        help="comma-separated WIDTHxHEIGHT[:NAME] list (default: 390x844,768x1024,1280x800)",
+        help=(
+            "comma-separated WIDTHxHEIGHT[:NAME][@TEXT_SCALE][~SAFE_BOTTOM_PX] list "
+            "(default: 360/390 mobile x 1.0/1.5 text scale x 0/34px bottom safe area)"
+        ),
     )
     parser.add_argument("--out", default="webqa-report", help="artifact directory")
     parser.add_argument("--timeout-ms", type=int, help="navigation/action timeout")
