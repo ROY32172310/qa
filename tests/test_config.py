@@ -6,7 +6,7 @@ from types import MappingProxyType
 
 import pytest
 
-from ego_webqa.config import Settings, Viewport, load_settings
+from ego_webqa.config import Settings, SmokeStep, Viewport, load_settings
 
 
 def test_viewport_parse_named_and_default() -> None:
@@ -88,6 +88,106 @@ def test_mapping_accepts_noise_patterns() -> None:
     assert settings.smoke_success_selector == "#success"
     assert settings.smoke_success_url_pattern == "/complete$"
     assert settings.profile == "accessibility"
+
+
+def test_mapping_accepts_bounded_smoke_flow_and_redacts_fill_values() -> None:
+    settings = Settings.from_mapping(
+        {
+            "smoke_flow": [
+                {"action": "fill", "selector": "#email", "value": "secret@example.com"},
+                {"action": "click", "selector": "#continue"},
+                {"action": "expect_visible", "selector": "#success"},
+                {"action": "expect_url", "pattern": r"#complete$"},
+            ]
+        }
+    )
+    assert [step.action for step in settings.smoke_flow] == [
+        "fill",
+        "click",
+        "expect_visible",
+        "expect_url",
+    ]
+    payload = settings.to_dict()
+    assert payload["smoke_flow"][0]["value"] == "<redacted>"
+    assert "secret@example.com" not in json.dumps(payload)
+
+
+@pytest.mark.parametrize(
+    ("steps", "message"),
+    [
+        ([{"action": "click", "selector": "#next"}], "requires an expect_visible"),
+        (
+            [{"action": "expect_visible", "selector": "#done"}],
+            "requires at least one click",
+        ),
+        (
+            [
+                {"action": "expect_visible", "selector": "#done"},
+                {"action": "click", "selector": "#next"},
+            ],
+            "assertion after an action",
+        ),
+        ([{"action": "submit", "selector": "#next"}], "action must be one of"),
+        ([{"action": "press", "selector": "#input"}], "press requires key"),
+        ([{"action": "expect_url", "pattern": "["}], "invalid smoke_flow URL pattern"),
+        (
+            [
+                {"action": "click", "selector": "#next"},
+                {"action": "expect_visible", "selector": "#done", "value": "unexpected"},
+            ],
+            "value is only valid",
+        ),
+    ],
+)
+def test_smoke_flow_rejects_ambiguous_or_unbounded_steps(
+    steps: list[dict[str, str]],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        Settings.from_mapping({"smoke_flow": steps})
+
+
+def test_smoke_flow_is_bounded_and_mutually_exclusive_with_single_cta() -> None:
+    steps = (
+        SmokeStep("click", selector="#next"),
+        SmokeStep("expect_visible", selector="#done"),
+    )
+    with pytest.raises(ValueError, match="at most 8"):
+        Settings(smoke_flow=steps * 5)
+    with pytest.raises(ValueError, match="cannot be combined"):
+        Settings(smoke_flow=steps, smoke_selector="#next")
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"action": 1}, "smoke_flow action must be a string"),
+        ({"action": "click", "selector": 1}, "smoke_flow selector must be a string"),
+        ({"action": "fill", "selector": "#email", "value": 1}, "smoke_flow value must be a string"),
+        ({"action": "press", "selector": "#email", "key": 1}, "smoke_flow key must be a string"),
+        (
+            {"action": "expect_url", "pattern": 1},
+            "smoke_flow pattern must be a string",
+        ),
+    ],
+)
+def test_smoke_step_rejects_non_string_fields(
+    kwargs: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        SmokeStep(**kwargs)  # type: ignore[arg-type]
+
+
+def test_example_flow_config_loads() -> None:
+    path = Path(__file__).resolve().parents[1] / "examples" / "webqa-flow.json"
+    settings = load_settings(path)
+    assert [step.action for step in settings.smoke_flow] == [
+        "fill",
+        "click",
+        "expect_visible",
+        "expect_url",
+    ]
 
 
 def test_authenticated_settings_are_immutable_and_redacted() -> None:

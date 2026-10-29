@@ -189,6 +189,54 @@ def test_smoke_classification() -> None:
     )
 
 
+def test_smoke_flow_classification_names_step_and_page_errors() -> None:
+    issues = _issues_for_smoke(
+        {
+            "kind": "flow",
+            "viewport": "mobile",
+            "success": False,
+            "page_error_count": 1,
+            "page_errors": ["Error: boom"],
+            "failedStep": {
+                "index": 2,
+                "action": "click",
+                "selector": "#missing",
+                "status": "failed",
+                "error": "selector not found",
+            },
+        }
+    )
+    assert [issue.code for issue in issues] == [
+        "smoke_flow_page_error",
+        "smoke_flow_step_failed",
+    ]
+    assert "step 2 (click)" in issues[1].message
+
+
+def test_smoke_flow_failed_assertion_and_unreached_verification_are_blocking() -> None:
+    assertion = _issues_for_smoke(
+        {
+            "kind": "flow",
+            "viewport": "mobile",
+            "success": False,
+            "failedStep": {
+                "index": 3,
+                "action": "expect_visible",
+                "selector": "#success",
+                "status": "failed",
+                "error": "timeout",
+            },
+        }
+    )
+    assert [issue.code for issue in assertion] == ["smoke_flow_assertion_failed"]
+    assert all(issue.severity == "error" for issue in assertion)
+
+    unreached = _issues_for_smoke(
+        {"kind": "flow", "viewport": "mobile", "success": False, "failedStep": None}
+    )
+    assert [issue.code for issue in unreached] == ["smoke_flow_assertion_failed"]
+
+
 def test_private_helpers() -> None:
     assert _is_ignorable_failure("https://example.test/favicon.ico")
     assert _is_ignorable_failure("openapp.example://product/42")

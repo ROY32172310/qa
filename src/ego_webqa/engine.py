@@ -1044,47 +1044,51 @@ def _run_smoke(
     if safe:
         page.context.route("**/*", block_request)
         page.context.set_offline(True)
-    assertion_config = {
-        "successSelector": cfg.smoke_success_selector,
-        "successUrlPattern": cfg.smoke_success_url_pattern,
-    }
-    assertions_before: list[dict[str, Any]] = []
-    if cfg.smoke_success_selector or cfg.smoke_success_url_pattern:
-        with contextlib.suppress(Exception):
-            assertions_before = page.evaluate(SMOKE_ASSERTIONS_JS, assertion_config) or []
-    url_before = page.url
     try:
-        result = page.evaluate(
-            SMOKE_JS,
-            {
-                "selector": cfg.smoke_selector,
+        if cfg.smoke_flow:
+            result = _run_bounded_flow(page, cfg)
+        else:
+            assertion_config = {
                 "successSelector": cfg.smoke_success_selector,
                 "successUrlPattern": cfg.smoke_success_url_pattern,
-                "ctaPattern": cfg.cta_pattern,
-                "navPattern": cfg.nav_pattern,
-                "ignore": list(cfg.ignore_selectors),
-                "settleMs": cfg.smoke_settle_ms,
-            },
-        )
-    except Exception as exc:  # noqa: BLE001 - navigation can tear down the execution context
-        with contextlib.suppress(Exception):
-            page.wait_for_load_state("domcontentloaded", timeout=min(cfg.timeout_ms, 3_000))
-        with contextlib.suppress(Exception):
-            page.wait_for_timeout(cfg.smoke_settle_ms)
-        assertions_after: list[dict[str, Any]] = []
-        with contextlib.suppress(Exception):
-            assertions_after = page.evaluate(SMOKE_ASSERTIONS_JS, assertion_config) or []
-        assertions = _merge_smoke_assertions(assertions_before, assertions_after)
-        result = {
-            "found": True,
-            "changed": len(page.context.pages) > pages_before or page.url != url_before,
-            "clickError": str(exc)[:300],
-            "execution_lost": True,
-            "assertions": assertions,
-            "assertionConfigured": bool(assertions),
-            "assertionMatched": bool(assertions)
-            and all(assertion["matched"] for assertion in assertions),
-        }
+            }
+            assertions_before: list[dict[str, Any]] = []
+            if cfg.smoke_success_selector or cfg.smoke_success_url_pattern:
+                with contextlib.suppress(Exception):
+                    assertions_before = page.evaluate(SMOKE_ASSERTIONS_JS, assertion_config) or []
+            url_before = page.url
+            try:
+                result = page.evaluate(
+                    SMOKE_JS,
+                    {
+                        "selector": cfg.smoke_selector,
+                        "successSelector": cfg.smoke_success_selector,
+                        "successUrlPattern": cfg.smoke_success_url_pattern,
+                        "ctaPattern": cfg.cta_pattern,
+                        "navPattern": cfg.nav_pattern,
+                        "ignore": list(cfg.ignore_selectors),
+                        "settleMs": cfg.smoke_settle_ms,
+                    },
+                )
+            except Exception as exc:  # noqa: BLE001 - navigation tears down the JS context
+                with contextlib.suppress(Exception):
+                    page.wait_for_load_state("domcontentloaded", timeout=min(cfg.timeout_ms, 3_000))
+                with contextlib.suppress(Exception):
+                    page.wait_for_timeout(cfg.smoke_settle_ms)
+                assertions_after: list[dict[str, Any]] = []
+                with contextlib.suppress(Exception):
+                    assertions_after = page.evaluate(SMOKE_ASSERTIONS_JS, assertion_config) or []
+                assertions = _merge_smoke_assertions(assertions_before, assertions_after)
+                result = {
+                    "found": True,
+                    "changed": len(page.context.pages) > pages_before or page.url != url_before,
+                    "clickError": str(exc)[:300],
+                    "execution_lost": True,
+                    "assertions": assertions,
+                    "assertionConfigured": bool(assertions),
+                    "assertionMatched": bool(assertions)
+                    and all(assertion["matched"] for assertion in assertions),
+                }
     finally:
         if safe:
             page.context.unroute("**/*", block_request)
@@ -1099,9 +1103,19 @@ def _run_smoke(
         error for error in new_page_errors if error not in suppressed_network_errors
     ]
     new_page_count = max(0, len(page.context.pages) - pages_before)
-    assertion_configured = bool(cfg.smoke_success_selector or cfg.smoke_success_url_pattern)
-    observed_effect = bool(result.get("changed") or new_page_count or blocked_requests)
-    success = bool(result.get("assertionMatched")) if assertion_configured else observed_effect
+    if cfg.smoke_flow:
+        assertion_configured = True
+        observed_effect = any(
+            step.get("status") == "passed" and step.get("action") in {"click", "fill", "press"}
+            for step in result.get("steps") or []
+        )
+        success = bool(result.get("assertionMatched"))
+        result["kind"] = "flow"
+    else:
+        assertion_configured = bool(cfg.smoke_success_selector or cfg.smoke_success_url_pattern)
+        observed_effect = bool(result.get("changed") or new_page_count or blocked_requests)
+        success = bool(result.get("assertionMatched")) if assertion_configured else observed_effect
+        result["kind"] = "cta"
     result.update(
         {
             "performed": True,
@@ -1111,7 +1125,7 @@ def _run_smoke(
             "new_page_count": new_page_count,
             "observed_effect": observed_effect,
             "assertion_configured": assertion_configured,
-            "assertion_required": cfg.smoke_require_assertion,
+            "assertion_required": bool(cfg.smoke_require_assertion or cfg.smoke_flow),
             "success": success,
             "page_error_count": len(actionable_page_errors),
             "page_errors": actionable_page_errors[:10],
@@ -1123,8 +1137,73 @@ def _run_smoke(
     return result
 
 
+def _run_bounded_flow(page: Any, cfg: Settings) -> dict[str, Any]:
+    """Execute a small ordered flow with no arbitrary code or scripting."""
+
+    steps: list[dict[str, Any]] = []
+    failed_step: dict[str, Any] | None = None
+    for index, step in enumerate(cfg.smoke_flow, start=1):
+        record: dict[str, Any] = {
+            "index": index,
+            "action": step.action,
+            "status": "passed",
+        }
+        if step.selector:
+            record["selector"] = step.selector
+        if step.pattern:
+            record["pattern"] = step.pattern
+        try:
+            if step.action == "click":
+                page.locator(step.selector).first.click(timeout=cfg.timeout_ms)
+            elif step.action == "fill":
+                page.locator(step.selector).first.fill(step.value, timeout=cfg.timeout_ms)
+            elif step.action == "press":
+                page.locator(step.selector).first.press(step.key, timeout=cfg.timeout_ms)
+            elif step.action == "expect_visible":
+                page.locator(step.selector).first.wait_for(
+                    state="visible",
+                    timeout=cfg.timeout_ms,
+                )
+            elif step.action == "expect_url":
+                page.wait_for_url(
+                    re.compile(step.pattern, re.IGNORECASE),
+                    timeout=cfg.timeout_ms,
+                )
+            if step.action in {"click", "fill", "press"} and cfg.smoke_settle_ms:
+                page.wait_for_timeout(cfg.smoke_settle_ms)
+        except Exception as exc:  # noqa: BLE001 - each failed step is report evidence
+            record["status"] = "failed"
+            record["error"] = str(exc)[:300]
+            failed_step = record
+        steps.append(record)
+        if failed_step is not None:
+            break
+
+    assertions = [step for step in steps if step.get("action") in {"expect_visible", "expect_url"}]
+    assertion_matched = failed_step is None and bool(assertions)
+    return {
+        "found": True,
+        "changed": any(step.get("status") == "passed" for step in steps),
+        "steps": steps,
+        "failedStep": failed_step,
+        "assertions": [
+            {
+                "type": str(step["action"]).removeprefix("expect_"),
+                "selector": step.get("selector"),
+                "pattern": step.get("pattern"),
+                "matched": step.get("status") == "passed",
+            }
+            for step in assertions
+        ],
+        "assertionConfigured": True,
+        "assertionMatched": assertion_matched,
+    }
+
+
 def _issues_for_smoke(smoke: dict[str, Any]) -> list[Issue]:
     name = str(smoke.get("viewport") or "")
+    if smoke.get("kind") == "flow":
+        return _issues_for_flow_smoke(smoke, name)
     if not smoke.get("found"):
         return [
             Issue(
@@ -1180,6 +1259,63 @@ def _issues_for_smoke(smoke: dict[str, Any]) -> list[Issue]:
                 f"clicking {smoke.get('label')!r} had no observable effect: {detail}",
                 name,
                 "Check event binding, disabled state, overlays, and the handler's error path.",
+                smoke,
+            )
+        )
+    return issues
+
+
+def _issues_for_flow_smoke(smoke: dict[str, Any], viewport: str) -> list[Issue]:
+    issues: list[Issue] = []
+    if smoke.get("page_error_count"):
+        issues.append(
+            Issue(
+                "smoke_flow_page_error",
+                "error",
+                "the configured smoke flow raised a JavaScript error",
+                viewport,
+                "Fix the JavaScript exception before relying on the flow's rendered outcome.",
+                {"errors": list(smoke.get("page_errors") or [])[:10]},
+            )
+        )
+    failed_step = smoke.get("failedStep")
+    if isinstance(failed_step, dict):
+        action = str(failed_step.get("action") or "unknown")
+        index = failed_step.get("index")
+        is_assertion = action in {"expect_visible", "expect_url"}
+        detail = str(failed_step.get("error") or "step failed")
+        evidence = {"step": failed_step, "flow": smoke}
+        if is_assertion:
+            issues.append(
+                Issue(
+                    "smoke_flow_assertion_failed",
+                    "error",
+                    f"smoke-flow step {index} ({action}) did not satisfy its expectation: {detail}",
+                    viewport,
+                    "Make the expected visible state or URL true after the preceding actions.",
+                    evidence,
+                )
+            )
+        else:
+            issues.append(
+                Issue(
+                    "smoke_flow_step_failed",
+                    "error",
+                    f"smoke-flow step {index} ({action}) could not be executed: {detail}",
+                    viewport,
+                    "Check the selector, element state, and whether an earlier step "
+                    "left the page in the expected state.",
+                    evidence,
+                )
+            )
+    elif smoke.get("success") is False:
+        issues.append(
+            Issue(
+                "smoke_flow_assertion_failed",
+                "error",
+                "the configured smoke flow did not reach a verified assertion",
+                viewport,
+                "Keep at least one visible-state or URL assertion at the end of the flow.",
                 smoke,
             )
         )

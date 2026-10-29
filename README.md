@@ -52,6 +52,7 @@ ego-webqa https://example.com --ready-selector "#app-ready" --wait-for-network-i
 ego-webqa https://example.com --smoke-success-selector "#thank-you"
 ego-webqa https://example.com --smoke-scope all --smoke-require-assertion \
   --smoke-success-selector "#thank-you"
+ego-webqa --dir examples/demo --config examples/webqa-demo-flow.json
 ego-webqa https://example.com --profile accessibility
 ```
 
@@ -100,6 +101,7 @@ Blocking errors:
 - broken visible images
 - distorted canvas/image/video aspect ratio
 - dead primary CTA
+- a configured smoke-flow target or post-action assertion fails
 - severe unexpected layout shift
 
 Warnings:
@@ -188,6 +190,40 @@ Set `smoke_scope` to `all` to exercise the CTA independently in every viewport.
 Use `smoke_require_assertion` for delivery gates that must not accept a vague
 DOM change as success.
 
+### Bounded smoke flows
+
+For a short client-side path, `smoke_flow` can describe an ordered sequence of
+deterministic actions. It accepts at most eight steps from a closed set:
+
+- `click`: click a selector;
+- `fill`: fill a selector, with the value redacted from reports;
+- `press`: press a key on a selector;
+- `expect_visible`: require a selector to become visible;
+- `expect_url`: require the current URL to match a regular expression.
+
+```json
+{
+  "smoke_mode": "safe",
+  "smoke_flow": [
+    {"action": "fill", "selector": "#email", "value": "qa@example.com"},
+    {"action": "click", "selector": "#continue"},
+    {"action": "expect_visible", "selector": "#success"},
+    {"action": "expect_url", "pattern": "#complete$"}
+  ]
+}
+```
+
+The flow must contain a `click`, `fill`, or `press` action, followed later by at
+least one `expect_visible` or `expect_url` assertion. A flow cannot be combined
+with the single-CTA selector/assertion fields. The default `safe` mode blocks
+HTTP after the initial page load, so flows are limited to deterministic
+client-side behavior unless `smoke_mode` is explicitly changed to `live`.
+Arbitrary JavaScript and user-defined detectors are not accepted.
+
+When a flow fails, `report.json` includes each completed step, the failed step,
+and its error. The Agent summary names the exact action instead of reporting a
+generic dead button.
+
 Use `ready_selector` for SPA content that appears after the load event. Known
 third-party console and request noise can be excluded with regex patterns
 without hiding DOM-based findings. Ignored responses are excluded from both
@@ -266,6 +302,7 @@ Typical tool arguments are:
 {
   "url": "http://127.0.0.1:5173",
   "out_dir": ".qa/agent-a",
+  "config": "/workspace/webqa-flow.json",
   "profile": "accessibility",
   "viewports": ["390x844:mobile", "1280x800:desktop"],
   "smoke_scope": "all",
@@ -273,6 +310,10 @@ Typical tool arguments are:
   "smoke_success_selector": "#thank-you"
 }
 ```
+
+The `config` path is the MCP integration point for bounded `smoke_flow`
+sequences, authenticated requests, ignore policies, and other settings that do
+not need to be repeated in every tool call.
 
 The MCP result is marked as an error when the report status is `fail`, while
 the full report remains available as structured content. Authentication
@@ -316,17 +357,24 @@ only after the same commit passes the full cross-platform CI matrix.
 ## Python API
 
 ```python
-from ego_webqa import Settings, audit
+from ego_webqa import Settings, SmokeStep, audit
 
-report = audit("https://example.com", settings=Settings(), output_dir="qa")
+settings = Settings(
+    smoke_flow=(
+        SmokeStep("click", selector="#continue"),
+        SmokeStep("expect_visible", selector="#success"),
+    )
+)
+report = audit("https://example.com", settings=settings, output_dir="qa")
 print(report.status)
 ```
 
 ## Scope and independence
 
-This is a deterministic coarse gate for obvious delivery failures. It does not
-prove that a business flow works, that every supported browser matches, or that
-the page is secure.
+This is a deterministic coarse gate for obvious delivery failures. A bounded
+smoke flow can prove that one configured short client-side path reaches its
+declared visible state or URL; it does not prove business correctness, that
+every supported browser matches, or that the page is secure.
 
 Fixed report scope:
 

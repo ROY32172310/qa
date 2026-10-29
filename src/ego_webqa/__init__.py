@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .config import Settings, Viewport
+from .config import Settings, SmokeStep, Viewport
 from .dimensions import DIMENSIONS, Dimension, dimension_for, registry_payload
 from .engine import AuditRuntimeError, audit
 from .models import AuditReport, Issue
@@ -14,10 +14,11 @@ __all__ = [
     "Dimension",
     "Issue",
     "Settings",
+    "SmokeStep",
     "Viewport",
     "audit",
     "dimension_for",
     "registry_payload",
 ]
 
-__version__ = "0.2.3"
+__version__ = "0.3.0"

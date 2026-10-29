@@ -45,6 +45,17 @@ body{margin:0;font:16px/1.5 system-ui}.wide{width:2400px;height:20px}
 <div class="wide">overflow</div></main></body></html>""",
         encoding="utf-8",
     )
+    (root / "flow.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport"
+content="width=device-width"><title>MCP flow fixture</title><style>
+body{margin:0;font:16px/1.5 system-ui}main{padding:32px}
+button{min-height:48px;font-size:16px}[hidden]{display:none!important}
+</style></head><body><main><h1>Agent flow gate</h1>
+<button id="continue" onclick="document.querySelector('#success').hidden=false">
+Continue</button><p id="success" hidden>Complete</p>
+</main></body></html>""",
+        encoding="utf-8",
+    )
     server = LocalServer(root)
     yield server, root
     server.close()
@@ -129,6 +140,36 @@ def test_mcp_tool_validates_target_and_accepts_local_directory(
     assert source["directory"] == str(root.resolve())
     assert source["file"] == "index.html"
     assert source["config"] == str(config_path.resolve())
+
+
+def test_mcp_tool_consumes_bounded_flow_from_config(
+    site: tuple[LocalServer, Path],
+    tmp_path: Path,
+) -> None:
+    _, root = site
+    config_path = tmp_path / "flow.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "smoke_flow": [
+                    {"action": "click", "selector": "#continue"},
+                    {"action": "expect_visible", "selector": "#success"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = audit_web_page(
+        directory=str(root),
+        file="flow.html",
+        config=str(config_path),
+        out_dir=str(tmp_path / "flow"),
+        viewports=["390x844:mobile"],
+        smoke=True,
+    )
+    assert result.is_error is False
+    assert result.structured_content["smoke"]["kind"] == "flow"
+    assert result.structured_content["smoke"]["success"] is True
 
 
 def test_mcp_stdio_round_trip(site: tuple[LocalServer, Path], tmp_path: Path) -> None:

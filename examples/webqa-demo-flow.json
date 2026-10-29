@@ -1,0 +1,13 @@
+{
+  "viewports": ["390x844:mobile", "1280x800:desktop"],
+  "smoke_flow": [
+    {
+      "action": "click",
+      "selector": "#start"
+    },
+    {
+      "action": "expect_visible",
+      "selector": "#result"
+    }
+  ]
+}

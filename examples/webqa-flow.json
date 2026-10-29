@@ -1,0 +1,24 @@
+{
+  "viewports": ["390x844:mobile", "1280x800:desktop"],
+  "smoke_mode": "safe",
+  "smoke_settle_ms": 300,
+  "smoke_flow": [
+    {
+      "action": "fill",
+      "selector": "#email",
+      "value": "qa@example.com"
+    },
+    {
+      "action": "click",
+      "selector": "#continue"
+    },
+    {
+      "action": "expect_visible",
+      "selector": "#success"
+    },
+    {
+      "action": "expect_url",
+      "pattern": "#complete$"
+    }
+  ]
+}

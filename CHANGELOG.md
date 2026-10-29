@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0 - 2026-10-29
+
+- Add an opt-in bounded smoke flow for short client-side delivery paths.
+  Supported steps are `click`, `fill`, `press`, `expect_visible`, and
+  `expect_url`; arbitrary JavaScript and user-defined detectors remain
+  unsupported.
+- Require an interaction followed by a visible-state or URL assertion and cap
+  flows at eight steps so a pass always has deterministic post-action evidence.
+- Keep the default `safe` mode: post-load network requests are blocked while
+  the flow runs. Flow input values are redacted from reports and Agent
+  summaries.
+- Add blocking dimensions for missing flow targets, failed expectations, and
+  page-level exceptions raised during a flow.
+
 ## 0.2.3 - 2026-10-28
 
 - Add structured request-failure attribution to network evidence: resource

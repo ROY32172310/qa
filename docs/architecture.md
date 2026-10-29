@@ -19,6 +19,20 @@ installed separately.
 reusing the same browser facts, threshold model, issue model, and reporters.
 Profile selection changes the issue rules, not the report schema.
 
+## Bounded smoke flows
+
+The optional `smoke_flow` is a closed sequence of at most eight deterministic
+steps. Python owns orchestration and classification; Playwright performs only
+five admitted operations: click, fill, press, visible-state assertion, and URL
+assertion. Every flow must contain an interaction followed by a visible-state or
+URL assertion.
+
+The flow runs in the same isolated browser context as the viewport audit. In
+the default safe mode, network requests are blocked after the initial load, and
+`report.json` records every completed step plus the first failed step. Fill
+values are redacted and never copied into evidence. The feature does not expose
+arbitrary JavaScript, custom detectors, or a general-purpose E2E DSL.
+
 ## CI adapter
 
 `action.yml` is a thin composite Action over the CLI. It owns runner setup,
@@ -74,7 +88,8 @@ but it cannot invent a dimension or arbitrary assertion.
 ## Scope and deliberate exclusions
 
 The report covers multi-viewport geometry and deterministic baseline UX facts.
-Business-path correctness, cross-browser rendering parity, security,
+A bounded smoke flow can verify one configured short client-side delivery path,
+but business-path correctness, cross-browser rendering parity, security,
 observability, and accessibility certification require separate verification.
 
 The core also does not know about:

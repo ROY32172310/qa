@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from ego_webqa.config import Settings, Viewport
+from ego_webqa.config import Settings, SmokeStep, Viewport
 from ego_webqa.engine import audit
 from ego_webqa.server import LocalServer
 
@@ -117,6 +117,36 @@ setTimeout(() => {
   document.body.append(main);
 }, 120);
 </script></body></html>""",
+        encoding="utf-8",
+    )
+    (root / "flow.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
+<title>Bounded flow</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}
+main{max-width:720px;padding:32px;margin:auto}
+input,button{min-height:48px;font-size:16px}
+[hidden]{display:none!important}
+</style></head><body><main><h1>Create a preview</h1>
+<input id="email" aria-label="Email"><button id="continue" onclick="
+const success=document.querySelector('#success');
+const error=document.querySelector('#error');
+if(document.querySelector('#email').value){
+  success.hidden=false;error.hidden=true;history.pushState({},'','#complete');
+}else{success.hidden=true;error.hidden=false}
+">Continue</button>
+<p id="error" hidden>Email is required.</p>
+<p id="success" hidden>Preview created.</p>
+</main></body></html>""",
+        encoding="utf-8",
+    )
+    (root / "flow-error.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
+<title>Flow error</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:32px}
+button{min-height:48px;font-size:16px}
+</style></head><body><main><h1>Flow exception</h1>
+<button id="boom" onclick="setTimeout(() => { throw new Error('flow boom') }, 0)">
+Continue</button><p id="done">Visible result</p></main></body></html>""",
         encoding="utf-8",
     )
     (root / "navigate.html").write_text(
@@ -467,6 +497,109 @@ def test_success_assertions_survive_full_page_navigation(
     assert report.smoke["success"] is True
     assert all(assertion["matched"] for assertion in report.smoke["assertions"])
     assert "cta_assertion_failed" not in {issue.code for issue in report.issues}
+
+
+def test_bounded_smoke_flow_fills_clicks_and_verifies_outcome(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("flow.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+            smoke_settle_ms=10,
+            smoke_flow=(
+                SmokeStep("fill", selector="#email", value="qa@example.com"),
+                SmokeStep("click", selector="#continue"),
+                SmokeStep("expect_visible", selector="#success"),
+                SmokeStep("expect_url", pattern=r"#complete$"),
+            ),
+        ),
+        output_dir=tmp_path,
+    )
+    assert report.smoke["kind"] == "flow"
+    assert report.smoke["success"] is True
+    assert report.smoke["assertion_required"] is True
+    assert [step["status"] for step in report.smoke["steps"]] == ["passed"] * 4
+    assert all(assertion["matched"] for assertion in report.smoke["assertions"])
+    assert not {
+        "smoke_flow_step_failed",
+        "smoke_flow_assertion_failed",
+        "smoke_flow_page_error",
+    } & {issue.code for issue in report.issues}
+    assert "qa@example.com" not in json.dumps(report.to_dict())
+
+
+def test_bounded_smoke_flow_reports_failed_assertion_without_input_value(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("flow.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+            timeout_ms=250,
+            smoke_settle_ms=10,
+            smoke_flow=(
+                SmokeStep("fill", selector="#email", value="do-not-persist"),
+                SmokeStep("fill", selector="#email", value=""),
+                SmokeStep("click", selector="#continue"),
+                SmokeStep("expect_visible", selector="#success"),
+            ),
+        ),
+        output_dir=tmp_path,
+    )
+    assert report.smoke["success"] is False
+    assert report.smoke["failedStep"]["action"] == "expect_visible"
+    assert "smoke_flow_assertion_failed" in {issue.code for issue in report.issues}
+    assert "do-not-persist" not in json.dumps(report.to_dict())
+
+
+def test_bounded_smoke_flow_names_the_failed_action(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("flow.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+            timeout_ms=200,
+            smoke_settle_ms=0,
+            smoke_flow=(
+                SmokeStep("click", selector="#missing-action"),
+                SmokeStep("expect_visible", selector="#success"),
+            ),
+        ),
+        output_dir=tmp_path,
+    )
+    failed = next(issue for issue in report.issues if issue.code == "smoke_flow_step_failed")
+    assert report.smoke["observed_effect"] is False
+    assert "step 1 (click)" in failed.message
+    assert failed.evidence["step"]["selector"] == "#missing-action"
+
+
+def test_bounded_smoke_flow_surfaces_page_errors(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("flow-error.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+            smoke_settle_ms=50,
+            smoke_flow=(
+                SmokeStep("click", selector="#boom"),
+                SmokeStep("expect_visible", selector="#done"),
+            ),
+        ),
+        output_dir=tmp_path,
+    )
+    assert report.smoke["success"] is True
+    assert "smoke_flow_page_error" in {issue.code for issue in report.issues}
 
 
 def test_accessibility_profile_adds_deterministic_checks(

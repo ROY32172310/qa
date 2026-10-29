@@ -31,6 +31,7 @@ MOBILE_USER_AGENT = (
 HTTP_USERNAME_ENV = "EGO_WEBQA_HTTP_USERNAME"
 HTTP_PASSWORD_ENV = "EGO_WEBQA_HTTP_PASSWORD"
 HTTP_HEADERS_ENV = "EGO_WEBQA_EXTRA_HTTP_HEADERS"
+SMOKE_STEP_ACTIONS = frozenset({"click", "fill", "press", "expect_visible", "expect_url"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +87,77 @@ class Viewport:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class SmokeStep:
+    """One bounded action or assertion in an optional delivery smoke flow."""
+
+    action: str
+    selector: str = ""
+    value: str = ""
+    key: str = ""
+    pattern: str = ""
+
+    def __post_init__(self) -> None:
+        for field_name in ("action", "selector", "value", "key", "pattern"):
+            if not isinstance(getattr(self, field_name), str):
+                raise ValueError(f"smoke_flow {field_name} must be a string")
+        if self.action not in SMOKE_STEP_ACTIONS:
+            choices = ", ".join(sorted(SMOKE_STEP_ACTIONS))
+            raise ValueError(f"smoke_flow action must be one of: {choices}")
+        if self.action == "expect_url":
+            if not self.pattern:
+                raise ValueError("smoke_flow expect_url requires pattern")
+            try:
+                re.compile(self.pattern)
+            except re.error as exc:
+                raise ValueError(f"invalid smoke_flow URL pattern: {exc}") from exc
+        elif not self.selector:
+            raise ValueError(f"smoke_flow {self.action} requires selector")
+        if self.action == "press" and not self.key:
+            raise ValueError("smoke_flow press requires key")
+        if self.action != "fill" and self.value:
+            raise ValueError("smoke_flow value is only valid for fill")
+        if self.action != "press" and self.key:
+            raise ValueError("smoke_flow key is only valid for press")
+        if self.action != "expect_url" and self.pattern:
+            raise ValueError("smoke_flow pattern is only valid for expect_url")
+        for field_name, field_value in (
+            ("selector", self.selector),
+            ("value", self.value),
+            ("key", self.key),
+            ("pattern", self.pattern),
+        ):
+            if len(field_value) > 1_000:
+                raise ValueError(f"smoke_flow {field_name} is too long")
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> SmokeStep:
+        if not isinstance(value, Mapping):
+            raise ValueError("smoke_flow steps must be objects")
+        allowed = {"action", "selector", "value", "key", "pattern"}
+        unknown = sorted(set(value) - allowed)
+        if unknown:
+            raise ValueError(f"unknown smoke_flow step key(s): {', '.join(unknown)}")
+        for key in allowed:
+            if key in value and not isinstance(value[key], str):
+                raise ValueError(f"smoke_flow {key} must be a string")
+        return cls(
+            action=value.get("action", ""),
+            selector=value.get("selector", ""),
+            value=value.get("value", ""),
+            key=value.get("key", ""),
+            pattern=value.get("pattern", ""),
+        )
+
+    def to_dict(self) -> dict[str, str]:
+        payload = {"action": self.action}
+        for key in ("selector", "value", "key", "pattern"):
+            value = getattr(self, key)
+            if value:
+                payload[key] = "<redacted>" if key == "value" and self.action == "fill" else value
+        return payload
+
+
 DEFAULT_VIEWPORTS = (
     Viewport(390, 844, "mobile", mobile=True),
     Viewport(768, 1024, "tablet"),
@@ -129,6 +201,7 @@ class Settings:
     smoke_settle_ms: int = 800
     smoke_require_assertion: bool = False
     smoke_mode: str = "safe"
+    smoke_flow: tuple[SmokeStep, ...] = ()
     ignore_selectors: tuple[str, ...] = ()
     ignore_console_patterns: tuple[str, ...] = ()
     ignore_request_patterns: tuple[str, ...] = ()
@@ -201,12 +274,38 @@ class Settings:
         if self.smoke_settle_ms < 0:
             raise ValueError("smoke_settle_ms must be non-negative")
         if self.smoke_require_assertion and not (
-            self.smoke_success_selector or self.smoke_success_url_pattern
+            self.smoke_success_selector or self.smoke_success_url_pattern or self.smoke_flow
         ):
             raise ValueError(
                 "smoke_require_assertion requires smoke_success_selector "
-                "or smoke_success_url_pattern"
+                "or smoke_success_url_pattern, or smoke_flow"
             )
+        if len(self.smoke_flow) > 8:
+            raise ValueError("smoke_flow supports at most 8 steps")
+        if self.smoke_flow:
+            if self.smoke_selector or self.smoke_success_selector or self.smoke_success_url_pattern:
+                raise ValueError(
+                    "smoke_flow cannot be combined with smoke_selector or "
+                    "single-step success assertions"
+                )
+            action_actions = {"click", "fill", "press"}
+            assertion_actions = {"expect_visible", "expect_url"}
+            first_action = next(
+                (
+                    index
+                    for index, step in enumerate(self.smoke_flow)
+                    if step.action in action_actions
+                ),
+                None,
+            )
+            if first_action is None:
+                raise ValueError("smoke_flow requires at least one click, fill, or press action")
+            if not any(
+                step.action in assertion_actions for step in self.smoke_flow[first_action + 1 :]
+            ):
+                raise ValueError(
+                    "smoke_flow requires an expect_visible or expect_url assertion after an action"
+                )
         if bool(self.http_username) != bool(self.http_password):
             raise ValueError("http_username and http_password must be configured together")
         for header_name, header_value in self.extra_http_headers.items():
@@ -238,11 +337,19 @@ class Settings:
                 ):
                     raise ValueError("viewports must be a tuple of Viewport values")
             elif name in {
+                "smoke_flow",
                 "ignore_console_patterns",
                 "ignore_request_patterns",
                 "ignore_selectors",
             }:
-                if not isinstance(value, tuple) or not all(isinstance(item, str) for item in value):
+                if name == "smoke_flow":
+                    if not isinstance(value, tuple) or not all(
+                        isinstance(item, SmokeStep) for item in value
+                    ):
+                        raise ValueError("smoke_flow must be a tuple of SmokeStep values")
+                elif not isinstance(value, tuple) or not all(
+                    isinstance(item, str) for item in value
+                ):
                     raise ValueError(f"{name} must be a tuple of strings")
             else:
                 _validate_scalar_type(name, value, hints[name])
@@ -274,6 +381,10 @@ class Settings:
                 if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
                     raise ValueError(f"{key} must be a list of strings")
                 changes[key] = tuple(value)
+            elif key == "smoke_flow":
+                if not isinstance(value, list):
+                    raise ValueError("smoke_flow must be a list")
+                changes[key] = tuple(SmokeStep.from_mapping(item) for item in value)
             elif key == "metadata":
                 if not isinstance(value, dict):
                     raise ValueError("metadata must be an object")
@@ -322,6 +433,7 @@ class Settings:
             "smoke_settle_ms": self.smoke_settle_ms,
             "smoke_require_assertion": self.smoke_require_assertion,
             "smoke_mode": self.smoke_mode,
+            "smoke_flow": [step.to_dict() for step in self.smoke_flow],
             "ignore_selectors": list(self.ignore_selectors),
             "ignore_console_patterns": list(self.ignore_console_patterns),
             "ignore_request_patterns": list(self.ignore_request_patterns),

@@ -23,9 +23,9 @@
       <h1>Ship the page, not the obvious defects.</h1>
       <p>This fixture is intentionally small. The audit checks layout, readability,
         resources, timing, and whether the primary action responds.</p>
-      <button id="start" onclick="document.querySelector('#result').textContent =
-        'Primary action responded.'">Start now</button>
-      <p id="result" aria-live="polite"></p>
+      <button id="start" onclick="const result = document.querySelector('#result');
+        result.textContent = 'Primary action responded.'; result.hidden = false;">Start now</button>
+      <p id="result" aria-live="polite" hidden>Primary action responded.</p>
     </section>
   </main>
 </body>
