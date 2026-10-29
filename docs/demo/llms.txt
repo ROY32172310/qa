@@ -11,6 +11,7 @@ commands that reproduce the run.
 
 ## Start
 
+- Install the browser once: `python -m playwright install chromium`
 - Install the MCP server: `uvx ego-webqa mcp`
 - Run one CLI audit: `ego-webqa https://your-preview.example --out .qa/first-trial`
 - PyPI: https://pypi.org/project/ego-webqa/
