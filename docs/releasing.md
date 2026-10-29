@@ -27,5 +27,6 @@ Releases use PyPI Trusted Publishing. No PyPI token is stored in GitHub.
 
 The release workflow rejects a tag that does not match the package version,
 runs the complete local quality gate and Chromium benchmark, builds the wheel
-and source distribution, checks their metadata, and publishes them to PyPI
-through OIDC.
+and source distribution, checks their metadata, publishes them to PyPI through
+OIDC, and creates a GitHub Release with the same artifacts attached. PyPI
+uploads are idempotent so a failed GitHub Release job can be retried safely.

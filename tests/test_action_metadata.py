@@ -76,3 +76,33 @@ def test_example_action_workflow_uses_accessibility_profile() -> None:
     action = next(step for step in steps if str(step.get("uses", "")).startswith("ROY"))
     assert action["with"]["profile"] == "accessibility"
     assert action["with"]["fail-on-warn"] == "true"
+
+
+def test_release_workflow_publishes_github_release_after_pypi() -> None:
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    )
+    jobs = workflow["jobs"]
+
+    publish_steps = jobs["publish"]["steps"]
+    pypi_step = next(
+        step for step in publish_steps if "pypa/gh-action-pypi-publish" in step.get("uses", "")
+    )
+    assert pypi_step["with"]["skip-existing"] is True
+
+    github_release = jobs["github-release"]
+    assert github_release["needs"] == "publish"
+    assert github_release["permissions"]["contents"] == "write"
+    assert any(
+        step.get("uses") == "actions/download-artifact@v4"
+        and step.get("with", {}).get("name") == "python-package"
+        for step in github_release["steps"]
+    )
+
+    release_step = next(
+        step for step in github_release["steps"] if step.get("name") == "Publish GitHub release"
+    )
+    script = release_step["run"]
+    assert 'gh release create "$GITHUB_REF_NAME" dist/*' in script
+    assert "--verify-tag" in script
+    assert 'gh release upload "$GITHUB_REF_NAME" dist/*' in script
