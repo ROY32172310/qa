@@ -11,6 +11,21 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_workflows_keep_matrices_under_strategy() -> None:
+    for path in (ROOT / ".github" / "workflows").glob("*.yml"):
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert isinstance(workflow, dict), path
+        jobs = workflow.get("jobs")
+        assert isinstance(jobs, dict), path
+        for job_name, job in jobs.items():
+            assert isinstance(job, dict), (path, job_name)
+            assert "matrix" not in job, (path, job_name)
+            assert "runs-on" in job, (path, job_name)
+            strategy = job.get("strategy")
+            if isinstance(strategy, dict) and "matrix" in strategy:
+                assert isinstance(strategy["matrix"], dict), (path, job_name)
+
+
 def _bash_executable() -> str:
     if os.name == "nt":
         program_files = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files"))
