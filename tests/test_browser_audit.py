@@ -140,6 +140,7 @@ if(document.querySelector('#email').value){
 const count=document.querySelector('#count');
 count.textContent=String(Number(count.textContent)+1)
 ">Increment</button><output id="count">0</output>
+<div id="hidden-copy">Visible shell<span hidden>not delivered</span></div>
 </main></body></html>""",
         encoding="utf-8",
     )
@@ -755,6 +756,29 @@ def test_bounded_smoke_flow_reports_text_assertion_without_echoing_content(
     assert issue.severity == "error"
     assert issue.evidence["step"]["selector"] == "#count"
     assert "smoke_flow_assertion_failed" not in {item.code for item in report.issues}
+
+
+def test_bounded_smoke_flow_does_not_treat_hidden_descendant_text_as_visible(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("flow.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+            timeout_ms=500,
+            smoke_settle_ms=10,
+            smoke_flow=(
+                SmokeStep("click", selector="#increment"),
+                SmokeStep("expect_text", selector="#hidden-copy", pattern=r"not delivered"),
+            ),
+        ),
+        output_dir=tmp_path,
+    )
+    assert report.smoke["success"] is False
+    assert report.smoke["failedStep"]["text_source"] == "text"
+    assert "smoke_flow_text_assertion_failed" in {issue.code for issue in report.issues}
 
 
 def test_bounded_smoke_flow_names_the_failed_action(

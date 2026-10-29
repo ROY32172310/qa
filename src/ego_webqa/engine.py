@@ -1529,8 +1529,6 @@ def _run_bounded_flow(page: Any, cfg: Settings) -> dict[str, Any]:
                     observed = locator.input_value(timeout=cfg.timeout_ms)
                 else:
                     observed = locator.inner_text(timeout=cfg.timeout_ms)
-                    if not observed:
-                        observed = locator.text_content(timeout=cfg.timeout_ms) or ""
                 record["text_source"] = text_source
                 record["observed_length"] = len(observed)
                 if re.search(step.pattern, observed, re.IGNORECASE) is None:

@@ -317,10 +317,11 @@ deterministic client-side behavior unless `smoke_mode` is explicitly changed to
 `live`. Arbitrary JavaScript and user-defined detectors are not accepted.
 
 `expect_text` reads `input`, `textarea`, and `select` values through
-Playwright; all other visible elements use rendered text, with `textContent` as
-a fallback for empty rendered text. Reports retain the pattern, source type,
-and observed length, but never copy the observed text into evidence. This keeps
-text assertions deterministic without exposing values typed into a page.
+Playwright; all other elements use rendered text from the visible element.
+Hidden descendants are not treated as delivered content. Reports retain the
+pattern, source type, and observed length, but never copy the observed text into
+evidence. This keeps text assertions deterministic without exposing values
+typed into a page.
 
 When a flow fails, `report.json` includes each completed step, the failed step,
 and its error. The Agent summary names the exact action instead of reporting a
