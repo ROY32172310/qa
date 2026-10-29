@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#1b2522">
+    <meta
+      name="description"
+      content="A real ego-webqa dogfood run: an Agent completed a page, deterministic mobile checks found three blocking root causes, and the repaired page passed."
+    >
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'"
+    >
+    <title>Delivery evidence · ego-webqa</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231b2522'/%3E%3Cpath d='M8 8h16v5H13v3h9v5h-9v3h11v5H8z' fill='%23e7e9e2'/%3E%3C/svg%3E"
+    >
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#evidence">Skip to evidence</a>
+
+    <header class="site-header">
+      <a class="wordmark" href="https://github.com/ROY32172310/qa" aria-label="ego-webqa on GitHub">
+        <span class="wordmark-mark" aria-hidden="true">E</span>
+        <span>ego-webqa</span>
+      </a>
+      <nav aria-label="Project links">
+        <a href="https://github.com/ROY32172310/qa">GitHub</a>
+        <a href="https://pypi.org/project/ego-webqa/">PyPI</a>
+        <a href="https://github.com/ROY32172310/qa/blob/master/docs/real-world-dogfood-2026-10-29.md">Dogfood report</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="context-line">A real run against an AI-generated page</p>
+          <h1 id="page-title">The Agent said done. The 360px phone disagreed.</h1>
+          <p class="hero-summary">
+            One deterministic pass found a missing service worker, a text-enlargement
+            overflow, and an oversized initial download. After the repair, every
+            blocking root cause was gone.
+          </p>
+          <button class="hero-cta" id="show-failure" type="button">
+            查看失败组合 / Try failing variant
+          </button>
+        </div>
+
+        <aside class="verdict-ribbon" aria-label="Run result">
+          <div class="hero-pair" aria-label="Before and after screenshots at 360px with enlarged text">
+            <figure>
+              <figcaption>Before</figcaption>
+              <img
+                src="assets/before/mobile-360-150-safe34.png"
+                alt=""
+                width="360"
+                height="800"
+              >
+            </figure>
+            <figure>
+              <figcaption>After</figcaption>
+              <img
+                src="assets/after/mobile-360-150-safe34.png"
+                alt=""
+                width="360"
+                height="800"
+              >
+            </figure>
+          </div>
+          <div>
+            <span class="verdict-value verdict-value-fail">10</span>
+            <span class="verdict-label">blocking findings</span>
+          </div>
+          <div>
+            <span class="verdict-value">3</span>
+            <span class="verdict-label">root causes</span>
+          </div>
+          <div>
+            <span class="verdict-value">2.5s</span>
+            <span class="verdict-label">audit time</span>
+          </div>
+          <p>Before repair · 8 mobile variants</p>
+        </aside>
+      </section>
+
+      <section class="evidence" id="evidence" aria-labelledby="evidence-title">
+        <div class="evidence-heading">
+          <div>
+            <p class="section-kicker">Evidence board</p>
+            <h2 id="evidence-title">Same page, measured before and after</h2>
+          </div>
+          <p class="evidence-note">
+            Select any matrix cell. Both screenshots and the dimension status update
+            together; the screenshots are copied unchanged from the report.
+          </p>
+        </div>
+
+        <fieldset class="matrix">
+          <legend>Mobile parameter matrix</legend>
+          <div class="matrix-controls" id="variant-controls">
+            <button type="button" data-variant="mobile-360-100-safe0">
+              <span>360 × 800</span>
+              <small>1.0× · safe 0</small>
+            </button>
+            <button type="button" data-variant="mobile-360-100-safe34">
+              <span>360 × 800</span>
+              <small>1.0× · safe 34</small>
+            </button>
+            <button type="button" data-variant="mobile-360-150-safe0">
+              <span>360 × 800</span>
+              <small>1.5× · safe 0</small>
+            </button>
+            <button type="button" data-variant="mobile-360-150-safe34" aria-pressed="true" class="is-active">
+              <span>360 × 800</span>
+              <small>1.5× · safe 34</small>
+            </button>
+            <button type="button" data-variant="mobile-390-100-safe0">
+              <span>390 × 844</span>
+              <small>1.0× · safe 0</small>
+            </button>
+            <button type="button" data-variant="mobile-390-100-safe34">
+              <span>390 × 844</span>
+              <small>1.0× · safe 34</small>
+            </button>
+            <button type="button" data-variant="mobile-390-150-safe0">
+              <span>390 × 844</span>
+              <small>1.5× · safe 0</small>
+            </button>
+            <button type="button" data-variant="mobile-390-150-safe34">
+              <span>390 × 844</span>
+              <small>1.5× · safe 34</small>
+            </button>
+          </div>
+        </fieldset>
+
+        <div class="comparison">
+          <article class="capture capture-before" aria-labelledby="before-title">
+            <header>
+              <div>
+                <p class="capture-state">Before repair</p>
+                <h3 id="before-title">Agent-complete</h3>
+              </div>
+              <span class="status status-fail">fail</span>
+            </header>
+            <div class="phone-frame">
+              <img
+                id="before-image"
+                src="assets/before/mobile-360-150-safe34.png"
+                alt="Generated vocabulary page at 360 by 800 with 1.5 times text: the bottom controls push outside the narrow layout."
+                width="360"
+                height="800"
+              >
+              <span class="image-marker image-marker-before" aria-hidden="true">10 blocking</span>
+            </div>
+            <p class="capture-detail" id="before-detail">
+              1.5× text makes the page 5px wider than a 360px viewport. The service
+              worker fails in all eight variants.
+            </p>
+          </article>
+
+          <article class="capture capture-after" aria-labelledby="after-title">
+            <header>
+              <div>
+                <p class="capture-state">After repair</p>
+                <h3 id="after-title">Delivery-safe</h3>
+              </div>
+              <span class="status status-warn">warn</span>
+            </header>
+            <div class="phone-frame">
+              <img
+                id="after-image"
+                src="assets/after/mobile-360-150-safe34.png"
+                alt="The repaired vocabulary page at 360 by 800 with 1.5 times text: controls wrap and stay inside the layout."
+                width="360"
+                height="800"
+              >
+              <span class="image-marker image-marker-after" aria-hidden="true">0 blockers</span>
+            </div>
+            <p class="capture-detail" id="after-detail">
+              The bottom controls wrap inside the viewport. The service worker error
+              is gone. Only the 710KB transfer warning remains.
+            </p>
+          </article>
+        </div>
+
+        <div class="matrix-verdict" aria-live="polite">
+          <p><span>Selected</span> <strong id="selected-variant">360 × 800 · 1.5× text · 34px safe area</strong></p>
+          <p><span>Before</span> <strong class="text-fail">console_error · text_scale_layout_break · transfer_budget</strong></p>
+          <p><span>After</span> <strong class="text-warn">transfer_budget only</strong></p>
+        </div>
+      </section>
+
+      <section class="findings" aria-labelledby="findings-title">
+        <div class="section-intro">
+          <p class="section-kicker">Root-cause ledger</p>
+          <h2 id="findings-title">Three problems, three repairs</h2>
+          <p>
+            The Agent summary aggregates repeats across viewports. These are root
+            causes, not eight copies of the same warning.
+          </p>
+        </div>
+
+        <ol class="finding-list">
+          <li>
+            <p class="finding-id">console_error</p>
+            <div>
+              <h3>Missing service worker</h3>
+              <p>
+                Every matrix cell logged a 404 while fetching the service-worker
+                script.
+              </p>
+            </div>
+            <p class="finding-fix"><span>Repair</span> Remove the stale registration and load only the shipped worker.</p>
+            <p class="finding-state finding-state-fixed">resolved</p>
+          </li>
+          <li>
+            <p class="finding-id">text_scale_layout_break</p>
+            <div>
+              <h3>Five pixels outside the phone</h3>
+              <p>
+                At 1.5× text on 360px, the page became 5px wider than its viewport.
+              </p>
+            </div>
+            <p class="finding-fix"><span>Repair</span> Let the bottom actions wrap instead of forcing a single row.</p>
+            <p class="finding-state finding-state-fixed">resolved</p>
+          </li>
+          <li>
+            <p class="finding-id">transfer_budget</p>
+            <div>
+              <h3>710KB initial download</h3>
+              <p>
+                Two requests exceed the 400KB transfer budget. This remains visible
+                after the blocking defects are fixed.
+              </p>
+            </div>
+            <p class="finding-fix"><span>Next</span> Audit the largest asset before treating performance as complete.</p>
+            <p class="finding-state finding-state-open">warning</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="raw-evidence" aria-labelledby="raw-title">
+        <div class="section-intro">
+          <p class="section-kicker">Machine-readable trail</p>
+          <h2 id="raw-title">The Agent gets a repair list, not a screenshot verdict</h2>
+          <p>
+            Each root cause includes its selector, affected triggers, suggested
+            repair, and a reproduction command. Open the compact summaries below or
+            inspect the complete report in the repository.
+          </p>
+        </div>
+
+        <div class="json-panels">
+          <details>
+            <summary>
+              <span>Before repair</span>
+              <strong>fail · 10 block · 3 roots</strong>
+            </summary>
+            <pre><code>{
+  "status": "fail",
+  "summary": {
+    "total_block": 10,
+    "total_warn": 8,
+    "unique_root_causes": 3,
+    "affected_viewports": 8
+  },
+  "failed_items": [
+    "console_error",
+    "text_scale_layout_break",
+    "transfer_budget"
+  ]
+}</code></pre>
+            <a href="data/before-agent-summary.json">Open complete before JSON</a>
+          </details>
+
+          <details>
+            <summary>
+              <span>After repair</span>
+              <strong>warn · 0 block · 1 root</strong>
+            </summary>
+            <pre><code>{
+  "status": "warn",
+  "summary": {
+    "total_block": 0,
+    "total_warn": 8,
+    "unique_root_causes": 1,
+    "affected_viewports": 8
+  },
+  "failed_items": [
+    "transfer_budget"
+  ]
+}</code></pre>
+            <a href="data/after-agent-summary.json">Open complete after JSON</a>
+          </details>
+        </div>
+      </section>
+
+      <section class="try-it" aria-labelledby="try-title">
+        <div>
+          <p class="section-kicker">Run it on your page</p>
+          <h2 id="try-title">One command. Eight phone variants. No test file.</h2>
+          <p>
+            The default pass opens the page in Chromium, probes the primary action
+            safely, and leaves screenshots plus structured evidence.
+          </p>
+        </div>
+        <div class="command">
+          <code>python -m pip install ego-webqa</code>
+          <span>then</span>
+          <code>ego-webqa https://your-preview.example</code>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        This report covers deterministic coarse checks for multi-device geometry
+        and basic delivery use. Business flows, cross-browser behavior, security,
+        and accessibility compliance require separate verification.
+      </p>
+      <p>
+        <a href="https://github.com/ROY32172310/qa">Source</a>
+        <a href="https://github.com/ROY32172310/qa/issues/new?template=result-feedback.yml">Share a result</a>
+        <a href="https://pypi.org/project/ego-webqa/">Install from PyPI</a>
+      </p>
+    </footer>
+  </body>
+</html>

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Add a public evidence board built from a real before-and-after dogfood run,
+  with all eight mobile matrix screenshots, aggregated root causes, and
+  machine-readable Agent summaries.
+- Deploy the static evidence board to GitHub Pages without exposing a hosted URL
+  audit service or introducing a server-side request surface.
+
 ## 0.4.1 - 2026-10-29
 
 - Add PyPI project links and put the first successful audit, sample Agent

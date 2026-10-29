@@ -18,6 +18,9 @@ variants combine:
 
 ## See the result in 30 seconds
 
+Prefer to inspect a completed run first? Open the
+[live before-and-after evidence board](https://roy32172310.github.io/qa/).
+
 ```bash
 python -m pip install ego-webqa
 python -m playwright install chromium
