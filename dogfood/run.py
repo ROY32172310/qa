@@ -255,13 +255,13 @@ def _terminate_process_tree(process: subprocess.Popen[Any]) -> None:
         killpg = cast(Callable[[int, int], None], cast(Any, os).killpg)
         sigterm = cast(int, getattr(signal, "SIGTERM", 15))
         sigkill = cast(int, getattr(signal, "SIGKILL", 9))
-        with contextlib.suppress(ProcessLookupError):
+        with contextlib.suppress(ProcessLookupError, PermissionError):
             killpg(process.pid, sigterm)
         with contextlib.suppress(subprocess.TimeoutExpired):
             process.wait(timeout=2)
         # Descendants can outlive their group leader. Kill the group before
         # returning even when the direct process exited after SIGTERM.
-        with contextlib.suppress(ProcessLookupError):
+        with contextlib.suppress(ProcessLookupError, PermissionError):
             killpg(process.pid, sigkill)
     try:
         process.wait(timeout=2)
