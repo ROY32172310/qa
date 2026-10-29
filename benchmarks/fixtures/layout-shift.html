@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Layout shift</title>
+  <link rel="stylesheet" href="/base.css">
+</head>
+<body>
+  <main>
+    <h1>Unreserved content</h1>
+    <p>The page inserts a large block above the hero after the first frame.</p>
+    <section id="hero"><h2>Product launch</h2><p>The primary content is pushed down unexpectedly.</p></section>
+  </main>
+  <script>
+    const insertBanner = (label) => {
+      const banner = document.createElement("div");
+      banner.style.height = "520px";
+      banner.style.background = "#dde";
+      banner.textContent = label;
+      document.querySelector("main").prepend(banner);
+    };
+    setTimeout(() => insertBanner("First late banner"), 450);
+    setTimeout(() => insertBanner("Second late banner"), 900);
+  </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Primary CTA error</title>
+  <link rel="stylesheet" href="/base.css">
+</head>
+<body>
+  <main>
+    <h1>Broken action</h1>
+    <p>The visible primary action throws after it is clicked.</p>
+    <button onclick="setTimeout(() => { throw new Error('cta boom') }, 0)">Start now</button>
+  </main>
+</body>
+</html>

@@ -623,7 +623,10 @@ ACCESSIBILITY_JS = r"""
     const labelledBy = (el.getAttribute("aria-labelledby") || "").trim();
     if (labelledBy && idText(el, labelledBy)) return idText(el, labelledBy);
     if (el.labels && el.labels.length) {
-      const labelText = [...el.labels].map(accessibleText).filter(Boolean).join(" ");
+      const labelText = [...el.labels]
+        .map(labelElement => accessibleText(labelElement))
+        .filter(Boolean)
+        .join(" ");
       if (labelText) return labelText;
     }
     if (el.tagName === "IMG" && el.alt) return el.alt.trim();

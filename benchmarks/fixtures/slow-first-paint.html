@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Slow first paint</title>
+  <script>
+    const started = performance.now();
+    while (performance.now() - started < 3300) {}
+  </script>
+</head>
+<body>
+  <main style="font:16px/1.5 system-ui;padding:32px">
+    <h1>Late first paint</h1>
+    <p>This page deliberately blocks its first contentful paint.</p>
+  </main>
+</body>
+</html>

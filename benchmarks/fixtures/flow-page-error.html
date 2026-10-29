@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Flow page error</title>
+  <link rel="stylesheet" href="/base.css">
+</head>
+<body>
+  <main>
+    <h1>Flow exception</h1>
+    <p>The action result is visible, but the flow raises an uncaught exception.</p>
+    <button id="continue" onclick="
+      document.querySelector('#done').hidden=false;
+      setTimeout(() => { throw new Error('flow boom') }, 0)
+    ">Continue</button>
+    <p id="done" hidden>Flow completed.</p>
+  </main>
+</body>
+</html>

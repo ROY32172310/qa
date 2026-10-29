@@ -1225,6 +1225,7 @@ def _issues_for_smoke(smoke: dict[str, Any]) -> list[Issue]:
                 name,
             )
         )
+        return issues
     success = smoke.get("success")
     if success is None:
         success = bool(

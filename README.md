@@ -385,6 +385,32 @@ checks originally proven inside the ego project. It has no dependency on
 `ego_protocol`, `ego_uri`, ego sharing, deployment, miniapp, or product-shell
 semantics. Product-specific checks belong in plugins, not in the core.
 
+## Benchmark and trust
+
+The repository includes a public synthetic benchmark with 118 independent
+cases across narrow, mobile, tablet, and desktop variants. It contains positive
+controls and clean controls for all 34 registered dimensions, including
+bounded flows and the accessibility profile. Ground truth is declared per
+scenario; the evaluator does not import detector thresholds to decide whether a
+result is correct.
+
+```bash
+python benchmarks/run.py
+```
+
+The evaluator reports exact dimension matches, case precision/recall/F1,
+blocking false-positive and false-negative rates, dimension-level TP/FP/FN, and
+complete audit latency. It writes machine-readable evidence plus a Markdown
+summary. The 2026-10-29 baseline is 118/118 exact with P50 347ms, P95 1159ms,
+and max 3587ms in serial local Chromium:
+[`docs/benchmark-2026-10-29.md`](docs/benchmark-2026-10-29.md).
+
+These results measure curated synthetic fixtures, not real-site coverage or
+cross-browser parity. The benchmark's value is regression pressure: its first
+run exposed a real `accessibility` profile crash on standard `<label>` markup
+and duplicate CTA root-cause reporting; both were fixed before the baseline
+was recorded.
+
 ## Development
 
 ```bash
@@ -394,6 +420,7 @@ pytest
 ruff check .
 black --check .
 mypy
+python benchmarks/run.py
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before adding a rule. Every rule needs a

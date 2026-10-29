@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Bounded delivery flow</title>
+  <link rel="stylesheet" href="/base.css">
+</head>
+<body>
+  <main>
+    <h1>Create a delivery preview</h1>
+    <p>The short client-side flow should expose a verified success state.</p>
+    <label for="email">Email</label>
+    <input id="email" type="email">
+    <button id="continue" onclick="
+      const ok=document.querySelector('#email').value.length>0;
+      document.querySelector('#success').hidden=!ok;
+      document.querySelector('#error').hidden=ok;
+      if(ok){history.pushState({},'','#complete')}
+    ">Continue</button>
+    <p id="error" hidden>Email is required.</p>
+    <p id="success" hidden>Preview created.</p>
+  </main>
+</body>
+</html>

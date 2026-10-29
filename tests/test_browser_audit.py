@@ -182,6 +182,18 @@ main{max-width:720px;padding:32px;margin:auto}button{min-width:48px;min-height:4
 </main></body></html>""",
         encoding="utf-8",
     )
+    (root / "a11y-labeled.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
+<title>Labeled form</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:32px}
+input,button{min-height:48px;font-size:16px}
+</style></head><body><main><h1>Labeled form</h1>
+<p>Standard explicit labels must remain auditable.</p>
+<form><label for="email">Email</label><input id="email" type="email">
+<button type="submit">Continue</button></form>
+</main></body></html>""",
+        encoding="utf-8",
+    )
     (root / "shadow.html").write_text(
         """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
 <title>Shadow page</title><style>
@@ -236,6 +248,23 @@ def test_clean_page_passes(served: LocalServer, tmp_path: Path) -> None:
     assert "Mobile" in environment["userAgent"]
     assert environment["maxTouchPoints"] > 0
     assert environment["coarsePointer"] is True
+
+
+def test_accessibility_labels_do_not_crash_with_closed_detectors(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("a11y-labeled.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            profile="accessibility",
+            settle_ms=0,
+        ),
+        output_dir=tmp_path,
+        smoke=False,
+    )
+    assert report.status == "pass", report.to_dict()["issues"]
 
 
 def test_default_viewports_keep_stable_order_during_parallel_execution(

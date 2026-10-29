@@ -1,0 +1,1 @@
+This response is deliberately not an image even though it returns HTTP 200.

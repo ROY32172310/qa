@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Safe side effect</title>
+  <link rel="stylesheet" href="/base.css">
+</head>
+<body>
+  <main>
+    <h1>Safe checkout</h1>
+    <p>The client-side success state is visible while the network request is blocked.</p>
+    <button id="buy" onclick="
+      document.querySelector('#done').hidden=false;
+      fetch('/mutate',{method:'POST'}).catch(() => {})
+    ">Buy now</button>
+    <p id="done" hidden>Checkout reached.</p>
+  </main>
+</body>
+</html>

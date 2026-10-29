@@ -168,6 +168,17 @@ def test_smoke_classification() -> None:
             {
                 "found": True,
                 "label": "Buy",
+                "changed": False,
+                "page_error_count": 1,
+            }
+        )
+    ] == ["cta_page_error"]
+    assert [
+        issue.code
+        for issue in _issues_for_smoke(
+            {
+                "found": True,
+                "label": "Buy",
                 "changed": True,
                 "success": False,
                 "assertion_configured": True,

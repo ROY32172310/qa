@@ -1,0 +1,481 @@
+{
+  "schema_version": "1.0",
+  "metadata": {
+    "name": "ego-webqa public deterministic delivery benchmark",
+    "description": "Curated positive and clean-control fixtures for every registered dimension.",
+    "ground_truth": "Expected dimensions are authored per scenario; thresholds and detector code are not imported into the verdict."
+  },
+  "defaults": {
+    "profile": "baseline",
+    "variants": ["narrow", "mobile", "desktop"],
+    "smoke": false,
+    "settings": {
+      "timeout_ms": 5000,
+      "settle_ms": 100,
+      "smoke_settle_ms": 100
+    }
+  },
+  "viewports": {
+    "narrow": "320x700:narrow",
+    "mobile": "390x844:mobile",
+    "tablet": "768x1024:tablet",
+    "desktop": "1280x800:desktop"
+  },
+  "cases": [
+    {
+      "id": "clean-control",
+      "fixture": "clean.html",
+      "variants": ["narrow", "mobile", "tablet", "desktop"],
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "smoke": true,
+      "settings": {"smoke_success_selector": "#result"},
+      "tags": ["clean-control", "smoke"],
+      "rationale": "A responsive page with a working primary action must remain completely clean."
+    },
+    {
+      "id": "horizontal-overflow",
+      "fixture": "overflow.html",
+      "variants": ["narrow", "mobile", "tablet", "desktop"],
+      "expected_issue_codes": ["horizontal_overflow"],
+      "expected_clean": false,
+      "tags": ["layout", "blocking"],
+      "rationale": "A 2400px unbreakable block exceeds every tested viewport."
+    },
+    {
+      "id": "offscreen-overlay-control",
+      "fixture": "offscreen-overlay.html",
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "tags": ["layout", "clean-control"],
+      "rationale": "A fixed element entirely outside the viewport must not be treated as a visible overlay."
+    },
+    {
+      "id": "huge-visible-overlay",
+      "fixture": "huge-overlay.html",
+      "expected_issue_codes": ["huge_overlay"],
+      "expected_clean": false,
+      "expected_severities": {"huge_overlay": "warning"},
+      "tags": ["layout", "warning"],
+      "rationale": "A visible fixed layer covers roughly four fifths of the viewport."
+    },
+    {
+      "id": "hard-font-floor",
+      "fixture": "hard-font.html",
+      "expected_issue_codes": ["unreadable_font"],
+      "expected_clean": false,
+      "expected_severities": {"unreadable_font": "error"},
+      "tags": ["readability", "blocking"],
+      "rationale": "A visible eight-pixel text node is below the hard readability floor."
+    },
+    {
+      "id": "soft-font-cap",
+      "fixture": "soft-fonts.html",
+      "expected_issue_codes": ["tiny_fonts"],
+      "expected_clean": false,
+      "expected_severities": {"tiny_fonts": "warning"},
+      "tags": ["readability", "warning"],
+      "rationale": "Five visible secondary labels are below twelve pixels but above the hard floor."
+    },
+    {
+      "id": "small-touch-targets",
+      "fixture": "small-targets.html",
+      "expected_issue_codes": ["small_tap_targets"],
+      "expected_clean": false,
+      "expected_severities": {"small_tap_targets": "warning"},
+      "tags": ["touch", "warning"],
+      "rationale": "Four visible controls have twenty-pixel hit areas."
+    },
+    {
+      "id": "broken-image",
+      "fixture": "broken-image.html",
+      "expected_issue_codes": ["broken_image"],
+      "expected_clean": false,
+      "tags": ["media", "blocking"],
+      "rationale": "The image response is HTTP 200 but does not decode as an image."
+    },
+    {
+      "id": "distorted-media",
+      "fixture": "media-distortion.html",
+      "expected_issue_codes": ["media_distortion"],
+      "expected_clean": false,
+      "tags": ["media", "blocking"],
+      "rationale": "A square source is rendered in a one-to-two aspect-ratio box."
+    },
+    {
+      "id": "correct-media-control",
+      "fixture": "media-clean.html",
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "tags": ["media", "clean-control"],
+      "rationale": "A valid square image preserves its source aspect ratio."
+    },
+    {
+      "id": "blank-document",
+      "fixture": "blank.html",
+      "expected_issue_codes": ["blank_page"],
+      "expected_clean": false,
+      "tags": ["content", "blocking"],
+      "rationale": "The body has neither meaningful text nor visible elements."
+    },
+    {
+      "id": "uncaught-page-error",
+      "fixture": "page-error.html",
+      "expected_issue_codes": ["page_error"],
+      "expected_clean": false,
+      "settings": {"settle_ms": 250},
+      "tags": ["runtime", "blocking"],
+      "rationale": "An uncaught load-time exception is both a page error and browser console error."
+    },
+    {
+      "id": "explicit-console-error",
+      "fixture": "console-error.html",
+      "expected_issue_codes": ["console_error"],
+      "expected_clean": false,
+      "tags": ["runtime", "blocking"],
+      "rationale": "The otherwise clean page emits one explicit console.error."
+    },
+    {
+      "id": "missing-stylesheet",
+      "fixture": "missing-resource.html",
+      "expected_issue_codes": ["resource_failure"],
+      "expected_clean": false,
+      "tags": ["network", "blocking"],
+      "rationale": "A required stylesheet returns HTTP 404."
+    },
+    {
+      "id": "main-document-http-error",
+      "target": "/benchmark-does-not-exist.html",
+      "expected_issue_codes": ["http_error"],
+      "expected_clean": false,
+      "tags": ["navigation", "blocking"],
+      "rationale": "The main document response is HTTP 404."
+    },
+    {
+      "id": "unreachable-document",
+      "target": "http://127.0.0.1:9/benchmark-unreachable.html",
+      "variants": ["mobile"],
+      "expected_issue_codes": ["load_error"],
+      "expected_clean": false,
+      "settings": {"timeout_ms": 1000},
+      "tags": ["navigation", "blocking"],
+      "rationale": "A closed local port makes DOM content unreachable."
+    },
+    {
+      "id": "spa-ready-control",
+      "fixture": "ready.html",
+      "variants": ["mobile"],
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "settings": {"ready_selector": "#ready", "timeout_ms": 1500},
+      "tags": ["spa", "clean-control"],
+      "rationale": "The configured SPA content becomes visible within the bounded wait."
+    },
+    {
+      "id": "spa-ready-missing",
+      "fixture": "ready.html",
+      "variants": ["mobile"],
+      "expected_issue_codes": ["ready_selector_not_found"],
+      "expected_clean": false,
+      "settings": {"ready_selector": "#never-ready", "timeout_ms": 800},
+      "tags": ["spa", "blocking"],
+      "rationale": "The configured readiness selector never appears."
+    },
+    {
+      "id": "severe-layout-shift",
+      "fixture": "layout-shift.html",
+      "variants": ["mobile"],
+      "expected_issue_codes": ["layout_shift"],
+      "expected_clean": false,
+      "expected_severities": {"layout_shift": "error"},
+      "settings": {"settle_ms": 1100},
+      "tags": ["timing", "blocking"],
+      "rationale": "A large banner is inserted above painted content after the first frame."
+    },
+    {
+      "id": "transfer-budget",
+      "fixture": "clean.html",
+      "variants": ["mobile"],
+      "expected_issue_codes": ["transfer_budget"],
+      "expected_clean": false,
+      "expected_severities": {"transfer_budget": "error"},
+      "settings": {"transfer_warn_bytes": 100, "transfer_error_bytes": 100},
+      "tags": ["network", "blocking"],
+      "rationale": "The normal document exceeds a deliberately tiny test-only byte budget."
+    },
+    {
+      "id": "network-never-idle",
+      "fixture": "network-active.html",
+      "variants": ["mobile"],
+      "expected_issue_codes": ["network_idle_timeout"],
+      "expected_clean": false,
+      "expected_severities": {"network_idle_timeout": "warning"},
+      "settings": {"wait_for_network_idle": true, "timeout_ms": 1200},
+      "tags": ["network", "warning"],
+      "rationale": "Successful polling continues beyond the bounded network-idle deadline."
+    },
+    {
+      "id": "slow-first-paint",
+      "fixture": "slow-first-paint.html",
+      "variants": ["mobile"],
+      "expected_issue_codes": ["slow_first_paint"],
+      "expected_clean": false,
+      "expected_severities": {"slow_first_paint": "warning"},
+      "settings": {"timeout_ms": 7000, "settle_ms": 50},
+      "tags": ["timing", "warning"],
+      "rationale": "Synchronous work delays first contentful paint beyond three seconds."
+    },
+    {
+      "id": "slow-load-event",
+      "fixture": "slow-load.html",
+      "variants": ["mobile"],
+      "expected_issue_codes": ["slow_load_event"],
+      "expected_clean": false,
+      "expected_severities": {"slow_load_event": "warning"},
+      "settings": {"timeout_ms": 1200, "settle_ms": 10},
+      "tags": ["timing", "warning"],
+      "rationale": "The DOM is usable while a slow image misses the bounded load deadline."
+    },
+    {
+      "id": "known-third-party-noise",
+      "fixture": "third-party-noise.html",
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "settings": {
+        "ignore_console_patterns": ["benchmark third-party widget"],
+        "ignore_request_patterns": ["/analytics/"]
+      },
+      "tags": ["network", "clean-control"],
+      "rationale": "Explicitly ignored third-party console and request failures do not leak into findings."
+    },
+    {
+      "id": "primary-cta-missing",
+      "fixture": "cta-none.html",
+      "expected_issue_codes": ["primary_cta_not_found"],
+      "expected_clean": false,
+      "expected_severities": {"primary_cta_not_found": "warning"},
+      "smoke": true,
+      "tags": ["smoke", "warning"],
+      "rationale": "No visible control matches the configured primary action vocabulary."
+    },
+    {
+      "id": "primary-cta-dead",
+      "fixture": "cta-dead.html",
+      "expected_issue_codes": ["dead_primary_cta"],
+      "expected_clean": false,
+      "smoke": true,
+      "tags": ["smoke", "blocking"],
+      "rationale": "The primary Start button has no handler and no observable result."
+    },
+    {
+      "id": "primary-cta-works",
+      "fixture": "cta-clean.html",
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "smoke": true,
+      "tags": ["smoke", "clean-control"],
+      "rationale": "The primary action exposes a visible success state."
+    },
+    {
+      "id": "primary-cta-page-error",
+      "fixture": "cta-error.html",
+      "expected_issue_codes": ["cta_page_error"],
+      "expected_clean": false,
+      "smoke": true,
+      "settings": {"smoke_settle_ms": 250},
+      "tags": ["smoke", "blocking"],
+      "rationale": "Clicking the primary action raises an uncaught exception."
+    },
+    {
+      "id": "primary-cta-assertion-fails",
+      "fixture": "cta-clean.html",
+      "expected_issue_codes": ["cta_assertion_failed"],
+      "expected_clean": false,
+      "smoke": true,
+      "settings": {"smoke_success_selector": "#never-success"},
+      "tags": ["smoke", "blocking"],
+      "rationale": "The action changes the page but misses its explicitly configured success contract."
+    },
+    {
+      "id": "smoke-flow-pass",
+      "fixture": "flow-clean.html",
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "smoke": true,
+      "settings": {
+        "timeout_ms": 650,
+        "smoke_flow": [
+          {"action": "fill", "selector": "#email", "value": "benchmark@example.test"},
+          {"action": "click", "selector": "#continue"},
+          {"action": "expect_visible", "selector": "#success"}
+        ]
+      },
+      "tags": ["smoke", "flow", "clean-control"],
+      "rationale": "Fill, click, and visible-result assertions form a complete short path."
+    },
+    {
+      "id": "smoke-flow-url-pass",
+      "fixture": "flow-url.html",
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "smoke": true,
+      "settings": {
+        "timeout_ms": 650,
+        "smoke_flow": [
+          {"action": "click", "selector": "#continue"},
+          {"action": "expect_url", "pattern": "#checkout$"}
+        ]
+      },
+      "tags": ["smoke", "flow", "clean-control"],
+      "rationale": "The action produces the explicitly asserted URL."
+    },
+    {
+      "id": "smoke-flow-step-missing",
+      "fixture": "flow-clean.html",
+      "expected_issue_codes": ["smoke_flow_step_failed"],
+      "expected_clean": false,
+      "smoke": true,
+      "settings": {
+        "timeout_ms": 650,
+        "smoke_flow": [
+          {"action": "click", "selector": "#missing-control"},
+          {"action": "expect_visible", "selector": "#success"}
+        ]
+      },
+      "tags": ["smoke", "flow", "blocking"],
+      "rationale": "The first action target does not exist."
+    },
+    {
+      "id": "smoke-flow-assertion-missing",
+      "fixture": "flow-url.html",
+      "expected_issue_codes": ["smoke_flow_assertion_failed"],
+      "expected_clean": false,
+      "smoke": true,
+      "settings": {
+        "timeout_ms": 650,
+        "smoke_flow": [
+          {"action": "click", "selector": "#continue"},
+          {"action": "expect_visible", "selector": "#success"}
+        ]
+      },
+      "tags": ["smoke", "flow", "blocking"],
+      "rationale": "The click succeeds but the required result never becomes visible."
+    },
+    {
+      "id": "smoke-flow-page-error",
+      "fixture": "flow-page-error.html",
+      "expected_issue_codes": ["smoke_flow_page_error"],
+      "expected_clean": false,
+      "smoke": true,
+      "settings": {
+        "smoke_flow": [
+          {"action": "click", "selector": "#continue"},
+          {"action": "expect_visible", "selector": "#done"}
+        ]
+      },
+      "tags": ["smoke", "flow", "blocking"],
+      "rationale": "The rendered assertion passes but the flow raises a page-level exception."
+    },
+    {
+      "id": "smoke-flow-safe-side-effect",
+      "fixture": "flow-side-effect.html",
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "smoke": true,
+      "settings": {
+        "smoke_flow": [
+          {"action": "click", "selector": "#buy"},
+          {"action": "expect_visible", "selector": "#done"}
+        ]
+      },
+      "tags": ["smoke", "flow", "clean-control"],
+      "rationale": "Safe mode blocks the mutation request while accepting the client-side result."
+    },
+    {
+      "id": "accessibility-clean",
+      "fixture": "a11y-clean.html",
+      "profile": "accessibility",
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "tags": ["accessibility", "clean-control"],
+      "rationale": "The accessibility control supplies language, title, labels, alt text, and ordered headings."
+    },
+    {
+      "id": "accessibility-missing-lang",
+      "fixture": "a11y-missing-lang.html",
+      "profile": "accessibility",
+      "expected_issue_codes": ["missing_html_lang"],
+      "expected_clean": false,
+      "expected_severities": {"missing_html_lang": "warning"},
+      "tags": ["accessibility", "warning"],
+      "rationale": "The html element does not declare a language."
+    },
+    {
+      "id": "accessibility-missing-title",
+      "fixture": "a11y-missing-title.html",
+      "profile": "accessibility",
+      "expected_issue_codes": ["missing_page_title"],
+      "expected_clean": false,
+      "expected_severities": {"missing_page_title": "warning"},
+      "tags": ["accessibility", "warning"],
+      "rationale": "The document title is empty."
+    },
+    {
+      "id": "accessibility-control-name",
+      "fixture": "a11y-missing-name.html",
+      "profile": "accessibility",
+      "expected_issue_codes": ["control_missing_name"],
+      "expected_clean": false,
+      "tags": ["accessibility", "blocking"],
+      "rationale": "The visible icon-only button has no accessible name."
+    },
+    {
+      "id": "accessibility-image-alt",
+      "fixture": "a11y-missing-alt.html",
+      "profile": "accessibility",
+      "expected_issue_codes": ["image_missing_alt"],
+      "expected_clean": false,
+      "tags": ["accessibility", "blocking"],
+      "rationale": "The visible image has no alt attribute."
+    },
+    {
+      "id": "accessibility-duplicate-id",
+      "fixture": "a11y-duplicate-id.html",
+      "profile": "accessibility",
+      "expected_issue_codes": ["duplicate_id"],
+      "expected_clean": false,
+      "expected_severities": {"duplicate_id": "warning"},
+      "tags": ["accessibility", "warning"],
+      "rationale": "Two elements share the same document id."
+    },
+    {
+      "id": "accessibility-heading-skip",
+      "fixture": "a11y-heading-skip.html",
+      "profile": "accessibility",
+      "expected_issue_codes": ["heading_level_skip"],
+      "expected_clean": false,
+      "expected_severities": {"heading_level_skip": "warning"},
+      "tags": ["accessibility", "warning"],
+      "rationale": "The outline jumps from h1 to h3."
+    },
+    {
+      "id": "accessibility-positive-tabindex",
+      "fixture": "a11y-positive-tabindex.html",
+      "profile": "accessibility",
+      "expected_issue_codes": ["positive_tabindex"],
+      "expected_clean": false,
+      "expected_severities": {"positive_tabindex": "warning"},
+      "tags": ["accessibility", "warning"],
+      "rationale": "A positive tabindex overrides natural focus order."
+    },
+    {
+      "id": "accessibility-hidden-focusable",
+      "fixture": "a11y-hidden-focusable.html",
+      "profile": "accessibility",
+      "expected_issue_codes": ["aria_hidden_focusable"],
+      "expected_clean": false,
+      "tags": ["accessibility", "blocking"],
+      "rationale": "A focusable button remains inside an aria-hidden subtree."
+    }
+  ]
+}

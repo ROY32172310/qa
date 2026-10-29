@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Third-party noise</title>
+  <link rel="stylesheet" href="/base.css">
+</head>
+<body>
+  <main>
+    <h1>Known third-party noise</h1>
+    <p>The page is usable and the failing analytics dependency is explicitly ignored.</p>
+  </main>
+  <script>
+    console.error("benchmark third-party widget failed");
+    fetch("/analytics/missing-pixel.png").catch(() => {});
+  </script>
+</body>
+</html>

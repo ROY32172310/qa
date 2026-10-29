@@ -11,6 +11,7 @@ Every check should answer a concrete delivery question and have:
 5. thresholds in `config.py`, not duplicated inside JavaScript.
 6. an entry in the closed `dimensions.py` registry with version and detector
    ownership.
+7. a case in `benchmarks/suite.json` with explicit expected dimensions.
 
 New dimensions start as advisory warnings. Promote one to blocking only after
 real-site evidence shows its false-positive rate is acceptable. The registry
@@ -33,6 +34,12 @@ mypy
 
 Browser tests use a temporary local HTTP server. Do not depend on public sites
 in the test suite.
+
+The benchmark is part of the quality contract. `tests/test_benchmark.py` proves
+that the suite covers every registered dimension and that metrics distinguish
+clean controls, exact matches, extras, misses, and severity errors. A change to
+a detector should be checked against the complete local benchmark, not only its
+new fixture.
 
 ## Pull requests
 

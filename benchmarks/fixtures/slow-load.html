@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Slow load event</title>
+  <link rel="stylesheet" href="/base.css">
+</head>
+<body>
+  <main>
+    <h1>Usable before load completes</h1>
+    <p>The DOM is ready while a deliberately slow image holds the load event.</p>
+    <img src="/__slow_response__" width="48" height="48" alt="Slow response">
+  </main>
+</body>
+</html>

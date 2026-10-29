@@ -74,6 +74,13 @@ structured content plus the compact Agent summary; blocking status is mapped to
 the protocol's tool-error channel. The base package keeps its single Playwright
 runtime dependency, while the `mcp` extra adds the protocol SDK for agent hosts.
 
+`benchmarks/` is deliberately outside the installed package. Its suite declares
+expected dimensions and clean controls; its runner invokes the public `audit()`
+API against real local Chromium. The evaluator imports only the closed
+dimension registry to validate IDs and default severity. It does not import
+thresholds or detector branches, keeping the benchmark independent of the code
+under test.
+
 ## Dimension registry
 
 `dimensions.py` is the single source of truth for issue identity. Every emitted

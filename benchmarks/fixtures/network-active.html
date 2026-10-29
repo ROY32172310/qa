@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Active network</title>
+  <link rel="stylesheet" href="/base.css">
+</head>
+<body>
+  <main>
+    <h1>Bounded polling</h1>
+    <p>This usable page deliberately polls forever and never reaches network idle.</p>
+  </main>
+  <script>
+    setInterval(() => fetch("/square.svg?poll=" + Date.now()).catch(() => {}), 200);
+  </script>
+</body>
+</html>

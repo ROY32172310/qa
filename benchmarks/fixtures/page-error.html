@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Page error</title>
+  <link rel="stylesheet" href="/base.css">
+</head>
+<body>
+  <main>
+    <h1>Runtime exception</h1>
+    <p>The application throws after the initial document has loaded.</p>
+  </main>
+  <script>
+    addEventListener("load", () => setTimeout(() => {
+      throw new Error("benchmark page error");
+    }, 0));
+  </script>
+</body>
+</html>

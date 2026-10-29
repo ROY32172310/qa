@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>SPA readiness</title>
+  <link rel="stylesheet" href="/base.css">
+</head>
+<body>
+  <main id="shell">
+    <h1>Application shell</h1>
+    <p>The meaningful view arrives after a bounded client-side delay.</p>
+  </main>
+  <script>
+    setTimeout(() => {
+      const ready = document.createElement("section");
+      ready.id = "ready";
+      ready.innerHTML = "<h2>Ready content</h2><p>The SPA readiness target is visible.</p>";
+      document.querySelector("main").append(ready);
+    }, 120);
+  </script>
+</body>
+</html>
