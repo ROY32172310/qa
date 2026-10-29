@@ -25,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ego-webqa",
         description="Deterministic delivery QA for AI-generated web pages.",
+        epilog="Run 'ego-webqa mcp' to start the stdio MCP server.",
     )
     parser.add_argument("url", nargs="?", help="page URL")
     parser.add_argument("--dir", help="serve this local directory during the audit")
@@ -175,7 +176,17 @@ def _json_text(payload: object, encoding: str) -> str:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments[:1] == ["mcp"]:
+        if len(arguments) != 1:
+            print("ego-webqa: the mcp command does not accept arguments", file=sys.stderr)
+            return 2
+        from .mcp_server import main as mcp_main
+
+        mcp_main()
+        return 0
+
+    args = build_parser().parse_args(arguments)
     if args.list_dimensions:
         print(_json_text(registry_payload(), sys.stdout.encoding or "utf-8"))
         return 0

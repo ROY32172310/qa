@@ -106,3 +106,19 @@ def test_release_workflow_publishes_github_release_after_pypi() -> None:
     assert 'gh release create "$GITHUB_REF_NAME" dist/*' in script
     assert "--verify-tag" in script
     assert 'gh release upload "$GITHUB_REF_NAME" dist/*' in script
+
+
+def test_release_workflow_publishes_mcp_registry_metadata_after_pypi() -> None:
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    )
+    job = workflow["jobs"]["mcp-registry"]
+    assert job["needs"] == "publish"
+    assert job["permissions"] == {"contents": "read", "id-token": "write"}
+    assert job["env"]["MCP_PUBLISHER_VERSION"] == "v1.8.1"
+
+    script = "\n".join(f"{step.get('if', '')}\n{step.get('run', '')}" for step in job["steps"])
+    assert "cosign verify-blob" in script
+    assert "mcp-publisher login github-oidc" in script
+    assert "mcp-publisher publish" in script
+    assert "registry-version.outputs.published != 'true'" in script

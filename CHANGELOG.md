@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.4.2 - 2026-10-29
+
+- Publish `ego-webqa` as a first-class MCP Registry package with a canonical
+  `uvx ego-webqa@0.4.2 mcp` stdio entry point; keep `ego-webqa-mcp` as a
+  compatibility alias.
+- Make the MCP adapter part of the base install, add the official PyPI
+  ownership marker and `server.json`, and validate their version, transport,
+  repository, and package identity in CI.
+- Publish Registry metadata automatically after successful PyPI releases using
+  verified `mcp-publisher` binaries and GitHub Actions OIDC.
+- Add a DSH integration decision: keep the Python audit core authoritative and
+  package DSH's native MCP client as a separate declarative bundle, avoiding a
+  second tool or detector implementation.
+
 - Add a public evidence board built from a real before-and-after dogfood run,
   with all eight mobile matrix screenshots, aggregated root causes, and
   machine-readable Agent summaries.

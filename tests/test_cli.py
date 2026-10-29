@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from ego_webqa import cli
 from ego_webqa.cli import _json_text, _settings, build_parser
 from ego_webqa.config import (
     HTTP_HEADERS_ENV,
@@ -72,6 +73,27 @@ def test_cli_viewport_and_selector_overrides() -> None:
 def test_cli_live_smoke_override() -> None:
     args = build_parser().parse_args(["https://example.com", "--smoke-mode", "live"])
     assert _settings(args).smoke_mode == "live"
+
+
+def test_cli_mcp_subcommand_starts_the_server(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called = False
+
+    def fake_mcp_main() -> None:
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr("ego_webqa.mcp_server.main", fake_mcp_main)
+    assert cli.main(["mcp"]) == 0
+    assert called is True
+
+
+def test_cli_mcp_subcommand_rejects_extra_arguments(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert cli.main(["mcp", "--help"]) == 2
+    assert "does not accept arguments" in capsys.readouterr().err
 
 
 def test_json_output_escapes_unsupported_stdout_encoding() -> None:

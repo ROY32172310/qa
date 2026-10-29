@@ -1,0 +1,31 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ROY32172310/qa",
+  "title": "ego-webqa",
+  "description": "Deterministic browser delivery checks for AI-generated web pages.",
+  "websiteUrl": "https://roy32172310.github.io/qa/",
+  "repository": {
+    "url": "https://github.com/ROY32172310/qa",
+    "source": "github",
+    "id": "1436487315"
+  },
+  "version": "0.4.2",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "ego-webqa",
+      "version": "0.4.2",
+      "runtimeHint": "uvx",
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ],
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

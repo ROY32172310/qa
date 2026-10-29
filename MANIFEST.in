@@ -1,5 +1,6 @@
 include CONTRIBUTING.md
 include CHANGELOG.md
+include server.json
 include scripts/dev.py
 recursive-include benchmarks *
 recursive-include docs *.md

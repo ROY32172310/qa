@@ -1,5 +1,7 @@
 # ego-webqa
 
+<!-- mcp-name: io.github.ROY32172310/qa -->
+
 [![PyPI](https://img.shields.io/pypi/v/ego-webqa.svg)](https://pypi.org/project/ego-webqa/)
 [![CI](https://github.com/ROY32172310/qa/actions/workflows/ci.yml/badge.svg)](https://github.com/ROY32172310/qa/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/pypi/pyversions/ego-webqa.svg)](https://pypi.org/project/ego-webqa/)
@@ -338,24 +340,25 @@ state, screenshots, or mutable evidence between viewports.
 
 ### MCP server
 
-Install the optional MCP adapter and expose the gate directly inside an AI
-coding agent:
+Expose the gate directly inside an AI coding agent:
 
 ```bash
-python -m pip install 'ego-webqa[mcp]'
+python -m pip install ego-webqa
 python -m playwright install chromium
-ego-webqa-mcp
+ego-webqa mcp
 ```
 
-An MCP client launches the command over stdio. The server advertises one tool,
-`audit_web_page`, with structured success and blocking-error results:
+`ego-webqa-mcp` remains available as a compatibility alias. An MCP client can
+launch either command over stdio. The registry-compatible one-shot form is
+`uvx ego-webqa@0.4.2 mcp`. The server advertises one tool, `audit_web_page`,
+with structured success and blocking-error results:
 
 ```json
 {
   "mcpServers": {
     "ego-webqa": {
-      "command": "ego-webqa-mcp",
-      "args": []
+      "command": "uvx",
+      "args": ["ego-webqa@0.4.2", "mcp"]
     }
   }
 }
@@ -386,6 +389,12 @@ environment variables are read by the server process, not passed as tool
 arguments. This adapter deliberately remains a delivery-usability gate; it is
 not a security scanner, WCAG certification tool, or visual-regression system.
 
+DeepSeek Harness can install the same MCP tool through the separate declarative
+`dsh-ego-webqa` bundle. It reuses DSH's native MCP client instead of adding a
+second QA implementation; see
+[`docs/dsh-integration.md`](docs/dsh-integration.md) for the boundary and
+acceptance criteria.
+
 ## GitHub Actions
 
 This repository is also a composite GitHub Action. The Action installs the
@@ -398,7 +407,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ROY32172310/qa@v0.4.1
+      - uses: ROY32172310/qa@v0.4.2
         with:
           url: ${{ vars.PREVIEW_URL }}
           profile: accessibility
@@ -416,7 +425,7 @@ For a local checkout of this repository, use `uses: ./` after checkout. The
 Action's `safe` smoke mode is the default; set `smoke-mode: live` only when the
 click is intentionally allowed to cause real side effects. See
 [`examples/github-action.yml`](examples/github-action.yml) and
-[`action.yml`](action.yml) for the full input set. The `@v0.4.1` tag is created
+[`action.yml`](action.yml) for the full input set. The `@v0.4.2` tag is created
 only after the same commit passes the full cross-platform CI matrix.
 
 ## Python API

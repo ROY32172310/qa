@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ego-webqa"
-version = "0.4.1"
+version = "0.4.2"
 description = "Deterministic coarse delivery QA for AI-generated web pages"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,7 +21,10 @@ classifiers = [
   "Topic :: Software Development :: Quality Assurance",
   "Topic :: Software Development :: Testing",
 ]
-dependencies = ["playwright>=1.48"]
+dependencies = [
+  "mcp>=2.2,<3",
+  "playwright>=1.48",
+]
 
 [project.urls]
 Homepage = "https://github.com/ROY32172310/qa"
@@ -30,11 +33,9 @@ Issues = "https://github.com/ROY32172310/qa/issues"
 Changelog = "https://github.com/ROY32172310/qa/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
-mcp = ["mcp>=2.2,<3"]
 dev = [
   "black>=24",
   "build>=1.2",
-  "mcp>=2.2,<3",
   "mypy>=1.11",
   "PyYAML>=6",
   "pytest>=8",
