@@ -1117,6 +1117,9 @@ def test_bottom_safe_area_penetration_has_clean_control(
     )
     assert {issue.code for issue in broken.issues} == {"bottom_safe_area_penetration"}
     assert broken.issues[0].evidence["elements"][0]["required_gap_px"] == 34
+    assert broken.issues[0].hint == (
+        "Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls."
+    )
     assert broken.viewports[0]["viewport"]["safe_area_bottom_px"] == 34
 
     clean = audit(

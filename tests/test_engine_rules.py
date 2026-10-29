@@ -7,6 +7,10 @@ import pytest
 
 from ego_webqa.config import Settings
 from ego_webqa.engine import (
+    _apply_text_scale,
+    _downgrade_partial_navigation_timeouts,
+    _goto_document,
+    _has_transient_navigation_timeout,
     _is_blocked_network_error,
     _is_ignorable_console_error,
     _is_ignorable_failure,
@@ -18,7 +22,10 @@ from ego_webqa.engine import (
     _request_failure_record,
     _same_origin,
     _should_run_smoke,
+    _trace_stage,
+    _wait_for_dom_content_loaded,
 )
+from ego_webqa.models import AuditReport, Issue
 
 
 def _summary(**updates: Any) -> dict[str, Any]:
@@ -56,6 +63,19 @@ def _summary(**updates: Any) -> dict[str, Any]:
 
 def _codes(issues: list[Any]) -> set[str]:
     return {issue.code for issue in issues}
+
+
+def test_stage_trace_is_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.delenv("EGO_WEBQA_TRACE", raising=False)
+    _trace_stage("mobile", "probe", 0)
+    assert capsys.readouterr().err == ""
+
+    monkeypatch.setenv("EGO_WEBQA_TRACE", "1")
+    _trace_stage("mobile", "probe", 0)
+    assert "[ego-webqa trace] mobile: probe (" in capsys.readouterr().err
 
 
 def test_viewport_rule_buckets_and_thresholds() -> None:
@@ -101,6 +121,147 @@ def test_viewport_rule_buckets_and_thresholds() -> None:
     } <= codes
     resource_issue = next(issue for issue in issues if issue.code == "resource_failure")
     assert "1 request event(s) failed across 1 unique endpoint(s)" in resource_issue.message
+
+
+def test_text_scale_reflow_is_not_reported_as_page_layout_shift() -> None:
+    summary = _summary(
+        viewport={"name": "mobile-150", "text_scale": 1.5},
+        timing={
+            "firstContentfulPaintMs": 100,
+            "layoutShift": {"supported": True, "clip": 0.5, "maxShift": 0.5, "shifts": 2},
+        },
+    )
+
+    assert [issue.code for issue in _issues_for_viewport(summary, Settings())] == []
+
+
+class _NavigationPage:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def goto(self, *_: Any, **__: Any) -> str:
+        self.calls += 1
+        return "response"
+
+
+class _FailingPage:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def goto(self, *_: Any, **__: Any) -> None:
+        self.calls += 1
+        raise RuntimeError("browser disconnected")
+
+
+def test_navigation_uses_commit_and_reports_one_attempt() -> None:
+    page = _NavigationPage()
+
+    assert _goto_document(page, "https://example.com", 100) == ("response", 1)
+    assert page.calls == 1
+
+
+def test_navigation_does_not_retry_non_timeout_errors() -> None:
+    page = _FailingPage()
+
+    with pytest.raises(RuntimeError, match="browser disconnected"):
+        _goto_document(page, "https://example.com", 100)
+    assert page.calls == 1
+
+
+def test_dom_content_loaded_timeout_is_non_fatal() -> None:
+    class SlowDocument:
+        def wait_for_load_state(self, *_: Any, **__: Any) -> None:
+            raise TimeoutError("domcontentloaded timed out")
+
+    assert _wait_for_dom_content_loaded(SlowDocument(), 100) is False
+
+
+class _RacingTextScalePage:
+    def __init__(self) -> None:
+        self.evaluate_calls = 0
+        self.wait_calls = 0
+
+    def wait_for_selector(self, *_: Any, **__: Any) -> None:
+        self.wait_calls += 1
+
+    def evaluate(self, *_: Any, **__: Any) -> dict[str, Any]:
+        self.evaluate_calls += 1
+        if self.evaluate_calls == 1:
+            raise RuntimeError("Execution context was destroyed")
+        return {"applied": True, "textScale": 1.5, "scaledElements": 12}
+
+    def wait_for_timeout(self, *_: Any, **__: Any) -> None:
+        return None
+
+
+def test_text_scale_retries_after_navigation_race() -> None:
+    page = _RacingTextScalePage()
+
+    result = _apply_text_scale(page, 1.5, 1_000)
+
+    assert result["applied"] is True
+    assert page.wait_calls == 2
+    assert page.evaluate_calls == 2
+
+
+def test_transient_navigation_timeout_requests_fresh_retry() -> None:
+    summary = _summary(
+        status="error",
+        error='Page.goto: Timeout 15000ms exceeded.\nwaiting until "commit"',
+    )
+    report = AuditReport(
+        target="https://example.com",
+        status="fail",
+        issues=[],
+        viewports=[summary],
+        smoke={},
+        screenshots=[],
+        started_at="2026-10-29T00:00:00+00:00",
+        duration_ms=1,
+        settings={},
+    )
+
+    assert _has_transient_navigation_timeout(report) is True
+
+
+def test_isolated_navigation_timeout_becomes_incomplete_warning() -> None:
+    issues = [
+        Issue("load_error", "error", "page could not be audited", "mobile", evidence={"x": 1})
+    ]
+    viewports = [
+        {
+            "viewport": {"name": "mobile"},
+            "status": "error",
+            "error": "Page.goto: Timeout 15000ms exceeded",
+        },
+        {"viewport": {"name": "desktop"}, "status": "ok"},
+    ]
+
+    result = _downgrade_partial_navigation_timeouts(issues, viewports)
+
+    assert result[0].severity == "warning"
+    assert result[0].evidence == {
+        "x": 1,
+        "partial_navigation_timeout": True,
+        "successful_viewports": 1,
+    }
+
+
+def test_navigation_failure_remains_blocking_when_every_viewport_fails() -> None:
+    issues = [
+        Issue("load_error", "error", "page could not be audited", "mobile", evidence={"x": 1})
+    ]
+    viewports = [
+        {
+            "viewport": {"name": "mobile"},
+            "status": "error",
+            "error": "Page.goto: Timeout 15000ms exceeded",
+        }
+    ]
+
+    result = _downgrade_partial_navigation_timeouts(issues, viewports)
+
+    assert result[0].severity == "error"
 
 
 def test_blank_page_is_an_error() -> None:

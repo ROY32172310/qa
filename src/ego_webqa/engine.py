@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import re
+import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -30,12 +32,21 @@ class AuditRuntimeError(RuntimeError):
     """The browser or target could not be executed."""
 
 
+def _trace_stage(scope: str, stage: str, started: float) -> None:
+    """Emit opt-in execution progress for diagnosing an unbounded wait."""
+
+    if os.environ.get("EGO_WEBQA_TRACE") == "1":
+        elapsed_ms = round((time.monotonic() - started) * 1000)
+        print(f"[ego-webqa trace] {scope}: {stage} ({elapsed_ms}ms)", file=sys.stderr, flush=True)
+
+
 def audit(
     target: str,
     *,
     settings: Settings | None = None,
     output_dir: str | Path | None = None,
     smoke: bool = True,
+    _retry_transient: bool = True,
 ) -> AuditReport:
     """Audit one URL and return an evidence-bearing report."""
 
@@ -56,6 +67,7 @@ def audit(
             smoke=smoke,
             started=started,
             started_perf=started_perf,
+            retry_transient=_retry_transient,
         )
 
     try:
@@ -107,7 +119,7 @@ def audit(
         raise AuditRuntimeError(f"browser execution failed: {exc}") from exc
 
     duration_ms = round((time.monotonic() - started_perf) * 1000)
-    return AuditReport(
+    report = AuditReport(
         target=target,
         status=derive_status(issues, cfg.fail_on_warn),
         issues=issues,
@@ -120,6 +132,18 @@ def audit(
         settings=cfg.to_dict(),
         runtime=runtime,
     )
+    if _retry_transient and _has_transient_navigation_timeout(report):
+        retried = audit(
+            target,
+            settings=cfg,
+            output_dir=out_dir,
+            smoke=smoke,
+            _retry_transient=False,
+        )
+        _mark_transient_retry(retried)
+        retried.duration_ms = round((time.monotonic() - started_perf) * 1000)
+        return retried
+    return report
 
 
 def _audit_concurrently(
@@ -130,14 +154,26 @@ def _audit_concurrently(
     smoke: bool,
     started: datetime,
     started_perf: float,
+    retry_transient: bool,
 ) -> AuditReport:
     def run(index: int, viewport: Viewport) -> AuditReport:
-        return audit(
+        report = audit(
             target,
             settings=replace(cfg, viewports=(viewport,)),
             output_dir=out_dir,
             smoke=smoke and _should_run_smoke(cfg, index),
+            _retry_transient=False,
         )
+        if retry_transient and _has_transient_navigation_timeout(report):
+            report = audit(
+                target,
+                settings=replace(cfg, viewports=(viewport,)),
+                output_dir=out_dir,
+                smoke=smoke and _should_run_smoke(cfg, index),
+                _retry_transient=False,
+            )
+            _mark_transient_retry(report)
+        return report
 
     try:
         with ThreadPoolExecutor(max_workers=min(3, len(cfg.viewports))) as pool:
@@ -152,6 +188,7 @@ def _audit_concurrently(
 
     issues = [issue for report in reports for issue in report.issues]
     viewport_results = [row for report in reports for row in report.viewports]
+    issues = _downgrade_partial_navigation_timeouts(issues, viewport_results)
     screenshots = [shot for report in reports for shot in report.screenshots]
     smoke_runs = [run for report in reports for run in report.smoke_runs]
     performed = next(
@@ -169,6 +206,13 @@ def _audit_concurrently(
             if report.runtime.get("browser_channel")
         }
     )
+    transient_retry_count = sum(
+        int(report.runtime.get("transient_retry_count") or 0) for report in reports
+    )
+    runtime: dict[str, Any] = {"browser_channel": ",".join(channels)}
+    if transient_retry_count:
+        runtime["transient_retry_count"] = transient_retry_count
+        runtime["transient_retry_reason"] = "navigation_timeout"
     return AuditReport(
         target=target,
         status=derive_status(issues, cfg.fail_on_warn),
@@ -180,7 +224,7 @@ def _audit_concurrently(
         started_at=started.isoformat(),
         duration_ms=round((time.monotonic() - started_perf) * 1000),
         settings=cfg.to_dict(),
-        runtime={"browser_channel": ",".join(channels)},
+        runtime=runtime,
     )
 
 
@@ -217,6 +261,7 @@ def _audit_viewport(
     *,
     run_smoke: bool,
 ) -> dict[str, Any]:
+    viewport_started = time.monotonic()
     page_errors: list[str] = []
     console_errors: list[str] = []
     failed_requests: list[dict[str, Any]] = []
@@ -249,6 +294,7 @@ def _audit_viewport(
         context_options["user_agent"] = user_agent
     context = browser.new_context(**context_options)
     page = context.new_page()
+    _trace_stage(viewport.name, "context_ready", viewport_started)
     page.set_default_timeout(cfg.timeout_ms)
     page.add_init_script(ARM_LAYOUT_SHIFT_JS)
     page.on("pageerror", lambda exc: page_errors.append(str(exc)[:300]))
@@ -270,8 +316,13 @@ def _audit_viewport(
 
     navigation_status = 0
     readiness: dict[str, Any] = {
-        "navigation_wait_until": "domcontentloaded",
+        "navigation_wait_until": "commit",
+        "navigation_attempts": 0,
+        "viewport_retry": False,
+        "viewport_retry_reason": None,
         "dom_content_loaded": False,
+        "dom_content_loaded_timed_out": None,
+        "dom_content_loaded_timeout_ms": min(cfg.timeout_ms, 3_000),
         "load_event_reached": None,
         "load_event_timed_out": None,
         "load_event_timeout_ms": min(cfg.timeout_ms, 3_000),
@@ -281,6 +332,7 @@ def _audit_viewport(
         "network_idle_reached": None,
         "network_idle_timed_out": None,
         "fonts_ready": None,
+        "text_scale_applied": None,
     }
     measurements: dict[str, Any] = {
         "viewport": viewport.to_dict(),
@@ -289,9 +341,17 @@ def _audit_viewport(
     issues: list[Issue]
     stage = "navigation"
     try:
-        response = page.goto(target, wait_until="domcontentloaded", timeout=cfg.timeout_ms)
-        readiness["dom_content_loaded"] = True
+        response, navigation_attempts = _goto_document(page, target, cfg.timeout_ms)
+        _trace_stage(viewport.name, "navigation_complete", viewport_started)
+        readiness["navigation_attempts"] = navigation_attempts
         navigation_status = response.status if response is not None else 0
+        stage = "dom_content_loaded"
+        readiness["dom_content_loaded"] = _wait_for_dom_content_loaded(
+            page,
+            readiness["dom_content_loaded_timeout_ms"],
+        )
+        _trace_stage(viewport.name, "dom_content_loaded_complete", viewport_started)
+        readiness["dom_content_loaded_timed_out"] = not readiness["dom_content_loaded"]
         stage = "load_event"
         try:
             page.wait_for_load_state("load", timeout=readiness["load_event_timeout_ms"])
@@ -300,6 +360,7 @@ def _audit_viewport(
         except Exception:  # noqa: BLE001 - rendered DOM remains auditable
             readiness["load_event_reached"] = False
             readiness["load_event_timed_out"] = True
+        _trace_stage(viewport.name, "load_event_complete", viewport_started)
         stage = "ready_selector"
         if cfg.ready_selector:
             page.wait_for_selector(cfg.ready_selector, state="visible", timeout=cfg.timeout_ms)
@@ -315,21 +376,26 @@ def _audit_viewport(
                 readiness["network_idle_timed_out"] = True
         stage = "probe"
         page.wait_for_timeout(cfg.settle_ms)
+        _trace_stage(viewport.name, "settle_complete", viewport_started)
         if viewport.text_scale > 1:
-            page.evaluate(TEXT_SCALE_JS, viewport.text_scale)
-            page.evaluate(ARM_LAYOUT_SHIFT_JS)
+            _apply_text_scale(page, viewport.text_scale, cfg.timeout_ms)
+            readiness["text_scale_applied"] = True
             page.wait_for_timeout(min(cfg.settle_ms, 100))
+            _trace_stage(viewport.name, "text_scale_complete", viewport_started)
         try:
             page.evaluate("() => document.fonts ? document.fonts.ready.then(() => true) : true")
             readiness["fonts_ready"] = True
         except Exception:  # noqa: BLE001 - font readiness is advisory
             readiness["fonts_ready"] = False
+        _trace_stage(viewport.name, "fonts_complete", viewport_started)
         snapshot = page.evaluate(COLLECT_JS, _probe_config(cfg, viewport))
+        _trace_stage(viewport.name, "collect_complete", viewport_started)
         snapshot["environment"]["textScale"] = viewport.text_scale
         snapshot["environment"]["safeAreaBottomPx"] = viewport.safe_area_bottom_px
         if cfg.profile == "accessibility":
             snapshot["accessibility"] = page.evaluate(ACCESSIBILITY_JS)
         timing = page.evaluate(READ_TIMING_JS) or {}
+        _trace_stage(viewport.name, "timing_complete", viewport_started)
         network = _network_summary(responses, failed_requests, request_ignores)
         summary = {
             "viewport": viewport.to_dict(),
@@ -346,11 +412,13 @@ def _audit_viewport(
         }
         screenshot = shot_dir / f"{_safe_name(viewport.name)}.png"
         page.screenshot(path=str(screenshot), full_page=False)
+        _trace_stage(viewport.name, "screenshot_complete", viewport_started)
         screenshot_ref = _artifact_ref(screenshot, artifact_base)
         screenshots.append(screenshot_ref)
         summary["screenshot"] = screenshot_ref
         measurements = summary
         issues = _issues_for_viewport(summary, cfg)
+        _trace_stage(viewport.name, "issues_complete", viewport_started)
 
         if run_smoke and navigation_status < 400:
             smoke = _run_smoke(page, cfg, page_errors, viewport.name)
@@ -386,16 +454,127 @@ def _audit_viewport(
                 viewport=viewport.name,
                 message=f"page could not be audited: {navigation_error}",
                 hint=hint,
+                evidence={
+                    "error": navigation_error,
+                    "readiness": dict(readiness),
+                    "status": "error",
+                },
             )
         ]
     finally:
+        _trace_stage(viewport.name, "context_close_start", viewport_started)
         context.close()
+        _trace_stage(viewport.name, "context_close_complete", viewport_started)
     return {
         "measurements": measurements,
         "issues": issues,
         "screenshots": screenshots,
         "smoke": smoke,
     }
+
+
+def _goto_document(page: Any, target: str, timeout_ms: int) -> tuple[Any, int]:
+    """Navigate once; transient navigation retries use a fresh context."""
+
+    response = page.goto(
+        target,
+        wait_until="commit",
+        timeout=timeout_ms,
+    )
+    return response, 1
+
+
+def _has_transient_navigation_timeout(report: AuditReport) -> bool:
+    """Return whether a retry with a fresh browser context may recover."""
+
+    for viewport in report.viewports:
+        if viewport.get("status") != "error":
+            continue
+        error = str(viewport.get("error") or "").lower()
+        if "page.goto" in error and "timeout" in error:
+            return True
+    return False
+
+
+def _downgrade_partial_navigation_timeouts(
+    issues: Sequence[Issue],
+    viewports: Sequence[Mapping[str, Any]],
+) -> list[Issue]:
+    """Treat isolated navigation timeouts as incomplete evidence, not page defects."""
+
+    successful = [
+        str(item.get("viewport", {}).get("name") or "")
+        for item in viewports
+        if item.get("status") == "ok" and item.get("viewport", {}).get("name")
+    ]
+    if not successful:
+        return list(issues)
+    timed_out = {
+        str(item.get("viewport", {}).get("name") or "")
+        for item in viewports
+        if item.get("status") == "error"
+        and "page.goto" in str(item.get("error") or "").lower()
+        and "timeout" in str(item.get("error") or "").lower()
+    }
+    downgraded: list[Issue] = []
+    for issue in issues:
+        if issue.code != "load_error" or issue.viewport not in timed_out:
+            downgraded.append(issue)
+            continue
+        downgraded.append(
+            replace(
+                issue,
+                severity="warning",
+                hint=(
+                    "This viewport timed out after a fresh retry while other viewports "
+                    "loaded. Rerun before treating it as a page defect."
+                ),
+                evidence={
+                    **issue.evidence,
+                    "partial_navigation_timeout": True,
+                    "successful_viewports": len(successful),
+                },
+            )
+        )
+    return downgraded
+
+
+def _mark_transient_retry(report: AuditReport) -> None:
+    report.runtime["transient_retry_count"] = 1
+    report.runtime["transient_retry_reason"] = "navigation_timeout"
+    for viewport in report.viewports:
+        readiness = viewport.get("readiness")
+        if isinstance(readiness, dict):
+            readiness["viewport_retry"] = True
+            readiness["viewport_retry_reason"] = "navigation_timeout"
+
+
+def _apply_text_scale(page: Any, scale: float, timeout_ms: int) -> dict[str, Any]:
+    """Apply text scaling after the next document root is available."""
+
+    wait_ms = min(timeout_ms, 3_000)
+    last_error: Exception | None = None
+    for _ in range(2):
+        try:
+            page.wait_for_selector("html", state="attached", timeout=wait_ms)
+            result = page.evaluate(TEXT_SCALE_JS, scale)
+            if isinstance(result, Mapping) and result.get("applied"):
+                return dict(result)
+        except Exception as exc:  # noqa: BLE001 - retry a navigation race once
+            last_error = exc
+        page.wait_for_timeout(100)
+    message = "document root did not become ready for text scaling"
+    if last_error is not None:
+        message = f"{message}: {last_error}"
+    raise RuntimeError(message) from last_error
+
+
+def _wait_for_dom_content_loaded(page: Any, timeout_ms: int) -> bool:
+    try:
+        page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
+        return True
+    except Exception:  # noqa: BLE001 - rendered DOM remains auditable
+        return False
 
 
 def _probe_config(cfg: Settings, viewport: Viewport) -> dict[str, Any]:
@@ -831,7 +1010,7 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
                 f"{len(safe_area_penetrations)} bottom-anchored element(s) enter the "
                 f"{required}px safe-area band",
                 name,
-                "Reserve max(16px, env(safe-area-inset-bottom)) around bottom controls.",
+                f"Reserve max({required}px, env(safe-area-inset-bottom)) around bottom controls.",
                 {"elements": safe_area_penetrations[:10]},
             )
         )
@@ -872,7 +1051,11 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
         )
     shift = timing.get("layoutShift") or {}
     clip = float(shift.get("clip") or 0.0)
-    if shift.get("supported") and clip > cfg.cls_error:
+    text_scale = float(summary.get("viewport", {}).get("text_scale") or 1.0)
+    # Enlarging every computed font size can trigger responsive reflow inside
+    # the page. That reflow is the test action, not an unrelated load shift.
+    measured_layout_shift = text_scale == 1.0 and shift.get("supported")
+    if measured_layout_shift and clip > cfg.cls_error:
         issues.append(
             Issue(
                 "layout_shift",
@@ -883,7 +1066,7 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
                 {"cls": clip, "max_shift": shift.get("maxShift"), "shifts": shift.get("shifts")},
             )
         )
-    elif shift.get("supported") and clip > cfg.cls_warn:
+    elif measured_layout_shift and clip > cfg.cls_warn:
         issues.append(
             Issue(
                 "layout_shift",

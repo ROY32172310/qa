@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.1 - 2026-10-29
+
+- Add a fixed 20-page real-world dogfood corpus, runner, result schema, and
+  review protocol with a 180-second default per-case deadline.
+- Navigate on document commit, bound DOM/load readiness separately, retry one
+  transient navigation timeout in a fresh browser context, and downgrade an
+  isolated timeout when other viewports rendered successfully.
+- Measure layout shift only at normal text scale so the injected enlargement
+  does not manufacture CLS findings.
+- Terminate the complete audit process group at the dogfood deadline instead of
+  waiting indefinitely on inherited browser processes.
+- Add opt-in `EGO_WEBQA_TRACE=1` stage tracing for diagnosing unbounded browser
+  waits.
+- Make safe-area repair guidance use the effective detector threshold rather
+  than a stale 16px value.
+
 ## 0.4.0 - 2026-10-29
 
 - Replace the default device mix with a faster narrow-mobile matrix covering

@@ -27,7 +27,7 @@ def test_subprocess_env_sets_source_tree_without_existing_path(
 
 
 def test_project_distribution_prefix_matches_pyproject() -> None:
-    assert dev._project_distribution_prefix() == "ego_webqa-0.4.0"
+    assert dev._project_distribution_prefix() == "ego_webqa-0.4.1"
 
 
 def test_main_dispatches_named_task_and_arguments(

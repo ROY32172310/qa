@@ -97,11 +97,18 @@ def typecheck(*arguments: str) -> int:
     script = _run("mypy", *arguments, "scripts/dev.py")
     if script:
         return script
-    return _run("mypy", *arguments, "benchmarks", env={"MYPYPATH": "src"})
+    benchmark = _run("mypy", *arguments, "benchmarks", env={"MYPYPATH": "src"})
+    if benchmark:
+        return benchmark
+    return _run("mypy", *arguments, "dogfood", env={"MYPYPATH": "src"})
 
 
 def benchmark(*arguments: str) -> int:
     return _script("benchmarks/run.py", *arguments)
+
+
+def dogfood(*arguments: str) -> int:
+    return _script("dogfood/run.py", *arguments)
 
 
 def package(*arguments: str) -> int:
@@ -145,6 +152,7 @@ TASKS = {
     "format-check": format_check,
     "typecheck": typecheck,
     "benchmark": benchmark,
+    "dogfood": dogfood,
     "package": package,
     "check": check,
     "full": full,

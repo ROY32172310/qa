@@ -344,7 +344,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ROY32172310/qa@v0.4.0
+      - uses: ROY32172310/qa@v0.4.1
         with:
           url: ${{ vars.PREVIEW_URL }}
           profile: accessibility
@@ -362,7 +362,7 @@ For a local checkout of this repository, use `uses: ./` after checkout. The
 Action's `safe` smoke mode is the default; set `smoke-mode: live` only when the
 click is intentionally allowed to cause real side effects. See
 [`examples/github-action.yml`](examples/github-action.yml) and
-[`action.yml`](action.yml) for the full input set. The `@v0.4.0` tag is created
+[`action.yml`](action.yml) for the full input set. The `@v0.4.1` tag is created
 only after the same commit passes the full cross-platform CI matrix.
 
 ## Python API

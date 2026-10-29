@@ -298,6 +298,10 @@ TEXT_SCALE_JS = r"""
   if (window.__ego_webqa_text_scale === requested) {
     return {applied: true, textScale: requested, scaledElements: 0, reused: true};
   }
+  const documentRoot = document.documentElement;
+  if (!documentRoot) {
+    return {applied: false, textScale: 1, scaledElements: 0};
+  }
   const elements = [...document.querySelectorAll("*")];
   const originals = new Map();
   for (const el of elements) {
@@ -311,7 +315,7 @@ TEXT_SCALE_JS = r"""
     scaledElements += 1;
   }
   window.__ego_webqa_text_scale = requested;
-  document.documentElement.dataset.egoWebqaTextScale = String(requested);
+  documentRoot.dataset.egoWebqaTextScale = String(requested);
   return {applied: true, textScale: requested, scaledElements};
 }
 """
