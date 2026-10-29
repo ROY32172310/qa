@@ -2,6 +2,8 @@
 
 ## 0.4.1 - 2026-10-29
 
+- Add PyPI project links and put the first successful audit, sample Agent
+  finding, and real-page dogfood evidence at the top of the README.
 - Add a fixed 20-page real-world dogfood corpus, runner, result schema, and
   review protocol with a 180-second default per-case deadline.
 - Navigate on document commit, bound DOM/load readiness separately, retry one
@@ -10,7 +12,8 @@
 - Measure layout shift only at normal text scale so the injected enlargement
   does not manufacture CLS findings.
 - Terminate the complete audit process group at the dogfood deadline instead of
-  waiting indefinitely on inherited browser processes.
+  waiting indefinitely on inherited browser processes, with a Windows-safe
+  process-tree path and type boundary.
 - Add opt-in `EGO_WEBQA_TRACE=1` stage tracing for diagnosing unbounded browser
   waits.
 - Make safe-area repair guidance use the effective detector threshold rather

@@ -14,11 +14,11 @@ import subprocess
 import sys
 import time
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT / "src") not in sys.path:
@@ -252,14 +252,17 @@ def _terminate_process_tree(process: subprocess.Popen[Any]) -> None:
         except (OSError, subprocess.TimeoutExpired):
             process.kill()
     else:
+        killpg = cast(Callable[[int, int], None], cast(Any, os).killpg)
+        sigterm = cast(int, getattr(signal, "SIGTERM", 15))
+        sigkill = cast(int, getattr(signal, "SIGKILL", 9))
         with contextlib.suppress(ProcessLookupError):
-            os.killpg(process.pid, signal.SIGTERM)
+            killpg(process.pid, sigterm)
         with contextlib.suppress(subprocess.TimeoutExpired):
             process.wait(timeout=2)
         # Descendants can outlive their group leader. Kill the group before
         # returning even when the direct process exited after SIGTERM.
         with contextlib.suppress(ProcessLookupError):
-            os.killpg(process.pid, signal.SIGKILL)
+            killpg(process.pid, sigkill)
     try:
         process.wait(timeout=2)
     except subprocess.TimeoutExpired:

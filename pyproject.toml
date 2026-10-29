@@ -23,6 +23,12 @@ classifiers = [
 ]
 dependencies = ["playwright>=1.48"]
 
+[project.urls]
+Homepage = "https://github.com/ROY32172310/qa"
+Repository = "https://github.com/ROY32172310/qa"
+Issues = "https://github.com/ROY32172310/qa/issues"
+Changelog = "https://github.com/ROY32172310/qa/blob/master/CHANGELOG.md"
+
 [project.optional-dependencies]
 mcp = ["mcp>=2.2,<3"]
 dev = [

@@ -1,0 +1,73 @@
+name: Result feedback
+description: Report a false positive, missed defect, or real delivery scenario.
+title: "[feedback] "
+labels:
+  - feedback
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing ego-webqa. Do not upload credentials, signed-in storage
+        state, private page content, or an unreviewed full report. A sanitized
+        `agent_summary.json` is usually enough.
+  - type: dropdown
+    id: feedback_type
+    attributes:
+      label: What happened?
+      options:
+        - Blocking false positive
+        - Rejected a page that was warning-only
+        - Missed an obvious delivery defect
+        - Unexpected runtime or browser failure
+        - Real usage scenario or dimension request
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ego-webqa version
+      description: Run `ego-webqa --version`.
+      placeholder: "0.4.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: target_type
+    attributes:
+      label: Target type
+      options:
+        - Public page
+        - Local static build (`--dir` / `--file`)
+        - Authenticated preview
+        - Private or client project
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Reproduction command or config
+      description: Remove secrets, signed URLs, query strings, and private hostnames.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed result
+      description: Include the dimension id, severity, selector, trigger, and problem text.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result and why
+      description: What should the deterministic check have reported?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Paste the relevant Agent summary item, screenshots, or a public reproducer.
+    validations:
+      required: false

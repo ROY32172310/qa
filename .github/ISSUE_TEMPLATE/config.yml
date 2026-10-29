@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Usage and architecture
+    url: https://github.com/ROY32172310/qa#readme
+    about: Installation, scope, configuration, MCP, and known limitations.

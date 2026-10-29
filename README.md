@@ -1,5 +1,10 @@
 # ego-webqa
 
+[![PyPI](https://img.shields.io/pypi/v/ego-webqa.svg)](https://pypi.org/project/ego-webqa/)
+[![CI](https://github.com/ROY32172310/qa/actions/workflows/ci.yml/badge.svg)](https://github.com/ROY32172310/qa/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/pypi/pyversions/ego-webqa.svg)](https://pypi.org/project/ego-webqa/)
+[![License](https://img.shields.io/pypi/l/ego-webqa.svg)](LICENSE)
+
 Deterministic coarse delivery QA for AI-generated web pages, H5 demos, and PWAs.
 
 Point it at a URL. It opens the page in a real Chromium browser, checks a
@@ -10,6 +15,52 @@ variants combine:
 - 360px and 390px widths;
 - 1.0x and 1.5x text scaling;
 - 0px and 34px simulated bottom safe area.
+
+## See the result in 30 seconds
+
+```bash
+python -m pip install ego-webqa
+python -m playwright install chromium
+ego-webqa https://your-preview.example --out .qa/first
+```
+
+The command exits `0` for pass/warnings, `1` for blocking delivery defects, and
+`2` for an audit or browser failure. Each run leaves screenshots and structured
+evidence:
+
+```text
+.qa/first/
+├── agent_summary.json   # one aggregated, repair-ready item per root cause
+├── report.json
+├── junit.xml
+├── report.sarif
+└── screenshots/
+```
+
+A real dogfood finding looks like this:
+
+```json
+{
+  "dimension_id": "text_scale_layout_break",
+  "selector": "html",
+  "problem": "page is 5px wider than the viewport at 1.5x text scale",
+  "trigger": "mobile-360-150-safe0 (360x800); mobile-360-150-safe34 (360x800)",
+  "severity": "block"
+}
+```
+
+The report explains what broke, where it happened, which viewport combinations
+were affected, and gives the Agent a command that reproduces the failure.
+
+## What real pages exposed
+
+The 0.4.1 dogfood pass audited 19 of 20 Ego-owned production or canonical
+generated pages. Stable findings included five text-enlargement layout breaks,
+four bottom safe-area penetrations, and one generated page loading a missing
+service worker. There are no known stable blocking false positives in that
+corpus. This is a small, disclosed corpus rather than a market-wide accuracy
+claim; the full evidence and limitations are in
+[`docs/real-world-dogfood-2026-10-29.md`](docs/real-world-dogfood-2026-10-29.md).
 
 ## Why
 
