@@ -148,7 +148,8 @@ def audit(
         runtime=runtime,
         governance=resolution.to_dict(),
     )
-    if _retry_transient and _has_transient_navigation_timeout(report):
+    transient_reason = _transient_execution_retry_reason(report)
+    if _retry_transient and transient_reason:
         retried = audit(
             target,
             settings=cfg,
@@ -157,7 +158,7 @@ def audit(
             _retry_transient=False,
             _as_of=started.date(),
         )
-        _mark_transient_retry(retried)
+        _mark_transient_retry(retried, transient_reason)
         retried.duration_ms = round((time.monotonic() - started_perf) * 1000)
         return retried
     return report
@@ -182,7 +183,8 @@ def _audit_concurrently(
             _retry_transient=False,
             _as_of=started.date(),
         )
-        if retry_transient and _has_transient_navigation_timeout(report):
+        transient_reason = _transient_execution_retry_reason(report)
+        if retry_transient and transient_reason:
             report = audit(
                 target,
                 settings=replace(cfg, viewports=(viewport,)),
@@ -191,7 +193,7 @@ def _audit_concurrently(
                 _retry_transient=False,
                 _as_of=started.date(),
             )
-            _mark_transient_retry(report)
+            _mark_transient_retry(report, transient_reason)
         return report
 
     try:
@@ -228,13 +230,20 @@ def _audit_concurrently(
     transient_retry_count = sum(
         int(report.runtime.get("transient_retry_count") or 0) for report in reports
     )
+    transient_retry_reasons = sorted(
+        {
+            str(report.runtime.get("transient_retry_reason"))
+            for report in reports
+            if report.runtime.get("transient_retry_reason")
+        }
+    )
     runtime: dict[str, Any] = {
         "browser_engine": cfg.browser_engine,
         "browser_channel": ",".join(channels),
     }
     if transient_retry_count:
         runtime["transient_retry_count"] = transient_retry_count
-        runtime["transient_retry_reason"] = "navigation_timeout"
+        runtime["transient_retry_reason"] = ",".join(transient_retry_reasons)
     resolution = resolve_overrides(cfg, as_of=started.date())
     issues = _apply_override_audit(issues, resolution)
     return AuditReport(
@@ -480,7 +489,7 @@ def _audit_viewport(
         except Exception:  # noqa: BLE001 - font readiness is advisory
             readiness["fonts_ready"] = False
         _trace_stage(viewport.name, "fonts_complete", viewport_started)
-        snapshot = page.evaluate(COLLECT_JS, _probe_config(cfg, viewport))
+        snapshot = _collect_snapshot(page, cfg, viewport)
         _trace_stage(viewport.name, "collect_complete", viewport_started)
         snapshot["environment"]["textScale"] = viewport.text_scale
         snapshot["environment"]["safeAreaBottomPx"] = viewport.safe_area_bottom_px
@@ -579,13 +588,23 @@ def _goto_document(page: Any, target: str, timeout_ms: int) -> tuple[Any, int]:
 def _has_transient_navigation_timeout(report: AuditReport) -> bool:
     """Return whether a retry with a fresh browser context may recover."""
 
+    return _transient_execution_retry_reason(report) == "navigation_timeout"
+
+
+def _transient_execution_retry_reason(report: AuditReport) -> str:
+    """Name a bounded execution race that a fresh context may recover."""
+
     for viewport in report.viewports:
         if viewport.get("status") != "error":
             continue
         error = str(viewport.get("error") or "").lower()
         if "page.goto" in error and "timeout" in error:
-            return True
-    return False
+            return "navigation_timeout"
+        if "document root did not become ready for text scaling" in error:
+            return "document_replacement"
+        if "page dom did not stabilize for measurement" in error:
+            return "document_replacement"
+    return ""
 
 
 def _downgrade_partial_navigation_timeouts(
@@ -631,14 +650,14 @@ def _downgrade_partial_navigation_timeouts(
     return downgraded
 
 
-def _mark_transient_retry(report: AuditReport) -> None:
+def _mark_transient_retry(report: AuditReport, reason: str) -> None:
     report.runtime["transient_retry_count"] = 1
-    report.runtime["transient_retry_reason"] = "navigation_timeout"
+    report.runtime["transient_retry_reason"] = reason
     for viewport in report.viewports:
         readiness = viewport.get("readiness")
         if isinstance(readiness, dict):
             readiness["viewport_retry"] = True
-            readiness["viewport_retry_reason"] = "navigation_timeout"
+            readiness["viewport_retry_reason"] = reason
 
 
 def _apply_text_scale(page: Any, scale: float, timeout_ms: int) -> dict[str, Any]:
@@ -659,6 +678,30 @@ def _apply_text_scale(page: Any, scale: float, timeout_ms: int) -> dict[str, Any
     if last_error is not None:
         message = f"{message}: {last_error}"
     raise RuntimeError(message) from last_error
+
+
+def _collect_snapshot(
+    page: Any,
+    cfg: Settings,
+    viewport: Viewport,
+    *,
+    attempts: int = 3,
+) -> dict[str, Any]:
+    """Collect measurements after a bounded retry across document replacement."""
+
+    last_error: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            snapshot = page.evaluate(COLLECT_JS, _probe_config(cfg, viewport))
+        except Exception as exc:  # noqa: BLE001 - a navigation can replace the context
+            last_error = exc
+        else:
+            if isinstance(snapshot, Mapping) and isinstance(snapshot.get("viewport"), Mapping):
+                return dict(snapshot)
+            last_error = RuntimeError("document root or body was not available")
+        if attempt + 1 < attempts:
+            page.wait_for_timeout(150)
+    raise RuntimeError(f"page DOM did not stabilize for measurement: {last_error}")
 
 
 def _wait_for_dom_content_loaded(page: Any, timeout_ms: int) -> bool:

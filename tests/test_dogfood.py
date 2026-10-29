@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from dogfood import run
+from ego_webqa.config import SmokeStep
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "dogfood" / "cases.json"
@@ -25,7 +26,14 @@ def test_shipped_manifest_is_complete_and_diverse() -> None:
     assert len(manifest.cases) == 20
     assert len({case.id for case in manifest.cases}) == 20
     assert sum(case.kind == "url" for case in manifest.cases) == 14
-    assert all(not case.smoke for case in manifest.cases)
+    flow_cases = {case.id: case for case in manifest.cases if case.smoke_flow}
+    assert set(flow_cases) == {
+        "ego-public-math-practice",
+        "ego-generated-noodle-shop",
+        "ego-generated-games-gallery",
+    }
+    assert all(case.smoke for case in flow_cases.values())
+    assert all(len(case.smoke_flow) == 2 for case in flow_cases.values())
     categories = {category for case in manifest.cases for category in case.categories}
     assert {
         "authentication",
@@ -77,6 +85,22 @@ def test_manifest_expands_local_placeholders(tmp_path: Path) -> None:
         (lambda case: case.update({"kind": "file"}), "kind must be"),
         (lambda case: case.update({"directory": "${MISSING}/pages"}), "unresolved"),
         (lambda case: case.update({"url": "https://example.com"}), "cannot define a URL"),
+        (lambda case: case.update({"smoke_flow": []}), "non-empty list"),
+        (
+            lambda case: case.update({"smoke_flow": [{"action": "click", "selector": ".button"}]}),
+            "requires an expect_visible or expect_url assertion",
+        ),
+        (
+            lambda case: case.update(
+                {
+                    "smoke_flow": [
+                        {"action": "eval", "selector": "body"},
+                        {"action": "expect_visible", "selector": "body"},
+                    ]
+                }
+            ),
+            "action must be one of",
+        ),
     ],
 )
 def test_manifest_rejects_invalid_cases(
@@ -125,6 +149,78 @@ def test_audit_command_uses_public_cli_and_disables_smoke(tmp_path: Path) -> Non
     assert command[:3] == ["python", "-m", "ego_webqa"]
     assert command[-5:] == ["--no-smoke", "--dir", "/tmp/site", "--file", "index.html"]
     assert str(tmp_path) in command
+
+
+def test_audit_command_uses_case_config_for_bounded_flow(tmp_path: Path) -> None:
+    flow = (
+        SmokeStep("click", selector=".add-btn"),
+        SmokeStep("expect_visible", selector="#cartItems .cart-item"),
+    )
+    case = run.DogfoodCase(
+        "page",
+        "local",
+        ("commerce",),
+        "",
+        "baseline",
+        True,
+        smoke_flow=flow,
+        directory="/tmp/site",
+        file="index.html",
+    )
+
+    command = run.audit_command("python", case, tmp_path)
+
+    config_index = command.index("--config")
+    assert command[config_index + 1] == str(tmp_path / run.DOGFOOD_CONFIG_NAME)
+    assert "--no-smoke" not in command
+    assert command[-4:] == ["--dir", "/tmp/site", "--file", "index.html"]
+
+
+def test_run_case_writes_flow_config_and_uses_it(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    flow = (
+        SmokeStep("fill", selector="#search", value="no-match"),
+        SmokeStep("expect_visible", selector="#empty"),
+    )
+    case = run.DogfoodCase(
+        "page",
+        "url",
+        ("interactive",),
+        "",
+        "baseline",
+        True,
+        smoke_flow=flow,
+        url="https://example.com",
+    )
+    captured: dict[str, object] = {}
+
+    def fail_fast(
+        command: list[str], _stdout: object, _stderr: object, _timeout: int
+    ) -> tuple[bool, int]:
+        captured["command"] = command
+        return False, 2
+
+    monkeypatch.setattr(run, "_execute_audit", fail_fast)
+
+    result = run._run_case(1, 1, case, tmp_path, "", 1_000)
+
+    config_path = tmp_path / "cases" / "page" / run.DOGFOOD_CONFIG_NAME
+    assert captured["command"] == result["command"]
+    assert "--config" in result["command"]
+    assert "--no-smoke" not in result["command"]
+    assert result["smoke_mode"] == "bounded_flow"
+    assert result["smoke_flow_steps"] == 2
+    assert Path("cases") / "page" / run.DOGFOOD_CONFIG_NAME in {
+        Path(item) for item in result["artifacts"]
+    }
+    assert json.loads(config_path.read_text(encoding="utf-8")) == {
+        "smoke_flow": [
+            {"action": "fill", "selector": "#search", "value": "no-match"},
+            {"action": "expect_visible", "selector": "#empty"},
+        ]
+    }
 
 
 def test_metrics_use_nearest_rank_runtime_and_count_findings() -> None:

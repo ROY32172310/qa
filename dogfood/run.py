@@ -25,8 +25,10 @@ if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
 from ego_webqa import __version__  # noqa: E402
+from ego_webqa.config import Settings, SmokeStep  # noqa: E402
 
 MANIFEST_SCHEMA_VERSION = "1.0"
+DOGFOOD_CONFIG_NAME = "smoke-config.json"
 _CASE_KEYS = {
     "id",
     "kind",
@@ -37,6 +39,7 @@ _CASE_KEYS = {
     "notes",
     "profile",
     "smoke",
+    "smoke_flow",
 }
 
 
@@ -52,6 +55,7 @@ class DogfoodCase:
     notes: str
     profile: str
     smoke: bool
+    smoke_flow: tuple[SmokeStep, ...] = ()
     url: str = ""
     directory: str = ""
     file: str = ""
@@ -90,6 +94,17 @@ def _strings(value: Any, label: str) -> tuple[str, ...]:
     if any(not isinstance(item, str) or not item.strip() for item in value):
         raise DogfoodConfigError(f"{label} must contain non-empty strings")
     return tuple(item.strip() for item in value)
+
+
+def _smoke_flow(value: Any, label: str) -> tuple[SmokeStep, ...]:
+    if not isinstance(value, list) or not value:
+        raise DogfoodConfigError(f"{label} smoke_flow must be a non-empty list")
+    try:
+        flow = tuple(SmokeStep.from_mapping(item) for item in value)
+        Settings(smoke_flow=flow)
+    except ValueError as exc:
+        raise DogfoodConfigError(f"{label} smoke_flow is invalid: {exc}") from exc
+    return flow
 
 
 def _expand_path(value: str, variables: Mapping[str, Path], label: str) -> Path:
@@ -146,6 +161,11 @@ def load_manifest(path: str | Path, variables: Mapping[str, Path]) -> DogfoodMan
         smoke = item.get("smoke", defaults.get("smoke", False))
         if type(smoke) is not bool:
             raise DogfoodConfigError(f"case {case_id!r} smoke must be a boolean")
+        raw_smoke_flow = item.get("smoke_flow")
+        smoke_flow = (
+            _smoke_flow(raw_smoke_flow, f"case {case_id!r}") if raw_smoke_flow is not None else ()
+        )
+        smoke = smoke or bool(smoke_flow)
         categories = _strings(item.get("categories"), f"case {case_id!r} categories")
         notes = _optional_string(item, "notes")
         if kind == "url":
@@ -160,6 +180,7 @@ def load_manifest(path: str | Path, variables: Mapping[str, Path]) -> DogfoodMan
                     notes,
                     profile,
                     smoke,
+                    smoke_flow,
                     url=url,
                 )
             )
@@ -182,6 +203,7 @@ def load_manifest(path: str | Path, variables: Mapping[str, Path]) -> DogfoodMan
                 notes,
                 profile,
                 smoke,
+                smoke_flow,
                 directory=str(directory),
                 file=file_name,
             )
@@ -213,7 +235,9 @@ def audit_command(
     ]
     if browser_channel:
         command.extend(["--browser-channel", browser_channel])
-    if not case.smoke:
+    if case.smoke_flow:
+        command.extend(["--config", str(output_dir / DOGFOOD_CONFIG_NAME)])
+    elif not case.smoke:
         command.append("--no-smoke")
     if case.kind == "url":
         command.append(case.url)
@@ -313,9 +337,17 @@ def _run_case(
     case_dir = output / "cases" / case.id
     case_dir.mkdir(parents=True, exist_ok=True)
     before = set(case_dir.iterdir())
+    if case.smoke_flow:
+        _write_smoke_config(case, case_dir)
     command = audit_command(sys.executable, case, case_dir, browser)
     stdout_path = case_dir / "stdout.log"
     stderr_path = case_dir / "stderr.log"
+    smoke_metadata = {
+        "smoke_mode": (
+            "bounded_flow" if case.smoke_flow else "auto_cta" if case.smoke else "disabled"
+        ),
+        "smoke_flow_steps": len(case.smoke_flow),
+    }
     started = time.monotonic()
     timed_out = False
     try:
@@ -338,6 +370,7 @@ def _run_case(
             "kind": case.kind,
             "source": case.source(),
             "notes": case.notes,
+            **smoke_metadata,
             "command": command,
             "exit_code": None,
             "wall_duration_ms": round((time.monotonic() - started) * 1000),
@@ -358,6 +391,7 @@ def _run_case(
             "kind": case.kind,
             "source": case.source(),
             "notes": case.notes,
+            **smoke_metadata,
             "command": command,
             "exit_code": None,
             "wall_duration_ms": wall_duration_ms,
@@ -382,6 +416,7 @@ def _run_case(
         "kind": case.kind,
         "source": case.source(),
         "notes": case.notes,
+        **smoke_metadata,
         "command": command,
         "exit_code": returncode,
         "wall_duration_ms": wall_duration_ms,
@@ -472,6 +507,18 @@ def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def _write_smoke_config(case: DogfoodCase, case_dir: Path) -> None:
+    steps: list[dict[str, str]] = []
+    for step in case.smoke_flow:
+        payload = {"action": step.action}
+        for key in ("selector", "value", "key", "pattern"):
+            value = getattr(step, key)
+            if value:
+                payload[key] = value
+        steps.append(payload)
+    _write_json(case_dir / DOGFOOD_CONFIG_NAME, {"smoke_flow": steps})
+
+
 def _render_markdown(manifest: DogfoodManifest, results: Sequence[Mapping[str, Any]]) -> str:
     metrics = _metrics(results)
     runtime = metrics["runtime_ms"]
@@ -485,14 +532,17 @@ def _render_markdown(manifest: DogfoodManifest, results: Sequence[Mapping[str, A
         f"- Total issues: {metrics['total_issues']}",
         f"- P50/P95/max: {runtime['p50']}/{runtime['p95']}/{runtime['max']} ms",
         "",
-        "| Case | Categories | Result | Issues | Wall time | Finding codes |",
-        "|---|---|---:|---:|---:|---|",
+        "| Case | Smoke | Categories | Result | Issues | Wall time | Finding codes |",
+        "|---|---|---|---:|---:|---:|---|",
     ]
     for item in results:
         result = "runtime error" if item.get("runtime_error") else str(item.get("status"))
         codes = ", ".join(item.get("finding_codes", [])) or "-"
+        smoke = str(item.get("smoke_mode", "disabled"))
+        if item.get("smoke_flow_steps"):
+            smoke = f"{smoke} ({item['smoke_flow_steps']} steps)"
         lines.append(
-            f"| `{item['id']}` | {', '.join(item.get('categories', []))} | {result} | "
+            f"| `{item['id']}` | {smoke} | {', '.join(item.get('categories', []))} | {result} | "
             f"{item.get('issue_count', '-')} | {item.get('wall_duration_ms', '-')} ms | {codes} |"
         )
     lines.extend(

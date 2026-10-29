@@ -5,10 +5,11 @@ from typing import Any
 
 import pytest
 
-from ego_webqa.config import Settings
+from ego_webqa.config import Settings, Viewport
 from ego_webqa.engine import (
     AuditRuntimeError,
     _apply_text_scale,
+    _collect_snapshot,
     _downgrade_partial_navigation_timeouts,
     _goto_document,
     _has_transient_navigation_timeout,
@@ -25,6 +26,7 @@ from ego_webqa.engine import (
     _same_origin,
     _should_run_smoke,
     _trace_stage,
+    _transient_execution_retry_reason,
     _wait_for_dom_content_loaded,
 )
 from ego_webqa.models import AuditReport, Issue
@@ -251,6 +253,42 @@ def test_text_scale_retries_after_navigation_race() -> None:
     assert page.evaluate_calls == 2
 
 
+class _RacingSnapshotPage:
+    def __init__(self, *, recover: bool) -> None:
+        self.recover = recover
+        self.evaluate_calls = 0
+        self.wait_calls = 0
+
+    def evaluate(self, *_: Any, **__: Any) -> dict[str, Any]:
+        self.evaluate_calls += 1
+        if not self.recover or self.evaluate_calls == 1:
+            raise TypeError("Cannot read properties of null (reading 'scrollWidth')")
+        return {"viewport": {"width": 360, "height": 800}, "textLength": 10}
+
+    def wait_for_timeout(self, _: int) -> None:
+        self.wait_calls += 1
+
+
+def test_snapshot_retries_across_document_replacement() -> None:
+    page = _RacingSnapshotPage(recover=True)
+
+    result = _collect_snapshot(page, Settings(), Viewport(360, 800))
+
+    assert result["textLength"] == 10
+    assert page.evaluate_calls == 2
+    assert page.wait_calls == 1
+
+
+def test_snapshot_fails_cleanly_when_document_never_stabilizes() -> None:
+    page = _RacingSnapshotPage(recover=False)
+
+    with pytest.raises(RuntimeError, match="page DOM did not stabilize"):
+        _collect_snapshot(page, Settings(), Viewport(360, 800))
+
+    assert page.evaluate_calls == 3
+    assert page.wait_calls == 2
+
+
 def test_transient_navigation_timeout_requests_fresh_retry() -> None:
     summary = _summary(
         status="error",
@@ -269,6 +307,29 @@ def test_transient_navigation_timeout_requests_fresh_retry() -> None:
     )
 
     assert _has_transient_navigation_timeout(report) is True
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        "document root did not become ready for text scaling: timeout",
+        "page DOM did not stabilize for measurement: document root or body was not available",
+    ],
+)
+def test_document_replacement_requests_fresh_retry(error: str) -> None:
+    report = AuditReport(
+        target="https://example.com",
+        status="fail",
+        issues=[],
+        viewports=[_summary(status="error", error=error)],
+        smoke={},
+        screenshots=[],
+        started_at="2026-10-29T00:00:00+00:00",
+        duration_ms=1,
+        settings={},
+    )
+
+    assert _transient_execution_retry_reason(report) == "document_replacement"
 
 
 def test_isolated_navigation_timeout_becomes_incomplete_warning() -> None:

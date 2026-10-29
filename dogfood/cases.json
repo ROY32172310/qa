@@ -127,7 +127,11 @@
       "directory": "${EGO_ROOT}/public",
       "file": "52664e2e.html",
       "categories": ["learning", "tool", "mobile", "generated"],
-      "notes": "Shipped generated arithmetic practice artifact."
+      "notes": "Shipped generated arithmetic practice artifact.",
+      "smoke_flow": [
+        {"action": "click", "selector": ".opt-btn"},
+        {"action": "expect_visible", "selector": ".opt-btn.selected"}
+      ]
     },
     {
       "id": "ego-generated-noodle-shop",
@@ -135,7 +139,11 @@
       "directory": "${EGO_ROOT}/ego_work/gbench/beef-noodle-v2-20260824/src",
       "file": "index.html",
       "categories": ["commerce", "form", "landing", "mobile", "generated"],
-      "notes": "Benchmark generated restaurant ordering experience."
+      "notes": "Benchmark generated restaurant ordering experience.",
+      "smoke_flow": [
+        {"action": "click", "selector": ".add-btn"},
+        {"action": "expect_visible", "selector": "#cartItems .cart-item"}
+      ]
     },
     {
       "id": "ego-generated-click-counter",
@@ -151,7 +159,15 @@
       "directory": "${EGO_ROOT}/ego_work/gbench/games-gallery-20260825/src",
       "file": "index.html",
       "categories": ["gallery", "game", "interactive", "mobile", "generated"],
-      "notes": "Benchmark generated game gallery."
+      "notes": "Benchmark generated game gallery.",
+      "smoke_flow": [
+        {
+          "action": "fill",
+          "selector": "#gameSearch",
+          "value": "no-such-game-ego-webqa"
+        },
+        {"action": "expect_visible", "selector": "#emptyState:not([hidden])"}
+      ]
     }
   ]
 }

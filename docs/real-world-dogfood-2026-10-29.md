@@ -67,19 +67,57 @@ production pages. These varied across viewports and runs and were not treated
 as stable page defects. They remain useful observations, but require repeated
 clean-network measurements before a creator is asked to change the page.
 
+Ten production pages that produced a timing finding in the first pass were
+rerun twice, serially, on the same public network. Every page produced at least
+one timing finding in each of the three observations. The exact mixture changed:
+the two repeat runs reported 8/7 and 9/6 cases for `slow_first_paint` /
+`slow_load_event`, with completed-run P50/P95 of 24.05/40.17s and
+27.70/44.97s. This makes latency repeatable under the current network
+condition, but it still cannot separate the target page from that local network.
+The warnings remain advisory and do not justify an unconditional page repair.
+
+The repeats also exposed a navigation race: a document could be replaced
+between text scaling, measurement, and screenshot capture, causing a browser
+`TypeError` or a false `blank_page`. Collection now returns only after both the
+document root and body exist, retries a bounded number of times, and requests
+one fresh-context retry when the document is replaced during text scaling or
+measurement. Targeted reruns no longer produced the internal error or
+`blank_page`; one isolated navigation timeout remained as the existing
+non-blocking incomplete-evidence warning.
+
 ## False-negative limits
 
 This pass does not establish a complete false-negative rate:
 
-- CTA and flow smoke were disabled, so dead interactions and broken short paths
-  were not exercised.
+- The original 20-page pass disabled CTA and flow smoke. A follow-up exercised
+  only three explicitly bounded two-step paths, so dead interactions and broken
+  longer paths remain outside this evidence.
 - Screenshots were reviewed manually for obvious breakage; there is no visual
   baseline or full cross-browser comparison.
 - Slow timing and production network failures need repeated samples before they
   can be separated from environment noise.
 
-A second pass should enable a small, explicitly bounded set of smoke flows and
-sample unstable warnings more than once.
+## Bounded short-path pass
+
+The follow-up ran the public CLI with a case-level governed `smoke_flow` through
+`--config`, using Chromium and the default eight-viewport matrix:
+
+| Generated page | Interaction | Verified outcome | Result |
+|---|---|---|---:|
+| Math practice | Click `.opt-btn` | `.opt-btn.selected` becomes visible | PASS |
+| Noodle shop | Click `.add-btn` | `#cartItems .cart-item` becomes visible | PASS |
+| Games gallery | Fill `#gameSearch` with a no-match term | `#emptyState:not([hidden])` becomes visible | PASS |
+
+All 3/3 audits completed with no runtime error, and none produced a
+`smoke_flow_*` finding. The pages still failed for independent safe-area
+penetration, and two also retained a small-tap warning. These interactions are
+useful false-negative evidence, not proof of complete business behavior.
+
+The click counter remains deliberately uncovered. The closed flow syntax can
+verify element visibility or URL changes, but it cannot assert that displayed
+text changed from `0` to `1`. An assertion on an element that was already
+visible would be false evidence; the honest gap remains until a closed,
+deterministic text assertion is justified by demand.
 
 ## Repair loop
 

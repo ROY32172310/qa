@@ -7,6 +7,9 @@ from __future__ import annotations
 
 COLLECT_JS = r"""
 (cfg) => {
+  const documentRoot = document.documentElement;
+  const documentBody = document.body;
+  if (!documentRoot || !documentBody) return null;
   const composedParent = (el) => {
     if (!el) return null;
     if (el.parentElement) return el.parentElement;
@@ -67,7 +70,7 @@ COLLECT_JS = r"""
     const testId = el.getAttribute("data-testid");
     if (testId) return '[data-testid="' + String(testId).replace(/"/g, '\\"') + '"]';
     const parts = [];
-    for (let node = el; node && node.nodeType === 1 && node !== document.documentElement;
+    for (let node = el; node && node.nodeType === 1 && node !== documentRoot;
       node = composedParent(node)) {
       let part = node.tagName.toLowerCase();
       const treeParent = node.parentElement || (
@@ -100,7 +103,7 @@ COLLECT_JS = r"""
     const st = getComputedStyle(el);
     if (r.width <= 2 || r.height <= 2) return false;
     if (st.display === "none" || st.visibility === "hidden") return false;
-    for (let n = el; n && n !== document.documentElement; n = composedParent(n)) {
+    for (let n = el; n && n !== documentRoot; n = composedParent(n)) {
       const parentStyle = getComputedStyle(n);
       if (parentStyle.display === "none" || parentStyle.visibility === "hidden") return false;
       if (parseFloat(parentStyle.opacity || "1") < 0.05) return false;
@@ -274,10 +277,10 @@ COLLECT_JS = r"""
     },
     overflowX: Math.max(
       0,
-      document.documentElement.scrollWidth - document.documentElement.clientWidth
+      documentRoot.scrollWidth - documentRoot.clientWidth
     ),
-    textLength: (document.body && composedText(document.body) || "").trim().length,
-    elementCount: document.body ? allElements("*", document.body).length : 0,
+    textLength: composedText(documentBody).trim().length,
+    elementCount: allElements("*", documentBody).length,
     controlCount: controls.length,
     smallTargets,
     tinyFonts,

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Retry document measurement across a bounded navigation replacement and
+  request one fresh-context retry when text scaling or measurement loses the
+  document root, avoiding internal `TypeError` findings and false blank-page
+  results on slow public pages.
+- Extend the real-page dogfood manifest with case-level bounded `smoke_flow`
+  support and verify three short generated-page interactions through the public
+  CLI configuration path.
+
 ## 0.6.0 - 2026-10-29
 
 - Add project-level governed value overrides with mandatory `reason`, `owner`,
