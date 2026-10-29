@@ -148,6 +148,7 @@ def test_mapping_accepts_bounded_smoke_flow_and_redacts_fill_values() -> None:
                 {"action": "click", "selector": "#continue"},
                 {"action": "expect_visible", "selector": "#success"},
                 {"action": "expect_url", "pattern": r"#complete$"},
+                {"action": "expect_text", "selector": "#success", "pattern": "Preview"},
             ]
         }
     )
@@ -156,6 +157,7 @@ def test_mapping_accepts_bounded_smoke_flow_and_redacts_fill_values() -> None:
         "click",
         "expect_visible",
         "expect_url",
+        "expect_text",
     ]
     payload = settings.to_dict()
     assert payload["smoke_flow"][0]["value"] == "<redacted>"
@@ -180,6 +182,18 @@ def test_mapping_accepts_bounded_smoke_flow_and_redacts_fill_values() -> None:
         ([{"action": "submit", "selector": "#next"}], "action must be one of"),
         ([{"action": "press", "selector": "#input"}], "press requires key"),
         ([{"action": "expect_url", "pattern": "["}], "invalid smoke_flow URL pattern"),
+        (
+            [{"action": "expect_text", "selector": "#status"}],
+            "expect_text requires pattern",
+        ),
+        (
+            [{"action": "expect_text", "pattern": "ready"}],
+            "expect_text requires selector",
+        ),
+        (
+            [{"action": "expect_text", "selector": "#status", "pattern": "["}],
+            "invalid smoke_flow text pattern",
+        ),
         (
             [
                 {"action": "click", "selector": "#next"},

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add the closed `expect_text` smoke-flow assertion for visible rendered text
+  and current input, textarea, or select values. Matching is case-insensitive,
+  mismatches use the dedicated blocking
+  `smoke_flow_text_assertion_failed` dimension, and observed page text is not
+  copied into reports.
 - Retry document measurement across a bounded navigation replacement and
   request one fresh-context retry when text scaling or measurement loses the
   document root, avoiding internal `TypeError` findings and false blank-page

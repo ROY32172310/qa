@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Bounded text flow</title>
+  <link rel="stylesheet" href="/base.css">
+</head>
+<body>
+  <main>
+    <h1>Increment the delivery counter</h1>
+    <p>The short flow verifies the rendered text after an interaction.</p>
+    <button id="increment" onclick="
+      const count=document.querySelector('#count');
+      count.textContent=String(Number(count.textContent)+1)
+    ">Increment</button>
+    <output id="count">0</output>
+  </main>
+</body>
+</html>

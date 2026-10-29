@@ -151,7 +151,11 @@
       "directory": "${EGO_ROOT}/ego_work/gbench/click-counter-20260825/src",
       "file": "index.html",
       "categories": ["tool", "interactive", "mobile", "generated"],
-      "notes": "Benchmark generated interactive counter."
+      "notes": "Benchmark generated interactive counter.",
+      "smoke_flow": [
+        {"action": "click", "selector": "#incBtn"},
+        {"action": "expect_text", "selector": "#counterValue", "pattern": "^1$"}
+      ]
     },
     {
       "id": "ego-generated-games-gallery",

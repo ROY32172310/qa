@@ -332,6 +332,40 @@
       "rationale": "The action produces the explicitly asserted URL."
     },
     {
+      "id": "smoke-flow-text-pass",
+      "fixture": "flow-text.html",
+      "variants": ["mobile"],
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "smoke": true,
+      "settings": {
+        "timeout_ms": 650,
+        "smoke_flow": [
+          {"action": "click", "selector": "#increment"},
+          {"action": "expect_text", "selector": "#count", "pattern": "^1$"}
+        ]
+      },
+      "tags": ["smoke", "flow", "clean-control"],
+      "rationale": "The action changes the visible count from 0 to the asserted value 1."
+    },
+    {
+      "id": "smoke-flow-text-failure",
+      "fixture": "flow-text.html",
+      "variants": ["mobile"],
+      "expected_issue_codes": ["smoke_flow_text_assertion_failed"],
+      "expected_clean": false,
+      "smoke": true,
+      "settings": {
+        "timeout_ms": 650,
+        "smoke_flow": [
+          {"action": "click", "selector": "#increment"},
+          {"action": "expect_text", "selector": "#count", "pattern": "^9$"}
+        ]
+      },
+      "tags": ["smoke", "flow", "blocking"],
+      "rationale": "The interaction succeeds but the visible count does not match its contract."
+    },
+    {
       "id": "smoke-flow-step-missing",
       "fixture": "flow-clean.html",
       "expected_issue_codes": ["smoke_flow_step_failed"],

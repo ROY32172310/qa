@@ -30,6 +30,7 @@ def test_shipped_manifest_is_complete_and_diverse() -> None:
     assert set(flow_cases) == {
         "ego-public-math-practice",
         "ego-generated-noodle-shop",
+        "ego-generated-click-counter",
         "ego-generated-games-gallery",
     }
     assert all(case.smoke for case in flow_cases.values())
@@ -88,7 +89,7 @@ def test_manifest_expands_local_placeholders(tmp_path: Path) -> None:
         (lambda case: case.update({"smoke_flow": []}), "non-empty list"),
         (
             lambda case: case.update({"smoke_flow": [{"action": "click", "selector": ".button"}]}),
-            "requires an expect_visible or expect_url assertion",
+            "requires an expect_visible, expect_url, or expect_text assertion",
         ),
         (
             lambda case: case.update(

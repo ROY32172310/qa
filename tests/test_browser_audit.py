@@ -136,6 +136,10 @@ if(document.querySelector('#email').value){
 ">Continue</button>
 <p id="error" hidden>Email is required.</p>
 <p id="success" hidden>Preview created.</p>
+<button id="increment" onclick="
+const count=document.querySelector('#count');
+count.textContent=String(Number(count.textContent)+1)
+">Increment</button><output id="count">0</output>
 </main></body></html>""",
         encoding="utf-8",
     )
@@ -684,6 +688,73 @@ def test_bounded_smoke_flow_reports_failed_assertion_without_input_value(
     assert report.smoke["failedStep"]["action"] == "expect_visible"
     assert "smoke_flow_assertion_failed" in {issue.code for issue in report.issues}
     assert "do-not-persist" not in json.dumps(report.to_dict())
+
+
+def test_bounded_smoke_flow_verifies_rendered_text_and_form_value(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("flow.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+            smoke_settle_ms=10,
+            smoke_flow=(
+                SmokeStep("fill", selector="#email", value="qa@example.com"),
+                SmokeStep("click", selector="#continue"),
+                SmokeStep("click", selector="#increment"),
+                SmokeStep("expect_text", selector="#count", pattern=r"^1$"),
+                SmokeStep("expect_text", selector="#success", pattern=r"preview CREATED"),
+                SmokeStep(
+                    "expect_text",
+                    selector="#email",
+                    pattern=r"^qa@example\.com$",
+                ),
+            ),
+        ),
+        output_dir=tmp_path,
+    )
+    assert report.smoke["success"] is True
+    assert report.smoke["steps"][3]["text_source"] == "text"
+    assert report.smoke["steps"][3]["observed_length"] == 1
+    assert report.smoke["steps"][4]["status"] == "passed"
+    assert report.smoke["steps"][5]["text_source"] == "value"
+    assert report.smoke["assertions"][1]["type"] == "text"
+    assert "qa@example.com" not in json.dumps(report.to_dict())
+    assert "smoke_flow_text_assertion_failed" not in {issue.code for issue in report.issues}
+
+
+def test_bounded_smoke_flow_reports_text_assertion_without_echoing_content(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("flow.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+            timeout_ms=500,
+            smoke_settle_ms=10,
+            smoke_flow=(
+                SmokeStep("click", selector="#increment"),
+                SmokeStep("expect_text", selector="#count", pattern=r"^9$"),
+            ),
+        ),
+        output_dir=tmp_path,
+    )
+    assert report.smoke["success"] is False
+    failed = report.smoke["failedStep"]
+    assert failed["action"] == "expect_text"
+    assert failed["text_source"] == "text"
+    assert failed["observed_length"] == 1
+    assert "observed_text" not in failed
+    issue = next(
+        issue for issue in report.issues if issue.code == "smoke_flow_text_assertion_failed"
+    )
+    assert issue.severity == "error"
+    assert issue.evidence["step"]["selector"] == "#count"
+    assert "smoke_flow_assertion_failed" not in {item.code for item in report.issues}
 
 
 def test_bounded_smoke_flow_names_the_failed_action(

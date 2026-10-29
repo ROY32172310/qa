@@ -14,8 +14,8 @@ python -m playwright install chromium
 python benchmarks/run.py
 ```
 
-The default run expands `suite.json`, starts a local fixture server, executes
-122 independent cases serially, and writes:
+The working tree expands `suite.json` to 124 independent cases, starts a local
+fixture server, executes them serially, and writes:
 
 ```text
 benchmark-results/<timestamp>/

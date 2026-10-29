@@ -517,6 +517,29 @@ def test_smoke_flow_failed_assertion_and_unreached_verification_are_blocking() -
     assert [issue.code for issue in unreached] == ["smoke_flow_assertion_failed"]
 
 
+def test_smoke_flow_text_assertion_has_a_specific_blocking_dimension() -> None:
+    issues = _issues_for_smoke(
+        {
+            "kind": "flow",
+            "viewport": "mobile",
+            "success": False,
+            "failedStep": {
+                "index": 2,
+                "action": "expect_text",
+                "selector": "#count",
+                "pattern": "^1$",
+                "status": "failed",
+                "text_source": "text",
+                "observed_length": 1,
+                "error": "text did not match the configured text pattern",
+            },
+        }
+    )
+    assert [issue.code for issue in issues] == ["smoke_flow_text_assertion_failed"]
+    assert issues[0].severity == "error"
+    assert "case-insensitive regular expression" in issues[0].hint
+
+
 def test_private_helpers() -> None:
     assert _is_ignorable_failure("https://example.test/favicon.ico")
     assert _is_ignorable_failure("openapp.example://product/42")

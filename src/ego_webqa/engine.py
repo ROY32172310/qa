@@ -1516,6 +1516,28 @@ def _run_bounded_flow(page: Any, cfg: Settings) -> dict[str, Any]:
                     re.compile(step.pattern, re.IGNORECASE),
                     timeout=cfg.timeout_ms,
                 )
+            elif step.action == "expect_text":
+                locator = page.locator(step.selector).first
+                locator.wait_for(state="visible", timeout=cfg.timeout_ms)
+                text_source = str(
+                    locator.evaluate(
+                        "element => ['INPUT', 'TEXTAREA', 'SELECT'].includes(element.tagName)"
+                        " ? 'value' : 'text'"
+                    )
+                )
+                if text_source == "value":
+                    observed = locator.input_value(timeout=cfg.timeout_ms)
+                else:
+                    observed = locator.inner_text(timeout=cfg.timeout_ms)
+                    if not observed:
+                        observed = locator.text_content(timeout=cfg.timeout_ms) or ""
+                record["text_source"] = text_source
+                record["observed_length"] = len(observed)
+                if re.search(step.pattern, observed, re.IGNORECASE) is None:
+                    raise AssertionError(
+                        f"{text_source} did not match the configured text pattern "
+                        f"(observed length: {len(observed)})"
+                    )
             if step.action in {"click", "fill", "press"} and cfg.smoke_settle_ms:
                 page.wait_for_timeout(cfg.smoke_settle_ms)
         except Exception as exc:  # noqa: BLE001 - each failed step is report evidence
@@ -1526,7 +1548,11 @@ def _run_bounded_flow(page: Any, cfg: Settings) -> dict[str, Any]:
         if failed_step is not None:
             break
 
-    assertions = [step for step in steps if step.get("action") in {"expect_visible", "expect_url"}]
+    assertions = [
+        step
+        for step in steps
+        if step.get("action") in {"expect_visible", "expect_url", "expect_text"}
+    ]
     assertion_matched = failed_step is None and bool(assertions)
     return {
         "found": True,
@@ -1630,17 +1656,28 @@ def _issues_for_flow_smoke(smoke: dict[str, Any], viewport: str) -> list[Issue]:
     if isinstance(failed_step, dict):
         action = str(failed_step.get("action") or "unknown")
         index = failed_step.get("index")
-        is_assertion = action in {"expect_visible", "expect_url"}
+        is_assertion = action in {"expect_visible", "expect_url", "expect_text"}
         detail = str(failed_step.get("error") or "step failed")
         evidence = {"step": failed_step, "flow": smoke}
         if is_assertion:
+            code = (
+                "smoke_flow_text_assertion_failed"
+                if action == "expect_text"
+                else "smoke_flow_assertion_failed"
+            )
+            hint = (
+                "Make the element's rendered text or form value satisfy the configured "
+                "case-insensitive regular expression."
+                if action == "expect_text"
+                else "Make the expected visible state or URL true after the preceding actions."
+            )
             issues.append(
                 Issue(
-                    "smoke_flow_assertion_failed",
+                    code,
                     "error",
                     f"smoke-flow step {index} ({action}) did not satisfy its expectation: {detail}",
                     viewport,
-                    "Make the expected visible state or URL true after the preceding actions.",
+                    hint,
                     evidence,
                 )
             )
@@ -1663,7 +1700,7 @@ def _issues_for_flow_smoke(smoke: dict[str, Any], viewport: str) -> list[Issue]:
                 "error",
                 "the configured smoke flow did not reach a verified assertion",
                 viewport,
-                "Keep at least one visible-state or URL assertion at the end of the flow.",
+                "Keep at least one visible-state, text, or URL assertion after an interaction.",
                 smoke,
             )
         )

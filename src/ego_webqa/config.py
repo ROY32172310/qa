@@ -34,7 +34,9 @@ MOBILE_USER_AGENT = (
 HTTP_USERNAME_ENV = "EGO_WEBQA_HTTP_USERNAME"
 HTTP_PASSWORD_ENV = "EGO_WEBQA_HTTP_PASSWORD"
 HTTP_HEADERS_ENV = "EGO_WEBQA_EXTRA_HTTP_HEADERS"
-SMOKE_STEP_ACTIONS = frozenset({"click", "fill", "press", "expect_visible", "expect_url"})
+SMOKE_STEP_ACTIONS = frozenset(
+    {"click", "fill", "press", "expect_visible", "expect_url", "expect_text"}
+)
 BROWSER_ENGINES = frozenset({"chromium", "firefox", "webkit"})
 OVERRIDE_SEVERITIES = frozenset({"block", "warn"})
 OVERRIDABLE_PARAMETER_FIELDS = MappingProxyType(
@@ -319,6 +321,15 @@ class SmokeStep:
                 re.compile(self.pattern)
             except re.error as exc:
                 raise ValueError(f"invalid smoke_flow URL pattern: {exc}") from exc
+        elif self.action == "expect_text":
+            if not self.selector:
+                raise ValueError("smoke_flow expect_text requires selector")
+            if not self.pattern:
+                raise ValueError("smoke_flow expect_text requires pattern")
+            try:
+                re.compile(self.pattern, re.IGNORECASE)
+            except re.error as exc:
+                raise ValueError(f"invalid smoke_flow text pattern: {exc}") from exc
         elif not self.selector:
             raise ValueError(f"smoke_flow {self.action} requires selector")
         if self.action == "press" and not self.key:
@@ -327,8 +338,8 @@ class SmokeStep:
             raise ValueError("smoke_flow value is only valid for fill")
         if self.action != "press" and self.key:
             raise ValueError("smoke_flow key is only valid for press")
-        if self.action != "expect_url" and self.pattern:
-            raise ValueError("smoke_flow pattern is only valid for expect_url")
+        if self.action not in {"expect_url", "expect_text"} and self.pattern:
+            raise ValueError("smoke_flow pattern is only valid for expect_url or expect_text")
         for field_name, field_value in (
             ("selector", self.selector),
             ("value", self.value),
@@ -515,7 +526,7 @@ class Settings:
                     "single-step success assertions"
                 )
             action_actions = {"click", "fill", "press"}
-            assertion_actions = {"expect_visible", "expect_url"}
+            assertion_actions = {"expect_visible", "expect_url", "expect_text"}
             first_action = next(
                 (
                     index
@@ -530,7 +541,8 @@ class Settings:
                 step.action in assertion_actions for step in self.smoke_flow[first_action + 1 :]
             ):
                 raise ValueError(
-                    "smoke_flow requires an expect_visible or expect_url assertion after an action"
+                    "smoke_flow requires an expect_visible, expect_url, or expect_text "
+                    "assertion after an action"
                 )
         if bool(self.http_username) != bool(self.http_password):
             raise ValueError("http_username and http_password must be configured together")

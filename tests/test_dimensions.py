@@ -33,6 +33,7 @@ def test_engine_issue_codes_are_exactly_the_closed_registry() -> None:
         "ready_selector_not_found",
         "horizontal_overflow",
         "text_scale_layout_break",
+        "smoke_flow_text_assertion_failed",
     }
     assert emitted | dynamic_codes == set(DIMENSIONS)
 

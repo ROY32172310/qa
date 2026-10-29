@@ -292,7 +292,9 @@ deterministic actions. It accepts at most eight steps from a closed set:
 - `fill`: fill a selector, with the value redacted from reports;
 - `press`: press a key on a selector;
 - `expect_visible`: require a selector to become visible;
-- `expect_url`: require the current URL to match a regular expression.
+- `expect_url`: require the current URL to match a regular expression;
+- `expect_text`: require the visible element's rendered text, or a form
+  control's current value, to match a case-insensitive regular expression.
 
 ```json
 {
@@ -301,17 +303,24 @@ deterministic actions. It accepts at most eight steps from a closed set:
     {"action": "fill", "selector": "#email", "value": "qa@example.com"},
     {"action": "click", "selector": "#continue"},
     {"action": "expect_visible", "selector": "#success"},
-    {"action": "expect_url", "pattern": "#complete$"}
+    {"action": "expect_url", "pattern": "#complete$"},
+    {"action": "expect_text", "selector": "#status", "pattern": "^Ready$"}
   ]
 }
 ```
 
 The flow must contain a `click`, `fill`, or `press` action, followed later by at
-least one `expect_visible` or `expect_url` assertion. A flow cannot be combined
-with the single-CTA selector/assertion fields. The default `safe` mode blocks
-HTTP after the initial page load, so flows are limited to deterministic
-client-side behavior unless `smoke_mode` is explicitly changed to `live`.
-Arbitrary JavaScript and user-defined detectors are not accepted.
+least one `expect_visible`, `expect_url`, or `expect_text` assertion. A flow
+cannot be combined with the single-CTA selector/assertion fields. The default
+`safe` mode blocks HTTP after the initial page load, so flows are limited to
+deterministic client-side behavior unless `smoke_mode` is explicitly changed to
+`live`. Arbitrary JavaScript and user-defined detectors are not accepted.
+
+`expect_text` reads `input`, `textarea`, and `select` values through
+Playwright; all other visible elements use rendered text, with `textContent` as
+a fallback for empty rendered text. Reports retain the pattern, source type,
+and observed length, but never copy the observed text into evidence. This keeps
+text assertions deterministic without exposing values typed into a page.
 
 When a flow fails, `report.json` includes each completed step, the failed step,
 and its error. The Agent summary names the exact action instead of reporting a
@@ -512,8 +521,8 @@ print(report.status)
 
 This is a deterministic coarse gate for obvious delivery failures. A bounded
 smoke flow can prove that one configured short client-side path reaches its
-declared visible state or URL; it does not prove business correctness, that
-every supported browser matches, or that the page is secure.
+declared visible state, text/value, or URL; it does not prove business
+correctness, that every supported browser matches, or that the page is secure.
 
 Fixed report scope:
 
@@ -526,12 +535,12 @@ semantics. Product-specific checks belong in plugins, not in the core.
 
 ## Benchmark and trust
 
-The repository includes a public synthetic benchmark with 122 independent
-cases across narrow, mobile, tablet, and desktop variants. It contains positive
-controls and clean controls for all 36 registered dimensions, including
-bounded flows and the accessibility profile. Ground truth is declared per
-scenario; the evaluator does not import detector thresholds to decide whether a
-result is correct.
+The repository includes a public synthetic benchmark. The working tree contains
+124 independent cases across narrow, mobile, tablet, and desktop variants,
+with positive controls and clean controls for all 37 registered dimensions,
+including bounded flows and the accessibility profile. Ground truth is declared
+per scenario; the evaluator does not import detector thresholds to decide
+whether a result is correct.
 
 ```bash
 python benchmarks/run.py
@@ -540,8 +549,9 @@ python benchmarks/run.py
 The evaluator reports exact dimension matches, case precision/recall/F1,
 blocking false-positive and false-negative rates, dimension-level TP/FP/FN, and
 complete audit latency. It writes machine-readable evidence plus a Markdown
-summary. The 0.6.0 baseline is 122/122 exact with P50 340ms, P95 1161ms, and
-max 3614ms in serial local Chromium:
+summary. The unreleased working tree is 124/124 exact with 0% blocking FP/FN,
+P50 338ms, P95 1164ms, and max 3608ms in serial local Chromium. The published
+0.6.0 baseline is 122/122 exact with P50 340ms, P95 1161ms, and max 3614ms:
 [`docs/benchmark-2026-10-29-v0.6.0.md`](docs/benchmark-2026-10-29-v0.6.0.md).
 
 These results measure curated synthetic fixtures in Chromium, not real-site

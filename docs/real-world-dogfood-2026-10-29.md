@@ -107,17 +107,20 @@ The follow-up ran the public CLI with a case-level governed `smoke_flow` through
 | Math practice | Click `.opt-btn` | `.opt-btn.selected` becomes visible | PASS |
 | Noodle shop | Click `.add-btn` | `#cartItems .cart-item` becomes visible | PASS |
 | Games gallery | Fill `#gameSearch` with a no-match term | `#emptyState:not([hidden])` becomes visible | PASS |
+| Click counter | Click `#incBtn` | `#counterValue` renders text `1` | PASS |
 
-All 3/3 audits completed with no runtime error, and none produced a
+All 4/4 audits completed with no runtime error, and none produced a
 `smoke_flow_*` finding. The pages still failed for independent safe-area
 penetration, and two also retained a small-tap warning. These interactions are
 useful false-negative evidence, not proof of complete business behavior.
 
-The click counter remains deliberately uncovered. The closed flow syntax can
-verify element visibility or URL changes, but it cannot assert that displayed
-text changed from `0` to `1`. An assertion on an element that was already
-visible would be false evidence; the honest gap remains until a closed,
-deterministic text assertion is justified by demand.
+The click counter exposed a real false-negative limit: the previous closed flow
+syntax could verify element visibility or URL changes, but not that displayed
+text changed from `0` to `1`. The working tree now closes that gap with
+`expect_text`, which reads visible rendered text or the current form-control
+value and matches it case-insensitively. The dogfood case now asserts
+`#counterValue` becomes exactly `1`; report evidence retains the pattern,
+source type, and observed length without copying page text.
 
 ## Repair loop
 

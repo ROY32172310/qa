@@ -61,15 +61,17 @@ Profile selection changes the issue rules, not the report schema.
 
 The optional `smoke_flow` is a closed sequence of at most eight deterministic
 steps. Python owns orchestration and classification; Playwright performs only
-five admitted operations: click, fill, press, visible-state assertion, and URL
-assertion. Every flow must contain an interaction followed by a visible-state or
-URL assertion.
+six admitted operations: click, fill, press, visible-state assertion, URL
+assertion, and text/form-value assertion. Every flow must contain an interaction
+followed by a visible-state, URL, or text assertion.
 
 The flow runs in the same isolated browser context as the viewport audit. In
 the default safe mode, network requests are blocked after the initial load, and
 `report.json` records every completed step plus the first failed step. Fill
-values are redacted and never copied into evidence. The feature does not expose
-arbitrary JavaScript, custom detectors, or a general-purpose E2E DSL.
+values and observed assertion text are never copied into evidence; text
+assertions retain only their configured regular expression, source type, and
+observed length. The feature does not expose arbitrary JavaScript, custom
+detectors, or a general-purpose E2E DSL.
 
 ## CI adapter
 

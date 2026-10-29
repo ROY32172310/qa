@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from ego_webqa.config import Settings, Viewport
+from ego_webqa.config import Settings, SmokeStep, Viewport
 from ego_webqa.engine import audit
 from ego_webqa.server import LocalServer
 
@@ -45,6 +45,19 @@ main{padding:24px}.wide{width:2400px;height:20px}
 </main></body></html>""",
         encoding="utf-8",
     )
+    (root / "flow.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport"
+content="width=device-width"><title>Cross-browser text flow</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}
+main{max-width:720px;padding:24px;margin:auto}button{min-height:48px;font-size:16px}
+</style></head><body><main><h1>Counter</h1>
+<button id="increment" onclick="
+const count=document.querySelector('#count');
+count.textContent=String(Number(count.textContent)+1)
+">Increment</button><output id="count">0</output>
+</main></body></html>""",
+        encoding="utf-8",
+    )
     server = LocalServer(root)
     yield server
     server.close()
@@ -80,3 +93,30 @@ def test_preview_engine_reports_clean_and_blocking_pages(
     )
     assert broken.runtime["browser_channel"] == f"bundled-{engine}"
     assert "horizontal_overflow" in {issue.code for issue in broken.issues}
+
+
+@pytest.mark.parametrize("engine", ["firefox", "webkit"])
+def test_preview_engine_verifies_a_bounded_text_flow(
+    engine: str,
+    cross_browser_site: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        cross_browser_site.url("flow.html"),
+        settings=Settings(
+            browser_engine=engine,
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            timeout_ms=15_000,
+            settle_ms=100,
+            smoke_settle_ms=10,
+            smoke_flow=(
+                SmokeStep("click", selector="#increment"),
+                SmokeStep("expect_text", selector="#count", pattern=r"^1$"),
+            ),
+        ),
+        output_dir=tmp_path / engine / "flow",
+    )
+    assert report.status == "pass"
+    assert report.smoke["success"] is True
+    assert report.smoke["steps"][1]["text_source"] == "text"
+    assert report.runtime["browser_engine"] == engine

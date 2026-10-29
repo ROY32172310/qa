@@ -204,7 +204,11 @@ def test_mcp_tool_consumes_bounded_flow_from_config(
             {
                 "smoke_flow": [
                     {"action": "click", "selector": "#continue"},
-                    {"action": "expect_visible", "selector": "#success"},
+                    {
+                        "action": "expect_text",
+                        "selector": "#success",
+                        "pattern": "^complete$",
+                    },
                 ]
             }
         ),
@@ -221,6 +225,7 @@ def test_mcp_tool_consumes_bounded_flow_from_config(
     assert result.is_error is False
     assert result.structured_content["smoke"]["kind"] == "flow"
     assert result.structured_content["smoke"]["success"] is True
+    assert result.structured_content["smoke"]["assertions"][0]["type"] == "text"
 
 
 def test_mcp_stdio_round_trip(site: tuple[LocalServer, Path], tmp_path: Path) -> None:

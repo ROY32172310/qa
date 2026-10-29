@@ -252,6 +252,14 @@ _DIMENSIONS = {
         introduced="0.3.0",
         parameters=("smoke_flow",),
     ),
+    "smoke_flow_text_assertion_failed": _dimension(
+        "smoke_flow_text_assertion_failed",
+        "A configured smoke-flow text or form-value expectation was not met.",
+        "smoke",
+        severity="block",
+        introduced="0.7.0",
+        parameters=("smoke_flow",),
+    ),
     "smoke_flow_page_error": _dimension(
         "smoke_flow_page_error",
         "The configured smoke flow raised a page-level JavaScript error.",
