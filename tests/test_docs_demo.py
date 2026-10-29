@@ -54,8 +54,8 @@ def test_demo_contains_every_parameter_capture() -> None:
 
 
 def test_demo_json_is_the_verified_dogfood_run() -> None:
-    before = json.loads((DEMO / "data" / "before-agent-summary.json").read_text())
-    after = json.loads((DEMO / "data" / "after-agent-summary.json").read_text())
+    before = json.loads((DEMO / "data" / "before-agent-summary.json").read_text(encoding="utf-8"))
+    after = json.loads((DEMO / "data" / "after-agent-summary.json").read_text(encoding="utf-8"))
 
     assert before["status"] == "fail"
     assert before["summary"]["total_block"] == 10
