@@ -47,12 +47,14 @@ jobs:
               print("::error title=pytest::JUnit report was not created")
               raise SystemExit(0)
 
+          failures = 0
           for case in ET.parse(report).getroot().iter("testcase"):
               failure = case.find("failure")
               if failure is None:
                   failure = case.find("error")
               if failure is None:
                   continue
+              failures += 1
               name = f"{case.get('classname', '')}::{case.get('name', '')}".strip(":")
               source = case.get("file", "unknown")
               line = case.get("line", "0")
@@ -63,6 +65,17 @@ jobs:
               ) or "test failed"
               detail = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
               print(f"::error file={source},line={line},title={name}::{detail[:8000]}")
+          if failures:
+              raise SystemExit(0)
+
+          coverage = Path("coverage.json")
+          if not coverage.is_file():
+              print("::error title=coverage::coverage.json was not created")
+              raise SystemExit(0)
+          import json
+
+          percent = float(json.loads(coverage.read_text(encoding="utf-8"))["totals"]["percent_covered"])
+          print(f"::error title=coverage::line/branch coverage failed at {percent:.2f}%")
       - run: python scripts/dev.py lint
       - run: python scripts/dev.py format-check
       - run: python scripts/dev.py typecheck
