@@ -11,9 +11,12 @@ import os
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
+from datetime import date, datetime, timezone
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, get_type_hints
+
+from .dimensions import dimension_for
 
 DEFAULT_CTA_PATTERN = (
     r"开始|立即|马上|提交|预约|预订|下单|购买|报名|领取|生成|创建|保存|发送|"
@@ -33,6 +36,170 @@ HTTP_PASSWORD_ENV = "EGO_WEBQA_HTTP_PASSWORD"
 HTTP_HEADERS_ENV = "EGO_WEBQA_EXTRA_HTTP_HEADERS"
 SMOKE_STEP_ACTIONS = frozenset({"click", "fill", "press", "expect_visible", "expect_url"})
 BROWSER_ENGINES = frozenset({"chromium", "firefox", "webkit"})
+OVERRIDE_SEVERITIES = frozenset({"block", "warn"})
+OVERRIDABLE_PARAMETER_FIELDS = MappingProxyType(
+    {
+        "overflow_tolerance_px": "overflow_tolerance_px",
+        "blank_text_chars": "blank_text_chars",
+        "blank_element_count": "blank_element_count",
+        "hard_font_px": "hard_font_px",
+        "min_font_px": "min_font_px",
+        "small_issue_report_min": "small_issue_report_min",
+        "min_tap_target_px": "min_tap_target_px",
+        "overlay_ratio": "overlay_ratio",
+        "aspect_tolerance": "aspect_tolerance",
+        "aspect_min_rendered_px": "aspect_min_rendered_px",
+        "fcp_warn_ms": "fcp_warn_ms",
+        "cls_warn": "cls_warn",
+        "cls_error": "cls_error",
+        "transfer_warn_bytes": "transfer_warn_bytes",
+        "transfer_error_bytes": "transfer_error_bytes",
+        "request_warn_count": "request_warn_count",
+        "request_error_count": "request_error_count",
+    }
+)
+OVERRIDABLE_PARAMETER_TYPES = MappingProxyType(
+    {
+        "overflow_tolerance_px": int,
+        "blank_text_chars": int,
+        "blank_element_count": int,
+        "hard_font_px": float,
+        "min_font_px": float,
+        "small_issue_report_min": int,
+        "min_tap_target_px": float,
+        "overlay_ratio": float,
+        "aspect_tolerance": float,
+        "aspect_min_rendered_px": float,
+        "fcp_warn_ms": float,
+        "cls_warn": float,
+        "cls_error": float,
+        "transfer_warn_bytes": int,
+        "transfer_error_bytes": int,
+        "request_warn_count": int,
+        "request_error_count": int,
+    }
+)
+OVERRIDE_SEVERITY_TO_ISSUE = MappingProxyType({"block": "error", "warn": "warning"})
+
+
+@dataclass(frozen=True, slots=True)
+class DimensionOverride:
+    """One governed, expiring adjustment to a registered dimension."""
+
+    dimension_id: str
+    reason: str
+    owner: str
+    expires: str
+    severity: str = ""
+    parameters: Mapping[str, int | float] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        for name in ("dimension_id", "reason", "owner", "expires", "severity"):
+            if not isinstance(getattr(self, name), str):
+                raise ValueError(f"override {name} must be a string")
+        dimension_id = self.dimension_id.strip()
+        reason = self.reason.strip()
+        owner = self.owner.strip()
+        expires = self.expires.strip()
+        severity = self.severity.strip()
+        if not reason:
+            raise ValueError("override reason is required")
+        if not owner:
+            raise ValueError("override owner is required")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", expires):
+            raise ValueError("override expires must use YYYY-MM-DD")
+        try:
+            date.fromisoformat(expires)
+        except ValueError as exc:
+            raise ValueError(f"override expires is not a valid date: {expires}") from exc
+        if severity and severity not in OVERRIDE_SEVERITIES:
+            raise ValueError("override severity must be 'block' or 'warn'")
+        dimension = dimension_for(dimension_id)
+        if not isinstance(self.parameters, Mapping):
+            raise ValueError("override parameters must be an object")
+        parameters: dict[str, int | float] = {}
+        for name, value in self.parameters.items():
+            if not isinstance(name, str):
+                raise ValueError("override parameter names must be strings")
+            if name not in dimension.parameters:
+                raise ValueError(
+                    f"override parameter {name!r} is not exposed by dimension {dimension_id}"
+                )
+            expected = OVERRIDABLE_PARAMETER_TYPES.get(name)
+            if expected is None or name not in OVERRIDABLE_PARAMETER_FIELDS:
+                raise ValueError(f"override parameter {name!r} is not safely overridable")
+            if expected is int:
+                if type(value) is not int:
+                    raise ValueError(f"override parameter {name} must be an integer")
+                parameters[name] = value
+            elif type(value) not in {int, float}:
+                raise ValueError(f"override parameter {name} must be a number")
+            else:
+                parameters[name] = float(value)
+        object.__setattr__(self, "dimension_id", dimension_id)
+        object.__setattr__(self, "reason", reason)
+        object.__setattr__(self, "owner", owner)
+        object.__setattr__(self, "expires", expires)
+        object.__setattr__(self, "severity", severity)
+        object.__setattr__(self, "parameters", MappingProxyType(parameters))
+
+    @property
+    def expires_date(self) -> date:
+        return date.fromisoformat(self.expires)
+
+    @property
+    def effective_severity(self) -> str:
+        return self.severity or dimension_for(self.dimension_id).default_severity
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> DimensionOverride:
+        if not isinstance(value, Mapping):
+            raise ValueError("overrides entries must be objects")
+        allowed = {"dimension_id", "reason", "owner", "expires", "severity", "parameters"}
+        unknown = sorted(set(value) - allowed)
+        if unknown:
+            raise ValueError(f"unknown override key(s): {', '.join(unknown)}")
+        return cls(
+            dimension_id=value.get("dimension_id", ""),
+            reason=value.get("reason", ""),
+            owner=value.get("owner", ""),
+            expires=value.get("expires", ""),
+            severity=value.get("severity", ""),
+            parameters=value.get("parameters", {}),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "dimension_id": self.dimension_id,
+            "reason": self.reason,
+            "owner": self.owner,
+            "expires": self.expires,
+            "severity": self.severity,
+            "parameters": dict(self.parameters),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class OverrideResolution:
+    """Effective settings plus visible active and expired override audit data."""
+
+    settings: Settings
+    as_of: date
+    active: tuple[DimensionOverride, ...]
+    expired: tuple[DimensionOverride, ...]
+    effective_parameters: Mapping[str, int | float]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "as_of": self.as_of.isoformat(),
+            "active_overrides": [
+                _override_audit_dict(override, status="active") for override in self.active
+            ],
+            "expired_overrides": [
+                _override_audit_dict(override, status="expired") for override in self.expired
+            ],
+            "effective_parameters": dict(self.effective_parameters),
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -262,6 +429,7 @@ class Settings:
     fail_on_warn: bool = False
     metadata: Mapping[str, Any] = field(default_factory=dict)
     browser_engine: str = "chromium"
+    overrides: tuple[DimensionOverride, ...] = ()
 
     def __post_init__(self) -> None:
         self._validate_types()
@@ -326,6 +494,9 @@ class Settings:
             raise ValueError(f"browser_engine must be one of: {choices}")
         if self.browser_channel and self.browser_engine != "chromium":
             raise ValueError("browser_channel is only supported with Chromium")
+        override_ids = [override.dimension_id for override in self.overrides]
+        if len(override_ids) != len(set(override_ids)):
+            raise ValueError("overrides may declare each dimension at most once")
         if self.smoke_settle_ms < 0:
             raise ValueError("smoke_settle_ms must be non-negative")
         if self.smoke_require_assertion and not (
@@ -396,12 +567,18 @@ class Settings:
                 "ignore_console_patterns",
                 "ignore_request_patterns",
                 "ignore_selectors",
+                "overrides",
             }:
                 if name == "smoke_flow":
                     if not isinstance(value, tuple) or not all(
                         isinstance(item, SmokeStep) for item in value
                     ):
                         raise ValueError("smoke_flow must be a tuple of SmokeStep values")
+                elif name == "overrides":
+                    if not isinstance(value, tuple) or not all(
+                        isinstance(item, DimensionOverride) for item in value
+                    ):
+                        raise ValueError("overrides must be a tuple of DimensionOverride values")
                 elif not isinstance(value, tuple) or not all(
                     isinstance(item, str) for item in value
                 ):
@@ -440,6 +617,10 @@ class Settings:
                 if not isinstance(value, list):
                     raise ValueError("smoke_flow must be a list")
                 changes[key] = tuple(SmokeStep.from_mapping(item) for item in value)
+            elif key == "overrides":
+                if not isinstance(value, list):
+                    raise ValueError("overrides must be a list")
+                changes[key] = tuple(DimensionOverride.from_mapping(item) for item in value)
             elif key == "metadata":
                 if not isinstance(value, dict):
                     raise ValueError("metadata must be an object")
@@ -500,6 +681,7 @@ class Settings:
             "browser_channel": self.browser_channel,
             "fail_on_warn": self.fail_on_warn,
             "metadata": dict(self.metadata),
+            "overrides": [override.to_dict() for override in self.overrides],
         }
 
 
@@ -514,6 +696,59 @@ def load_settings(path: str | Path) -> Settings:
     if not isinstance(data, dict):
         raise ValueError("config root must be a JSON object")
     return Settings.from_mapping(data)
+
+
+def resolve_overrides(
+    settings: Settings,
+    *,
+    as_of: date | None = None,
+) -> OverrideResolution:
+    """Resolve active overrides into effective settings and audit data."""
+
+    if as_of is None:
+        as_of = datetime.now(timezone.utc).date()
+    if type(as_of) is not date:
+        raise ValueError("override as_of must be a date")
+
+    active: list[DimensionOverride] = []
+    expired: list[DimensionOverride] = []
+    effective: dict[str, int | float] = {}
+    owners: dict[str, tuple[int | float, str]] = {}
+    for override in settings.overrides:
+        if as_of > override.expires_date:
+            expired.append(override)
+            continue
+        active.append(override)
+        for parameter, value in override.parameters.items():
+            field_name = OVERRIDABLE_PARAMETER_FIELDS[parameter]
+            previous = owners.get(field_name)
+            if previous is not None and previous[0] != value:
+                raise ValueError(
+                    f"conflicting overrides for {field_name}: "
+                    f"{previous[1]} uses {previous[0]!r}, "
+                    f"{override.dimension_id} uses {value!r}"
+                )
+            owners[field_name] = (value, override.dimension_id)
+            effective[field_name] = value
+
+    effective_settings = Settings.from_mapping(effective, base=settings) if effective else settings
+    return OverrideResolution(
+        settings=effective_settings,
+        as_of=as_of,
+        active=tuple(active),
+        expired=tuple(expired),
+        effective_parameters=MappingProxyType(effective),
+    )
+
+
+def _override_audit_dict(override: DimensionOverride, *, status: str) -> dict[str, Any]:
+    dimension = dimension_for(override.dimension_id)
+    return {
+        **override.to_dict(),
+        "status": status,
+        "default_severity": dimension.default_severity,
+        "effective_severity": override.effective_severity,
+    }
 
 
 def apply_auth_environment(settings: Settings) -> Settings:

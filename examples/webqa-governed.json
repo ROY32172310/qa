@@ -1,0 +1,14 @@
+{
+  "overrides": [
+    {
+      "dimension_id": "tiny_fonts",
+      "reason": "Typography migration tracked in DS-142",
+      "owner": "design-system",
+      "expires": "2026-11-30",
+      "severity": "warn",
+      "parameters": {
+        "min_font_px": 13
+      }
+    }
+  ]
+}

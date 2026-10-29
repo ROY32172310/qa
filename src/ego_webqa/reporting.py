@@ -81,6 +81,18 @@ def build_agent_summary(report: AuditReport) -> dict[str, Any]:
     )
     block_count = sum(issue.severity == "error" for issue in report.issues)
     warn_count = sum(issue.severity == "warning" for issue in report.issues)
+    governance = dict(report.governance)
+    active_overrides = governance.get("active_overrides")
+    expired_overrides = governance.get("expired_overrides")
+    if not isinstance(active_overrides, list):
+        active_overrides = []
+    if not isinstance(expired_overrides, list):
+        expired_overrides = []
+    downgraded_blocks = sum(
+        bool(issue.override.get("downgraded"))
+        for issue in report.issues
+        if issue.severity_source == "override"
+    )
     return {
         "schema_version": "1.0",
         "tool": "ego-webqa",
@@ -95,10 +107,11 @@ def build_agent_summary(report: AuditReport) -> dict[str, Any]:
                 {issue.viewport for issue in report.issues if issue.viewport}
             ),
             "duration_ms": report.duration_ms,
-            "overridden_dimensions": 0,
-            "downgraded_blocks": 0,
-            "expired_overrides": 0,
+            "overridden_dimensions": len(active_overrides),
+            "downgraded_blocks": downgraded_blocks,
+            "expired_overrides": len(expired_overrides),
         },
+        "governance": governance,
         "scope_statement": SCOPE_STATEMENT,
     }
 
@@ -146,12 +159,18 @@ def _agent_failure(
     evidence_by_viewport: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for issue in issues:
         evidence_by_viewport[issue.viewport or "global"].append(dict(issue.evidence))
+    override = next(
+        (dict(issue.override) for issue in issues if issue.severity_source == "override"),
+        {},
+    )
     return {
         "dimension_id": dimension.id,
         "dimension_version": dimension.version,
         "detector": dimension.detector,
         "default_severity": dimension.default_severity,
         "severity": severity,
+        "severity_source": "override" if override else "default",
+        "override": override,
         "selector": selectors[0] if selectors else "html",
         "selectors": selectors,
         "text_snippet": text_snippets[0] if text_snippets else "",
@@ -331,6 +350,8 @@ def to_sarif(report: AuditReport) -> dict[str, Any]:
                 "properties": {
                     "viewport": issue.viewport,
                     "evidence": issue.evidence,
+                    "severitySource": issue.severity_source,
+                    "override": issue.override,
                 },
             }
         )

@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import xml.etree.ElementTree as ET
+from datetime import date
 from pathlib import Path
 
 import pytest
 
+from ego_webqa.config import Settings, resolve_overrides
 from ego_webqa.dimensions import DIMENSIONS, dimension_for, registry_payload
+from ego_webqa.engine import _apply_override_audit
 from ego_webqa.models import AuditReport, Issue, derive_status
 from ego_webqa.reporting import (
     SCOPE_STATEMENT,
@@ -265,3 +268,81 @@ def test_agent_summary_reproduction_includes_non_default_browser_engine() -> Non
 
     reproduce = build_agent_summary(report)["failed_items"][0]["reproduce"]
     assert "--browser-engine webkit" in reproduce
+
+
+def test_governed_downgrade_is_visible_in_every_machine_format() -> None:
+    settings = Settings.from_mapping(
+        {
+            "overrides": [
+                {
+                    "dimension_id": "dead_primary_cta",
+                    "reason": "Checkout migration tracked in WEB-42",
+                    "owner": "checkout",
+                    "expires": "2026-11-30",
+                    "severity": "warn",
+                }
+            ]
+        }
+    )
+    resolution = resolve_overrides(settings, as_of=date(2026, 11, 1))
+    issues = _apply_override_audit(
+        [Issue("dead_primary_cta", "error", "CTA did nothing", "mobile")],
+        resolution,
+    )
+    report = AuditReport(
+        target="https://example.com/preview",
+        status=derive_status(issues, settings.fail_on_warn),
+        issues=issues,
+        viewports=[],
+        smoke={},
+        screenshots=[],
+        started_at="2026-11-01T00:00:00+00:00",
+        duration_ms=120,
+        settings=resolution.settings.to_dict(),
+        governance=resolution.to_dict(),
+    )
+
+    payload = report.to_dict()
+    assert payload["status"] == "warn"
+    assert payload["counts"] == {"error": 0, "warning": 1}
+    assert payload["issues"][0]["severity_source"] == "override"
+    assert payload["issues"][0]["override"]["owner"] == "checkout"
+    summary = build_agent_summary(report)
+    assert summary["summary"]["overridden_dimensions"] == 1
+    assert summary["summary"]["downgraded_blocks"] == 1
+    assert summary["failed_items"][0]["severity"] == "warn"
+    assert summary["failed_items"][0]["severity_source"] == "override"
+    assert summary["failed_items"][0]["override"]["reason"].startswith("Checkout")
+    assert summary["governance"]["active_overrides"][0]["status"] == "active"
+    assert ET.fromstring(to_junit(report)).attrib["failures"] == "0"
+    sarif = to_sarif(report)
+    assert sarif["runs"][0]["results"][0]["level"] == "warning"
+    assert sarif["runs"][0]["results"][0]["properties"]["severitySource"] == "override"
+
+
+def test_expired_override_is_visible_without_changing_issue_severity() -> None:
+    report = _report([Issue("tiny_fonts", "warning", "Small secondary text")])
+    report.governance = {
+        "as_of": "2026-12-01",
+        "active_overrides": [],
+        "expired_overrides": [
+            {
+                "dimension_id": "tiny_fonts",
+                "reason": "Expired migration",
+                "owner": "design-system",
+                "expires": "2026-11-30",
+                "status": "expired",
+                "default_severity": "warn",
+                "effective_severity": "warn",
+                "severity": "",
+                "parameters": {},
+            }
+        ],
+        "effective_parameters": {},
+    }
+
+    summary = build_agent_summary(report)
+
+    assert report.issues[0].severity_source == "default"
+    assert summary["summary"]["expired_overrides"] == 1
+    assert summary["governance"]["expired_overrides"][0]["status"] == "expired"

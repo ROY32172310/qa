@@ -18,6 +18,8 @@ class Issue:
     viewport: str = ""
     hint: str = ""
     evidence: JsonObject = field(default_factory=dict)
+    severity_source: str = "default"
+    override: JsonObject = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -27,6 +29,8 @@ class Issue:
             "message": self.message,
             "hint": self.hint,
             "evidence": dict(self.evidence),
+            "severity_source": self.severity_source,
+            "override": dict(self.override),
         }
 
 
@@ -43,6 +47,7 @@ class AuditReport:
     settings: dict[str, Any]
     runtime: dict[str, Any] = field(default_factory=dict)
     smoke_runs: list[dict[str, Any]] = field(default_factory=list)
+    governance: dict[str, Any] = field(default_factory=dict)
     schema_version: str = "1.0"
 
     def to_dict(self) -> dict[str, Any]:
@@ -65,6 +70,7 @@ class AuditReport:
             "screenshots": self.screenshots,
             "settings": self.settings,
             "runtime": self.runtime,
+            "governance": self.governance,
         }
 
 

@@ -10,12 +10,19 @@ import time
 from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
 
-from .config import MOBILE_USER_AGENT, Settings, Viewport
+from .config import (
+    MOBILE_USER_AGENT,
+    OVERRIDE_SEVERITY_TO_ISSUE,
+    OverrideResolution,
+    Settings,
+    Viewport,
+    resolve_overrides,
+)
 from .models import AuditReport, Issue, Severity, derive_status
 from .probes import (
     ACCESSIBILITY_JS,
@@ -47,11 +54,13 @@ def audit(
     output_dir: str | Path | None = None,
     smoke: bool = True,
     _retry_transient: bool = True,
+    _as_of: date | None = None,
 ) -> AuditReport:
     """Audit one URL and return an evidence-bearing report."""
 
-    cfg = settings or Settings()
     started = datetime.now(timezone.utc)
+    resolution = resolve_overrides(settings or Settings(), as_of=_as_of or started.date())
+    cfg = resolution.settings
     started_perf = time.monotonic()
     out_dir = Path(output_dir) if output_dir is not None else Path.cwd() / "webqa-report"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -124,6 +133,7 @@ def audit(
         raise AuditRuntimeError(f"browser execution failed: {exc}") from exc
 
     duration_ms = round((time.monotonic() - started_perf) * 1000)
+    issues = _apply_override_audit(issues, resolution)
     report = AuditReport(
         target=target,
         status=derive_status(issues, cfg.fail_on_warn),
@@ -136,6 +146,7 @@ def audit(
         duration_ms=duration_ms,
         settings=cfg.to_dict(),
         runtime=runtime,
+        governance=resolution.to_dict(),
     )
     if _retry_transient and _has_transient_navigation_timeout(report):
         retried = audit(
@@ -144,6 +155,7 @@ def audit(
             output_dir=out_dir,
             smoke=smoke,
             _retry_transient=False,
+            _as_of=started.date(),
         )
         _mark_transient_retry(retried)
         retried.duration_ms = round((time.monotonic() - started_perf) * 1000)
@@ -168,6 +180,7 @@ def _audit_concurrently(
             output_dir=out_dir,
             smoke=smoke and _should_run_smoke(cfg, index),
             _retry_transient=False,
+            _as_of=started.date(),
         )
         if retry_transient and _has_transient_navigation_timeout(report):
             report = audit(
@@ -176,6 +189,7 @@ def _audit_concurrently(
                 output_dir=out_dir,
                 smoke=smoke and _should_run_smoke(cfg, index),
                 _retry_transient=False,
+                _as_of=started.date(),
             )
             _mark_transient_retry(report)
         return report
@@ -221,6 +235,8 @@ def _audit_concurrently(
     if transient_retry_count:
         runtime["transient_retry_count"] = transient_retry_count
         runtime["transient_retry_reason"] = "navigation_timeout"
+    resolution = resolve_overrides(cfg, as_of=started.date())
+    issues = _apply_override_audit(issues, resolution)
     return AuditReport(
         target=target,
         status=derive_status(issues, cfg.fail_on_warn),
@@ -233,11 +249,60 @@ def _audit_concurrently(
         duration_ms=round((time.monotonic() - started_perf) * 1000),
         settings=cfg.to_dict(),
         runtime=runtime,
+        governance=resolution.to_dict(),
     )
 
 
 def _should_run_smoke(cfg: Settings, index: int) -> bool:
     return cfg.smoke_scope == "all" or index == 0
+
+
+def _apply_override_audit(
+    issues: Sequence[Issue],
+    resolution: OverrideResolution,
+) -> list[Issue]:
+    """Apply effective severities and attach immutable governance evidence."""
+
+    active = {override.dimension_id: override for override in resolution.active}
+    governed: list[Issue] = []
+    for issue in issues:
+        override = active.get(issue.code)
+        if override is None:
+            governed.append(issue)
+            continue
+        previous_override = issue.override if issue.severity_source == "override" else {}
+        stored_default = previous_override.get("default_severity")
+        default_severity = (
+            stored_default if stored_default in {"error", "warning"} else issue.severity
+        )
+        effective_severity = cast(
+            Severity,
+            (
+                OVERRIDE_SEVERITY_TO_ISSUE[override.severity]
+                if override.severity
+                else default_severity
+            ),
+        )
+        audit = {
+            "dimension_id": override.dimension_id,
+            "reason": override.reason,
+            "owner": override.owner,
+            "expires": override.expires,
+            "parameters": dict(override.parameters),
+            "default_severity": default_severity,
+            "effective_severity": effective_severity,
+            "severity_changed": effective_severity != default_severity,
+            "downgraded": default_severity == "error" and effective_severity == "warning",
+        }
+        governed.append(
+            replace(
+                issue,
+                severity=effective_severity,
+                severity_source="override",
+                override=audit,
+            )
+        )
+    return governed
 
 
 def _launch_browser(playwright: Any, engine: str, requested_channel: str) -> tuple[Any, str]:

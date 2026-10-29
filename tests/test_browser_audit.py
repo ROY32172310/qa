@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from ego_webqa.config import Settings, SmokeStep, Viewport
+from ego_webqa.config import DimensionOverride, Settings, SmokeStep, Viewport
 from ego_webqa.engine import audit
 from ego_webqa.server import LocalServer
 
@@ -307,6 +307,54 @@ def test_accessibility_labels_do_not_crash_with_closed_detectors(
         smoke=False,
     )
     assert report.status == "pass", report.to_dict()["issues"]
+
+
+def test_governed_threshold_override_changes_detection(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "soft-font-site"
+    root.mkdir()
+    (root / "index.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport"
+content="width=device-width"><title>Font threshold</title><style>
+body{margin:0;font:16px/1.5 system-ui}main{padding:32px}
+.detail{font-size:11px}
+</style></head><body><main><h1>Readable heading</h1>
+<p>Readable body copy remains unchanged.</p>
+<ul class="detail"><li>One</li><li>Two</li><li>Three</li><li>Four</li><li>Five</li></ul>
+</main></body></html>""",
+        encoding="utf-8",
+    )
+    viewport = Viewport(390, 844, "mobile", mobile=True)
+    with LocalServer(root) as server:
+        baseline = audit(
+            server.url(),
+            settings=Settings(viewports=(viewport,), settle_ms=0),
+            output_dir=tmp_path / "baseline",
+            smoke=False,
+        )
+        governed = audit(
+            server.url(),
+            settings=Settings(
+                viewports=(viewport,),
+                settle_ms=0,
+                overrides=(
+                    DimensionOverride(
+                        dimension_id="tiny_fonts",
+                        reason="Documented compact annotation scale",
+                        owner="design-system",
+                        expires="2999-12-31",
+                        parameters={"min_font_px": 11},
+                    ),
+                ),
+            ),
+            output_dir=tmp_path / "governed",
+            smoke=False,
+        )
+
+    assert "tiny_fonts" in {issue.code for issue in baseline.issues}
+    assert "tiny_fonts" not in {issue.code for issue in governed.issues}
+    assert governed.settings["min_font_px"] == 11
 
 
 def test_default_viewports_keep_stable_order_during_parallel_execution(

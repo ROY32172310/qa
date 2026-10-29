@@ -370,7 +370,7 @@ ego-webqa mcp
 
 `ego-webqa-mcp` remains available as a compatibility alias. An MCP client can
 launch either command over stdio. The registry-compatible one-shot form is
-`uvx ego-webqa@0.5.0 mcp`. The server advertises one tool, `audit_web_page`,
+`uvx ego-webqa@0.6.0 mcp`. The server advertises one tool, `audit_web_page`,
 with structured success and blocking-error results:
 
 ```json
@@ -378,7 +378,7 @@ with structured success and blocking-error results:
   "mcpServers": {
     "ego-webqa": {
       "command": "uvx",
-      "args": ["ego-webqa@0.5.0", "mcp"]
+      "args": ["ego-webqa@0.6.0", "mcp"]
     }
   }
 }
@@ -410,6 +410,43 @@ environment variables are read by the server process, not passed as tool
 arguments. This adapter deliberately remains a delivery-usability gate; it is
 not a security scanner, WCAG certification tool, or visual-regression system.
 
+### Governed value overrides
+
+Projects can temporarily adjust a registered dimension without disabling the
+dimension or adding arbitrary assertions. Every override requires an owner,
+reason, and expiry; it may also change the effective `block`/`warn` severity
+and use only that dimension's declared, safely overridable thresholds:
+
+```json
+{
+  "overrides": [
+    {
+      "dimension_id": "tiny_fonts",
+      "reason": "Typography migration tracked in DS-142",
+      "owner": "design-system",
+      "expires": "2026-11-30",
+      "severity": "warn",
+      "parameters": {
+        "min_font_px": 13
+      }
+    }
+  ]
+}
+```
+
+The UTC audit date is the expiry clock. An override is active through its
+`expires` date and automatically falls back to registry defaults the next day.
+Unknown dimensions, unknown or unsafe parameters, duplicate dimension entries,
+and conflicting values for a shared threshold are rejected.
+
+`report.json` records the override in each affected issue and adds a
+`governance` block containing active and expired declarations plus effective
+parameters. `agent_summary.json` carries the same source metadata and reports
+`overridden_dimensions`, `downgraded_blocks`, and `expired_overrides`. JUnit and
+SARIF use the effective severity. An expired override remains visible for audit
+but no longer changes detection or status. See
+[`examples/webqa-governed.json`](examples/webqa-governed.json).
+
 DeepSeek Harness can install the same MCP tool through the separate declarative
 `dsh-ego-webqa` bundle. It reuses DSH's native MCP client instead of adding a
 second QA implementation; see
@@ -428,7 +465,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ROY32172310/qa@v0.5.0
+      - uses: ROY32172310/qa@v0.6.0
         with:
           url: ${{ vars.PREVIEW_URL }}
           browser-engine: webkit
@@ -447,7 +484,7 @@ For a local checkout of this repository, use `uses: ./` after checkout. The
 Action's `safe` smoke mode is the default; set `smoke-mode: live` only when the
 click is intentionally allowed to cause real side effects. See
 [`examples/github-action.yml`](examples/github-action.yml) and
-[`action.yml`](action.yml) for the full input set. The `@v0.5.0` tag is created
+[`action.yml`](action.yml) for the full input set. The `@v0.6.0` tag is created
 only after the same commit passes the full cross-platform CI matrix.
 
 ## Python API
@@ -497,9 +534,9 @@ python benchmarks/run.py
 The evaluator reports exact dimension matches, case precision/recall/F1,
 blocking false-positive and false-negative rates, dimension-level TP/FP/FN, and
 complete audit latency. It writes machine-readable evidence plus a Markdown
-summary. The 0.5.0 baseline is 122/122 exact with P50 340ms, P95 1150ms, and
-max 3602ms in serial local Chromium:
-[`docs/benchmark-2026-10-29-v0.5.0.md`](docs/benchmark-2026-10-29-v0.5.0.md).
+summary. The 0.6.0 baseline is 122/122 exact with P50 340ms, P95 1161ms, and
+max 3614ms in serial local Chromium:
+[`docs/benchmark-2026-10-29-v0.6.0.md`](docs/benchmark-2026-10-29-v0.6.0.md).
 
 These results measure curated synthetic fixtures in Chromium, not real-site
 coverage or cross-engine parity. Firefox and WebKit have a separate real-browser

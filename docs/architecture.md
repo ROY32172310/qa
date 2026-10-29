@@ -152,6 +152,21 @@ the registry as advisory warnings until real-site evidence supports blocking.
 The registry is not user-extensible. Configuration can change exposed values,
 but it cannot invent a dimension or arbitrary assertion.
 
+Project overrides are a governance layer over the registry, not an extension
+mechanism. `config.py` parses `DimensionOverride` entries, requires
+`reason`/`owner`/`expires`, rejects duplicate dimensions, and permits only
+declared numeric thresholds with a safe mapping to `Settings`. Shared
+thresholds cannot receive conflicting values from two dimensions. At audit
+start, active declarations are resolved into an effective immutable
+`Settings`; expired declarations do not alter detection.
+
+Every affected issue records `severity_source="override"` with the declaration
+and original/effective severities. `report.json` retains a `governance` audit
+block, while Agent summaries count active overrides, downgraded blocking
+findings, and expired declarations. JUnit and SARIF consume the effective
+severity. Expiry uses the UTC audit date as an inclusive end date, so a
+declaration expires on the following day.
+
 ## Scope and deliberate exclusions
 
 The report covers multi-viewport geometry and deterministic baseline UX facts

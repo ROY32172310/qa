@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 - 2026-10-29
+
+- Add project-level governed value overrides with mandatory `reason`, `owner`,
+  and `expires` fields, safe numeric threshold mappings, and severity changes
+  for registered dimensions.
+- Apply overrides from the same JSON config through the Python API, CLI, MCP,
+  and GitHub Action. Unknown dimensions or parameters, duplicate declarations,
+  and conflicting values for shared thresholds are rejected.
+- Record active, expired, and effective override state in reports and Agent
+  summaries; use effective severity in JUnit/SARIF and automatically restore
+  defaults after the UTC expiry date.
 
 ## 0.5.0 - 2026-10-29
 

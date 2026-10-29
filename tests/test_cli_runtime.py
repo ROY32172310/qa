@@ -106,3 +106,44 @@ def test_cli_local_directory_and_fail_exit(
     assert source["directory"] == str(tmp_path.resolve())
     assert source["file"] == "index.html"
     assert source["config"] == str(config_path.resolve())
+
+
+def test_cli_config_carries_governed_overrides(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path = tmp_path / "webqa.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "overrides": [
+                    {
+                        "dimension_id": "tiny_fonts",
+                        "reason": "Documented migration",
+                        "owner": "design-system",
+                        "expires": "2999-12-31",
+                        "parameters": {"min_font_px": 13},
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    seen: dict[str, object] = {}
+    report = _report("warn")
+
+    def fake_audit(target: str, **kwargs: Any) -> AuditReport:
+        del target
+        seen.update(kwargs)
+        return report
+
+    monkeypatch.setattr(cli, "audit", fake_audit)
+    monkeypatch.setattr(
+        cli,
+        "write_reports",
+        lambda *args, **kwargs: {"json": "report.json"},
+    )
+    assert cli.main(["https://example.com", "--config", str(config_path), "--json"]) == 0
+    settings = seen["settings"]
+    assert settings.overrides[0].dimension_id == "tiny_fonts"  # type: ignore[union-attr]
+    assert settings.overrides[0].parameters["min_font_px"] == 13  # type: ignore[union-attr]

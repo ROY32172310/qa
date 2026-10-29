@@ -143,6 +143,46 @@ def test_mcp_tool_validates_target_and_accepts_local_directory(
     assert source["config"] == str(config_path.resolve())
 
 
+def test_mcp_tool_applies_governed_config_and_reports_audit_metadata(
+    site: tuple[LocalServer, Path],
+    tmp_path: Path,
+) -> None:
+    server, _ = site
+    config_path = tmp_path / "governed.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "overrides": [
+                    {
+                        "dimension_id": "horizontal_overflow",
+                        "reason": "Legacy dashboard migration",
+                        "owner": "dashboard",
+                        "expires": "2999-12-31",
+                        "severity": "warn",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = audit_web_page(
+        url=server.url("broken.html"),
+        config=str(config_path),
+        out_dir=str(tmp_path / "governed"),
+        viewports=["390x844:mobile"],
+        smoke=False,
+    )
+
+    payload = result.structured_content
+    assert result.is_error is False
+    assert payload["status"] == "warn"
+    assert payload["issues"][0]["severity_source"] == "override"
+    assert payload["governance"]["active_overrides"][0]["owner"] == "dashboard"
+    assert payload["agent_summary"]["summary"]["overridden_dimensions"] == 1
+    assert payload["agent_summary"]["summary"]["downgraded_blocks"] == 1
+
+
 def test_mcp_tool_rejects_an_unregistered_browser_engine(tmp_path: Path) -> None:
     result = audit_web_page(
         url="https://example.com",

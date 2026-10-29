@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from types import MappingProxyType
 
 import pytest
 
-from ego_webqa.config import BROWSER_ENGINES, Settings, SmokeStep, Viewport, load_settings
+from ego_webqa.config import (
+    BROWSER_ENGINES,
+    DimensionOverride,
+    Settings,
+    SmokeStep,
+    Viewport,
+    load_settings,
+    resolve_overrides,
+)
 
 
 def test_viewport_parse_named_and_default() -> None:
@@ -296,6 +305,245 @@ def test_viewport_count_is_bounded() -> None:
     portrait = Viewport(390, 844, "phone", mobile=True)
     with pytest.raises(ValueError, match="at most 12 viewports"):
         Settings(viewports=(portrait,) * 13)
+
+
+def test_governed_override_parses_and_resolves_effective_values() -> None:
+    settings = Settings.from_mapping(
+        {
+            "overrides": [
+                {
+                    "dimension_id": "tiny_fonts",
+                    "reason": "Typography migration tracked in DS-142",
+                    "owner": "design-system",
+                    "expires": "2026-11-30",
+                    "severity": "block",
+                    "parameters": {"min_font_px": 13},
+                }
+            ]
+        }
+    )
+
+    assert settings.overrides == (
+        DimensionOverride(
+            "tiny_fonts",
+            "Typography migration tracked in DS-142",
+            "design-system",
+            "2026-11-30",
+            "block",
+            {"min_font_px": 13},
+        ),
+    )
+    resolved = resolve_overrides(settings, as_of=date(2026, 11, 30))
+    assert resolved.settings.min_font_px == 13
+    assert resolved.expired == ()
+    assert resolved.to_dict()["active_overrides"][0]["effective_severity"] == "block"
+
+
+def test_expired_override_visible_and_falls_back_to_defaults() -> None:
+    settings = Settings.from_mapping(
+        {
+            "overrides": [
+                {
+                    "dimension_id": "tiny_fonts",
+                    "reason": "Temporary migration exception",
+                    "owner": "design-system",
+                    "expires": "2026-11-30",
+                    "severity": "block",
+                    "parameters": {"min_font_px": 15},
+                }
+            ]
+        }
+    )
+
+    resolved = resolve_overrides(settings, as_of=date(2026, 12, 1))
+    assert resolved.settings.min_font_px == 12
+    assert resolved.active == ()
+    assert len(resolved.expired) == 1
+    assert resolved.to_dict()["expired_overrides"][0]["status"] == "expired"
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        (
+            [
+                {
+                    "dimension_id": "not_registered",
+                    "reason": "test",
+                    "owner": "qa",
+                    "expires": "2026-11-30",
+                }
+            ],
+            "unregistered",
+        ),
+        (
+            [{"dimension_id": "tiny_fonts", "owner": "qa", "expires": "2026-11-30"}],
+            "reason is required",
+        ),
+        (
+            [{"dimension_id": "tiny_fonts", "reason": "test", "expires": "2026-11-30"}],
+            "owner is required",
+        ),
+        (
+            [{"dimension_id": "tiny_fonts", "reason": "test", "owner": "qa"}],
+            "expires must use",
+        ),
+        (
+            [
+                {
+                    "dimension_id": "tiny_fonts",
+                    "reason": "test",
+                    "owner": "qa",
+                    "expires": "2026-02-30",
+                }
+            ],
+            "not a valid date",
+        ),
+        (
+            [
+                {
+                    "dimension_id": "tiny_fonts",
+                    "reason": "test",
+                    "owner": "qa",
+                    "expires": "2026-11-30",
+                    "parameters": {"not_a_parameter": 1},
+                }
+            ],
+            "not exposed",
+        ),
+        (
+            [
+                {
+                    "dimension_id": "network_idle_timeout",
+                    "reason": "test",
+                    "owner": "qa",
+                    "expires": "2026-11-30",
+                    "parameters": {"timeout_ms": 1_000},
+                }
+            ],
+            "not safely overridable",
+        ),
+        (
+            [
+                {
+                    "dimension_id": "tiny_fonts",
+                    "reason": "test",
+                    "owner": "qa",
+                    "expires": "2026-11-30",
+                    "severity": "info",
+                }
+            ],
+            "severity must be",
+        ),
+        (
+            [
+                {
+                    "dimension_id": "tiny_fonts",
+                    "reason": "test",
+                    "owner": "qa",
+                    "expires": "2026-11-30",
+                    "unexpected": True,
+                }
+            ],
+            "unknown override key",
+        ),
+        (
+            [
+                {
+                    "dimension_id": "tiny_fonts",
+                    "reason": "test",
+                    "owner": "qa",
+                    "expires": "2026-11-30",
+                    "parameters": {"min_font_px": "13"},
+                }
+            ],
+            "must be a number",
+        ),
+        (
+            [
+                {
+                    "dimension_id": "tiny_fonts",
+                    "reason": "test",
+                    "owner": "qa",
+                    "expires": "2026-11-30",
+                    "parameters": {"small_issue_report_min": 2.5},
+                }
+            ],
+            "must be an integer",
+        ),
+    ],
+)
+def test_override_rejects_unregistered_or_incomplete_governance(
+    overrides: list[dict[str, object]],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        Settings.from_mapping({"overrides": overrides})
+
+
+def test_override_rejects_duplicate_dimensions_and_conflicting_shared_thresholds() -> None:
+    base = {
+        "reason": "temporary exception",
+        "owner": "qa",
+        "expires": "2026-11-30",
+    }
+    with pytest.raises(ValueError, match="at most once"):
+        Settings.from_mapping(
+            {
+                "overrides": [
+                    {"dimension_id": "tiny_fonts", **base},
+                    {"dimension_id": "tiny_fonts", **base},
+                ]
+            }
+        )
+
+    settings = Settings.from_mapping(
+        {
+            "overrides": [
+                {
+                    "dimension_id": "tiny_fonts",
+                    **base,
+                    "parameters": {"small_issue_report_min": 2},
+                },
+                {
+                    "dimension_id": "small_tap_targets",
+                    **base,
+                    "parameters": {"small_issue_report_min": 4},
+                },
+            ]
+        }
+    )
+    with pytest.raises(ValueError, match="conflicting overrides"):
+        resolve_overrides(settings, as_of=date(2026, 11, 1))
+
+
+def test_shared_threshold_accepts_the_same_governed_value() -> None:
+    base = {
+        "reason": "Consistent review cadence",
+        "owner": "qa",
+        "expires": "2999-12-31",
+        "parameters": {"small_issue_report_min": 2},
+    }
+    settings = Settings.from_mapping(
+        {
+            "overrides": [
+                {"dimension_id": "tiny_fonts", **base},
+                {"dimension_id": "small_tap_targets", **base},
+            ]
+        }
+    )
+
+    resolved = resolve_overrides(settings, as_of=date(2026, 11, 1))
+
+    assert resolved.settings.small_issue_report_min == 2
+    assert len(resolved.active) == 2
+
+
+def test_governed_example_config_loads() -> None:
+    path = Path(__file__).resolve().parents[1] / "examples" / "webqa-governed.json"
+    settings = load_settings(path)
+    assert settings.overrides[0].owner == "design-system"
+    assert settings.overrides[0].parameters["min_font_px"] == 13
 
 
 def test_viewport_rejects_invalid_field_types() -> None:
