@@ -9,9 +9,10 @@
 
 Deterministic coarse delivery QA for AI-generated web pages, H5 demos, and PWAs.
 
-Point it at a URL. It opens the page in a real Chromium browser, checks a
-zero-config narrow-mobile matrix, safely probes the primary call to action, and
-leaves screenshots plus machine-readable evidence behind. The default eight
+Point it at a URL. It opens the page in a real Chromium browser by default,
+checks a zero-config narrow-mobile matrix, safely probes the primary call to
+action, and leaves screenshots plus machine-readable evidence behind. Firefox
+and Playwright WebKit can be selected one engine at a time. The default eight
 variants combine:
 
 - 360px and 390px widths;
@@ -103,12 +104,31 @@ Use a system Chrome instead of downloading Chromium:
 ego-webqa https://example.com --browser-channel chrome
 ```
 
+### Firefox and WebKit
+
+Install only the additional engine you need, then select it for the whole audit:
+
+```bash
+python -m playwright install firefox
+ego-webqa https://example.com --browser-engine firefox
+
+python -m playwright install webkit
+ego-webqa https://example.com --browser-engine webkit
+```
+
+Chromium remains the default. Each audit runs one engine; this does not silently
+multiply browser cost or claim cross-engine parity. The `webkit` option uses
+Playwright's WebKit build and supplies useful Safari-engine evidence, but it is
+not a real iPhone, iPad, or macOS Safari run. Use real-device testing when the
+delivery decision requires it.
+
 ## Use
 
 ```bash
 ego-webqa https://example.com
 ego-webqa --dir ./dist --file index.html
 ego-webqa http://127.0.0.1:8000 --viewports 390x844:mobile@1.5~34,1280x800:desktop
+ego-webqa https://example.com --browser-engine firefox
 ego-webqa https://example.com --ready-selector "#app-ready" --wait-for-network-idle
 ego-webqa https://example.com --smoke-success-selector "#thank-you"
 ego-webqa https://example.com --smoke-scope all --smoke-require-assertion \
@@ -350,7 +370,7 @@ ego-webqa mcp
 
 `ego-webqa-mcp` remains available as a compatibility alias. An MCP client can
 launch either command over stdio. The registry-compatible one-shot form is
-`uvx ego-webqa@0.4.2 mcp`. The server advertises one tool, `audit_web_page`,
+`uvx ego-webqa@0.5.0 mcp`. The server advertises one tool, `audit_web_page`,
 with structured success and blocking-error results:
 
 ```json
@@ -358,7 +378,7 @@ with structured success and blocking-error results:
   "mcpServers": {
     "ego-webqa": {
       "command": "uvx",
-      "args": ["ego-webqa@0.4.2", "mcp"]
+      "args": ["ego-webqa@0.5.0", "mcp"]
     }
   }
 }
@@ -372,6 +392,7 @@ Typical tool arguments are:
   "out_dir": ".qa/agent-a",
   "config": "/workspace/webqa-flow.json",
   "profile": "accessibility",
+  "browser_engine": "webkit",
   "viewports": ["390x844:mobile", "1280x800:desktop"],
   "smoke_scope": "all",
   "smoke_require_assertion": true,
@@ -398,8 +419,8 @@ acceptance criteria.
 ## GitHub Actions
 
 This repository is also a composite GitHub Action. The Action installs the
-package from the Action ref, installs Chromium, runs the audit, and uploads the
-report even when the audit fails:
+package from the Action ref, installs the selected browser engine (Chromium by
+default), runs the audit, and uploads the report even when the audit fails:
 
 ```yaml
 jobs:
@@ -407,9 +428,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ROY32172310/qa@v0.4.2
+      - uses: ROY32172310/qa@v0.5.0
         with:
           url: ${{ vars.PREVIEW_URL }}
+          browser-engine: webkit
           profile: accessibility
           fail-on-warn: "true"
           smoke-scope: all
@@ -425,7 +447,7 @@ For a local checkout of this repository, use `uses: ./` after checkout. The
 Action's `safe` smoke mode is the default; set `smoke-mode: live` only when the
 click is intentionally allowed to cause real side effects. See
 [`examples/github-action.yml`](examples/github-action.yml) and
-[`action.yml`](action.yml) for the full input set. The `@v0.4.2` tag is created
+[`action.yml`](action.yml) for the full input set. The `@v0.5.0` tag is created
 only after the same commit passes the full cross-platform CI matrix.
 
 ## Python API
@@ -475,15 +497,16 @@ python benchmarks/run.py
 The evaluator reports exact dimension matches, case precision/recall/F1,
 blocking false-positive and false-negative rates, dimension-level TP/FP/FN, and
 complete audit latency. It writes machine-readable evidence plus a Markdown
-summary. The 0.4.0 baseline is 122/122 exact with P50 341ms, P95 1165ms, and
-max 3610ms in serial local Chromium:
-[`docs/benchmark-2026-10-29-v0.4.0.md`](docs/benchmark-2026-10-29-v0.4.0.md).
+summary. The 0.5.0 baseline is 122/122 exact with P50 340ms, P95 1150ms, and
+max 3602ms in serial local Chromium:
+[`docs/benchmark-2026-10-29-v0.5.0.md`](docs/benchmark-2026-10-29-v0.5.0.md).
 
-These results measure curated synthetic fixtures, not real-site coverage or
-cross-browser parity. The benchmark's value is regression pressure: its first
-run exposed a real `accessibility` profile crash on standard `<label>` markup
-and duplicate CTA root-cause reporting; both were fixed before the baseline
-was recorded.
+These results measure curated synthetic fixtures in Chromium, not real-site
+coverage or cross-engine parity. Firefox and WebKit have a separate real-browser
+CI fixture for a clean page and a deterministic overflow failure. The
+benchmark's value is regression pressure: its first run exposed a real
+`accessibility` profile crash on standard `<label>` markup and duplicate CTA
+root-cause reporting; both were fixed before the baseline was recorded.
 
 ## Development
 

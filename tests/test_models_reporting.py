@@ -254,3 +254,14 @@ def test_agent_summary_reproduction_preserves_audit_settings() -> None:
     for fragment in expected_fragments:
         assert fragment in reproduce
     assert "--no-smoke" not in reproduce
+
+
+def test_agent_summary_reproduction_includes_non_default_browser_engine() -> None:
+    report = _report([Issue("horizontal_overflow", "error", "Overflow", "mobile")])
+    report.settings = {
+        "source": {"kind": "url"},
+        "browser_engine": "webkit",
+    }
+
+    reproduce = build_agent_summary(report)["failed_items"][0]["reproduce"]
+    assert "--browser-engine webkit" in reproduce

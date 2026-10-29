@@ -98,8 +98,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Playwright storage-state JSON file for an authenticated preview",
     )
     parser.add_argument(
+        "--browser-engine",
+        choices=("chromium", "firefox", "webkit"),
+        help=(
+            "Playwright browser engine; WebKit approximates Safari but is not "
+            "a real Safari device"
+        ),
+    )
+    parser.add_argument(
         "--browser-channel",
-        help="Chrome channel, e.g. chrome, chrome-beta, msedge",
+        help="Chromium channel, e.g. chrome, chrome-beta, msedge",
     )
     parser.add_argument("--no-smoke", action="store_true", help="skip the primary-CTA click")
     parser.add_argument(
@@ -157,6 +165,8 @@ def _settings(args: argparse.Namespace) -> Settings:
         updates["smoke_require_assertion"] = True
     if args.storage_state is not None:
         updates["storage_state"] = args.storage_state
+    if args.browser_engine is not None:
+        updates["browser_engine"] = args.browser_engine
     if args.browser_channel is not None:
         updates["browser_channel"] = args.browser_channel
     if args.smoke_mode is not None:

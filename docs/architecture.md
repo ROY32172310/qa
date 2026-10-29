@@ -31,6 +31,25 @@ padding or explicitly consume `env(safe-area-inset-bottom)`.
 The variant name, dimensions, text scale, and safe-area value are retained in
 per-viewport evidence, screenshot names, and Agent reproduction commands.
 
+## Browser engines
+
+Each audit selects exactly one Playwright engine: `chromium`, `firefox`, or
+`webkit`. Bundled Chromium is the default. Firefox and WebKit are opt-in and
+require their own Playwright browser installation. The selected engine appears
+in report runtime metadata, while `browser_channel` remains reserved for a
+Chromium channel such as installed Chrome or Edge.
+
+The same browser facts, issue model, thresholds, reports, smoke actions, and
+concurrency boundary are used for every engine. This keeps the feature at the
+orchestration layer instead of introducing engine-specific detector logic.
+Firefox contexts omit Playwright's Chromium-specific `is_mobile` option while
+retaining viewport dimensions, device scale, and touch capability.
+
+Playwright WebKit is useful Safari-engine preview evidence, but it is not an
+iOS device, macOS Safari, or a substitute for real-device certification.
+Cross-engine comparison is deliberately not part of one audit: callers select
+one engine per report and can compare stable report fields externally.
+
 ## Profiles
 
 `baseline` covers delivery behavior across the configured viewport matrix.
@@ -55,7 +74,7 @@ arbitrary JavaScript, custom detectors, or a general-purpose E2E DSL.
 ## CI adapter
 
 `action.yml` is a thin composite Action over the CLI. It owns runner setup,
-browser installation, and artifact upload; audit policy remains in
+selected-browser installation, and artifact upload; audit policy remains in
 `Settings`. Action inputs are passed through environment variables and a Bash
 argument array rather than interpolated into an executable script.
 
@@ -135,9 +154,10 @@ but it cannot invent a dimension or arbitrary assertion.
 
 ## Scope and deliberate exclusions
 
-The report covers multi-viewport geometry and deterministic baseline UX facts.
-A bounded smoke flow can verify one configured short client-side delivery path,
-but business-path correctness, cross-browser rendering parity, security,
+The report covers multi-viewport geometry and deterministic baseline UX facts
+in one selected rendering engine. A bounded smoke flow can verify one configured
+short client-side delivery path, but business-path correctness, aggregate
+cross-engine rendering parity, real-device Safari behavior, security,
 observability, and accessibility certification require separate verification.
 
 The core also does not know about:

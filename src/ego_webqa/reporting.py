@@ -218,6 +218,8 @@ def _reproduction_command(
         command.append("--smoke-require-assertion")
     if settings.get("smoke_mode") == "live":
         command.extend(["--smoke-mode", "live"])
+    if settings.get("browser_engine") not in (None, "chromium"):
+        command.extend(["--browser-engine", str(settings["browser_engine"])])
     if settings.get("browser_channel"):
         command.extend(["--browser-channel", str(settings["browser_channel"])])
     if settings.get("fail_on_warn"):

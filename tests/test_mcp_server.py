@@ -70,6 +70,7 @@ def test_mcp_server_exposes_one_scoped_tool() -> None:
     assert schema["type"] == "object"
     assert "url" in schema["properties"]
     assert "directory" in schema["properties"]
+    assert "browser_engine" in schema["properties"]
 
 
 def test_mcp_tool_returns_blocking_evidence(
@@ -140,6 +141,16 @@ def test_mcp_tool_validates_target_and_accepts_local_directory(
     assert source["directory"] == str(root.resolve())
     assert source["file"] == "index.html"
     assert source["config"] == str(config_path.resolve())
+
+
+def test_mcp_tool_rejects_an_unregistered_browser_engine(tmp_path: Path) -> None:
+    result = audit_web_page(
+        url="https://example.com",
+        out_dir=str(tmp_path / "invalid-engine"),
+        browser_engine="safari",
+    )
+    assert result.is_error is True
+    assert "browser_engine" in json.dumps(result.structured_content)
 
 
 def test_mcp_tool_consumes_bounded_flow_from_config(

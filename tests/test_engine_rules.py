@@ -7,6 +7,7 @@ import pytest
 
 from ego_webqa.config import Settings
 from ego_webqa.engine import (
+    AuditRuntimeError,
     _apply_text_scale,
     _downgrade_partial_navigation_timeouts,
     _goto_document,
@@ -17,6 +18,7 @@ from ego_webqa.engine import (
     _is_ignorable_request_failure,
     _issues_for_smoke,
     _issues_for_viewport,
+    _launch_browser,
     _network_summary,
     _redact_url,
     _request_failure_record,
@@ -166,6 +168,51 @@ def test_navigation_does_not_retry_non_timeout_errors() -> None:
     with pytest.raises(RuntimeError, match="browser disconnected"):
         _goto_document(page, "https://example.com", 100)
     assert page.calls == 1
+
+
+class _FakeLaunch:
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.calls: list[dict[str, Any]] = []
+
+    def launch(self, **kwargs: Any) -> str:
+        self.calls.append(kwargs)
+        if self.fail:
+            raise RuntimeError("missing browser")
+        return f"browser-{kwargs.get('channel', 'bundled')}"
+
+
+class _FakePlaywright:
+    def __init__(
+        self,
+        *,
+        chromium_fail: bool = False,
+        firefox_fail: bool = False,
+        webkit_fail: bool = False,
+    ) -> None:
+        self.chromium = _FakeLaunch(fail=chromium_fail)
+        self.firefox = _FakeLaunch(fail=firefox_fail)
+        self.webkit = _FakeLaunch(fail=webkit_fail)
+
+
+def test_browser_launcher_selects_each_playwright_engine() -> None:
+    playwright = _FakePlaywright()
+
+    assert _launch_browser(playwright, "chromium", "") == ("browser-bundled", "bundled-chromium")
+    assert _launch_browser(playwright, "chromium", "msedge") == ("browser-msedge", "msedge")
+    assert _launch_browser(playwright, "firefox", "") == (
+        "browser-bundled",
+        "bundled-firefox",
+    )
+    assert _launch_browser(playwright, "webkit", "") == ("browser-bundled", "bundled-webkit")
+
+
+def test_browser_launcher_explains_missing_preview_engines() -> None:
+    playwright = _FakePlaywright(firefox_fail=True, webkit_fail=True)
+    with pytest.raises(AuditRuntimeError, match="playwright install firefox"):
+        _launch_browser(playwright, "firefox", "")
+    with pytest.raises(AuditRuntimeError, match="playwright install webkit"):
+        _launch_browser(playwright, "webkit", "")
 
 
 def test_dom_content_loaded_timeout_is_non_fatal() -> None:

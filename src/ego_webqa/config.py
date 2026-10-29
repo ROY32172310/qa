@@ -32,6 +32,7 @@ HTTP_USERNAME_ENV = "EGO_WEBQA_HTTP_USERNAME"
 HTTP_PASSWORD_ENV = "EGO_WEBQA_HTTP_PASSWORD"
 HTTP_HEADERS_ENV = "EGO_WEBQA_EXTRA_HTTP_HEADERS"
 SMOKE_STEP_ACTIONS = frozenset({"click", "fill", "press", "expect_visible", "expect_url"})
+BROWSER_ENGINES = frozenset({"chromium", "firefox", "webkit"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,6 +261,7 @@ class Settings:
     browser_channel: str = ""
     fail_on_warn: bool = False
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    browser_engine: str = "chromium"
 
     def __post_init__(self) -> None:
         self._validate_types()
@@ -319,6 +321,11 @@ class Settings:
             raise ValueError("smoke_mode must be 'safe' or 'live'")
         if self.smoke_scope not in {"first", "all"}:
             raise ValueError("smoke_scope must be 'first' or 'all'")
+        if self.browser_engine not in BROWSER_ENGINES:
+            choices = ", ".join(sorted(BROWSER_ENGINES))
+            raise ValueError(f"browser_engine must be one of: {choices}")
+        if self.browser_channel and self.browser_engine != "chromium":
+            raise ValueError("browser_channel is only supported with Chromium")
         if self.smoke_settle_ms < 0:
             raise ValueError("smoke_settle_ms must be non-negative")
         if self.smoke_require_assertion and not (
@@ -489,6 +496,7 @@ class Settings:
             "storage_state": bool(self.storage_state),
             "http_username": "<redacted>" if self.http_username else "",
             "http_password": "<redacted>" if self.http_password else "",
+            "browser_engine": self.browser_engine,
             "browser_channel": self.browser_channel,
             "fail_on_warn": self.fail_on_warn,
             "metadata": dict(self.metadata),

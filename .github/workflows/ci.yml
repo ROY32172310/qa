@@ -158,3 +158,25 @@ jobs:
           name: benchmark-results
           path: benchmark-results/
           if-no-files-found: warn
+
+  cross-browser:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install package and development tools
+        timeout-minutes: 10
+        run: python -m pip install -e ".[dev]"
+      - name: Install Firefox and WebKit
+        timeout-minutes: 10
+        run: python -m playwright install --with-deps firefox webkit
+      - name: Run opt-in cross-browser audit
+        env:
+          EGO_WEBQA_CROSS_BROWSER: "1"
+        run: python -m pytest -m cross_browser tests/test_cross_browser_audit.py -q

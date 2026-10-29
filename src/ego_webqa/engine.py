@@ -91,7 +91,12 @@ def audit(
 
     try:
         with sync_playwright() as playwright:
-            browser, channel = _launch_browser(playwright, cfg.browser_channel)
+            browser, channel = _launch_browser(
+                playwright,
+                cfg.browser_engine,
+                cfg.browser_channel,
+            )
+            runtime["browser_engine"] = cfg.browser_engine
             runtime["browser_channel"] = channel
             try:
                 for index, viewport in enumerate(cfg.viewports):
@@ -209,7 +214,10 @@ def _audit_concurrently(
     transient_retry_count = sum(
         int(report.runtime.get("transient_retry_count") or 0) for report in reports
     )
-    runtime: dict[str, Any] = {"browser_channel": ",".join(channels)}
+    runtime: dict[str, Any] = {
+        "browser_engine": cfg.browser_engine,
+        "browser_channel": ",".join(channels),
+    }
     if transient_retry_count:
         runtime["transient_retry_count"] = transient_retry_count
         runtime["transient_retry_reason"] = "navigation_timeout"
@@ -232,13 +240,30 @@ def _should_run_smoke(cfg: Settings, index: int) -> bool:
     return cfg.smoke_scope == "all" or index == 0
 
 
-def _launch_browser(playwright: Any, requested: str) -> tuple[Any, str]:
-    if requested:
+def _launch_browser(playwright: Any, engine: str, requested_channel: str) -> tuple[Any, str]:
+    if engine == "firefox":
         try:
-            return playwright.chromium.launch(channel=requested, headless=True), requested
+            return playwright.firefox.launch(headless=True), "bundled-firefox"
         except Exception as exc:  # noqa: BLE001
             raise AuditRuntimeError(
-                f"could not launch browser channel {requested!r}: {exc}"
+                "Firefox is not available. Run: python -m playwright install firefox"
+            ) from exc
+    if engine == "webkit":
+        try:
+            return playwright.webkit.launch(headless=True), "bundled-webkit"
+        except Exception as exc:  # noqa: BLE001
+            raise AuditRuntimeError(
+                "WebKit is not available. Run: python -m playwright install webkit"
+            ) from exc
+    if requested_channel:
+        try:
+            return (
+                playwright.chromium.launch(channel=requested_channel, headless=True),
+                requested_channel,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise AuditRuntimeError(
+                f"could not launch browser channel {requested_channel!r}: {exc}"
             ) from exc
     try:
         return playwright.chromium.launch(headless=True), "bundled-chromium"
@@ -280,6 +305,8 @@ def _audit_viewport(
         "is_mobile": viewport.mobile,
         "has_touch": viewport.mobile,
     }
+    if cfg.browser_engine == "firefox":
+        context_options.pop("is_mobile")
     if cfg.extra_http_headers:
         context_options["extra_http_headers"] = dict(cfg.extra_http_headers)
     if cfg.http_username:

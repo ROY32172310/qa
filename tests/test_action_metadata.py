@@ -46,8 +46,12 @@ def test_composite_action_metadata_and_input_safety() -> None:
     assert action["inputs"]["smoke-mode"]["default"] == "safe"
     assert action["inputs"]["smoke-scope"]["default"] == "first"
     assert action["inputs"]["smoke-require-assertion"]["default"] == "false"
+    assert action["inputs"]["browser-engine"]["default"] == "chromium"
 
     steps = action["runs"]["steps"]
+    install = next(step for step in steps if step.get("name") == "Install browser")
+    assert install["env"]["WEBQA_BROWSER_ENGINE"] == "${{ inputs.browser-engine }}"
+    assert 'install --with-deps "$WEBQA_BROWSER_ENGINE"' in install["run"]
     audit = next(step for step in steps if step.get("name") == "Run audit")
     script = audit["run"]
     assert 'python -m ego_webqa "${args[@]}"' in script
@@ -55,6 +59,7 @@ def test_composite_action_metadata_and_input_safety() -> None:
     assert audit["env"]["WEBQA_URL"] == "${{ inputs.url }}"
     assert audit["env"]["EGO_WEBQA_HTTP_USERNAME"] == "${{ inputs.http-username }}"
     assert audit["env"]["EGO_WEBQA_HTTP_PASSWORD"] == "${{ inputs.http-password }}"
+    assert audit["env"]["WEBQA_BROWSER_ENGINE"] == "${{ inputs.browser-engine }}"
     assert "EGO_WEBQA_HTTP_PASSWORD" not in script
     python_step = next(step for step in steps if step.get("name") == "Set up Python")
     assert python_step["uses"] == "actions/setup-python@v6"

@@ -63,13 +63,15 @@ def audit_web_page(
     smoke_success_selector: str = "",
     smoke_success_url_pattern: str = "",
     smoke_require_assertion: bool = False,
+    browser_engine: str = "",
 ) -> types.CallToolResult:
-    """Audit a generated page in real Chromium and return deterministic evidence.
+    """Audit a generated page in a real browser and return deterministic evidence.
 
     Provide exactly one of `url` or `directory`. The result is blocked when the
     page has a delivery error; warnings remain visible but do not block unless
     `fail_on_warn` is enabled in the JSON config. This checks delivery usability,
-    not security, WCAG conformance, or visual regression.
+    not security, WCAG conformance, visual regression, or real-device Safari
+    parity. Use browser_engine="webkit" for a WebKit approximation only.
     """
 
     if bool(url) == bool(directory):
@@ -92,6 +94,8 @@ def audit_web_page(
             updates["timeout_ms"] = timeout_ms
         if smoke_settle_ms is not None:
             updates["smoke_settle_ms"] = smoke_settle_ms
+        if browser_engine:
+            updates["browser_engine"] = browser_engine
         cfg = apply_auth_environment(Settings.from_mapping(updates, base=cfg))
 
         output = (

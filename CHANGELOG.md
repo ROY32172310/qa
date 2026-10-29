@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.5.0 - 2026-10-29
+
+- Add opt-in Playwright Firefox and WebKit engines through
+  `--browser-engine`, the Python `Settings` API, MCP `audit_web_page`, and the
+  GitHub Action.
+- Keep bundled Chromium as the default engine and run exactly one rendering
+  engine per audit, so existing cost and latency behavior remains unchanged.
+- Add real Firefox and WebKit CI fixtures covering both a clean mobile page and
+  a deterministic horizontal-overflow failure.
+- Record the selected engine separately from the browser channel in report
+  runtime metadata and generated Agent reproduction commands.
+- Document that Playwright WebKit is a Safari-engine approximation, not a
+  real-device Safari compatibility claim.
+
 ## 0.4.2 - 2026-10-29
 
 - Publish `ego-webqa` as a first-class MCP Registry package with a canonical

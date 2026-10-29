@@ -75,6 +75,19 @@ def test_cli_live_smoke_override() -> None:
     assert _settings(args).smoke_mode == "live"
 
 
+def test_cli_browser_engine_override() -> None:
+    args = build_parser().parse_args(["https://example.com", "--browser-engine", "webkit"])
+    cfg = _settings(args)
+    assert cfg.browser_engine == "webkit"
+    assert cfg.browser_channel == ""
+
+    conflicting = build_parser().parse_args(
+        ["https://example.com", "--browser-engine", "webkit", "--browser-channel", "msedge"]
+    )
+    with pytest.raises(ValueError, match="only supported with Chromium"):
+        _settings(conflicting)
+
+
 def test_cli_mcp_subcommand_starts_the_server(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

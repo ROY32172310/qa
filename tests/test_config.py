@@ -6,7 +6,7 @@ from types import MappingProxyType
 
 import pytest
 
-from ego_webqa.config import Settings, SmokeStep, Viewport, load_settings
+from ego_webqa.config import BROWSER_ENGINES, Settings, SmokeStep, Viewport, load_settings
 
 
 def test_viewport_parse_named_and_default() -> None:
@@ -30,6 +30,16 @@ def test_default_viewport_matrix_is_narrow_text_scaled_and_safe_area_aware() -> 
     assert {viewport.text_scale for viewport in viewports} == {1.0, 1.5}
     assert {viewport.safe_area_bottom_px for viewport in viewports} == {0, 34}
     assert len({viewport.name for viewport in viewports}) == 8
+
+
+def test_browser_engine_defaults_to_chromium_and_accepts_preview_engines() -> None:
+    assert Settings().browser_engine == "chromium"
+    for engine in BROWSER_ENGINES:
+        assert Settings(browser_engine=engine).to_dict()["browser_engine"] == engine
+    with pytest.raises(ValueError, match="browser_engine"):
+        Settings(browser_engine="safari")
+    with pytest.raises(ValueError, match="only supported with Chromium"):
+        Settings(browser_engine="webkit", browser_channel="msedge")
 
 
 @pytest.mark.parametrize(
