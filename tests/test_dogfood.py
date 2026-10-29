@@ -171,8 +171,8 @@ def test_case_timeout_is_recorded_without_killing_the_batch(
     result = run._run_case(1, 1, case, tmp_path, "", 1_000)
 
     assert result["runtime_error"] == "case exceeded 1000ms deadline"
-    assert any(path.endswith("/stdout.log") for path in result["artifacts"])
-    assert any(path.endswith("/stderr.log") for path in result["artifacts"])
+    artifact_names = {Path(path).name for path in result["artifacts"]}
+    assert {"stdout.log", "stderr.log"} <= artifact_names
 
 
 def test_audit_deadline_kills_descendant_processes(tmp_path: Path) -> None:
