@@ -10,6 +10,10 @@ body:
         Thanks for testing ego-webqa. Do not upload credentials, signed-in storage
         state, private page content, or an unreviewed full report. A sanitized
         `agent_summary.json` is usually enough.
+
+        Useful references before filing:
+        [completed before/after example](https://roy32172310.github.io/qa/) and
+        [15-minute first-trial protocol](https://github.com/ROY32172310/qa/blob/master/docs/first-trial.md).
   - type: dropdown
     id: feedback_type
     attributes:
@@ -27,7 +31,7 @@ body:
     attributes:
       label: ego-webqa version
       description: Run `ego-webqa --version`.
-      placeholder: "0.5.0"
+      placeholder: "0.6.0"
     validations:
       required: true
   - type: dropdown

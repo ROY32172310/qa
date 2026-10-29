@@ -68,6 +68,12 @@ corpus. This is a small, disclosed corpus rather than a market-wide accuracy
 claim; the full evidence and limitations are in
 [`docs/real-world-dogfood-2026-10-29.md`](docs/real-world-dogfood-2026-10-29.md).
 
+See how one generated page went from three root causes to zero blocking defects
+in the
+[vocabulary repair case study](docs/case-study-vocabulary-repair-2026-10-29.md).
+If you want to test the same loop on one of your pages, follow the
+[15-minute first-trial protocol](docs/first-trial.md).
+
 ## Why
 
 Generated pages often pass unit tests while still shipping obvious delivery

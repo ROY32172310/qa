@@ -1,5 +1,11 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Inspect a completed before/after run
+    url: https://roy32172310.github.io/qa/
+    about: See real audit evidence and the repair loop before running your own page.
+  - name: Run the 15-minute first trial
+    url: https://github.com/ROY32172310/qa/blob/master/docs/first-trial.md
+    about: A structured path from installation to your first actionable result.
   - name: Usage and architecture
     url: https://github.com/ROY32172310/qa#readme
     about: Installation, scope, configuration, MCP, and known limitations.
