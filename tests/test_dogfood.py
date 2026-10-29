@@ -212,12 +212,13 @@ def test_audit_deadline_kills_descendant_processes(tmp_path: Path) -> None:
             [sys.executable, str(parent), str(child), str(marker)],
             stdout_file,
             stderr_file,
-            500,
+            2_000,
         )
 
     assert timed_out
     assert returncode is not None
-    assert time.monotonic() - started < 5
+    assert time.monotonic() - started < (10 if sys.platform == "win32" else 5)
     size_at_return = marker.stat().st_size
+    assert size_at_return > 0
     time.sleep(0.3)
     assert marker.stat().st_size == size_at_return
