@@ -15,6 +15,7 @@ import pytest
 
 from ego_webqa.config import DimensionOverride, Settings, SmokeStep, Viewport
 from ego_webqa.engine import audit
+from ego_webqa.reporting import build_agent_summary
 from ego_webqa.server import LocalServer
 
 pytestmark = [
@@ -756,6 +757,14 @@ def test_bounded_smoke_flow_reports_text_assertion_without_echoing_content(
     assert issue.severity == "error"
     assert issue.evidence["step"]["selector"] == "#count"
     assert "smoke_flow_assertion_failed" not in {item.code for item in report.issues}
+    summary = build_agent_summary(report)
+    failed_item = next(
+        item
+        for item in summary["failed_items"]
+        if item["dimension_id"] == "smoke_flow_text_assertion_failed"
+    )
+    assert failed_item["selector"] == "#count"
+    assert failed_item["evidence"]["step"]["text_source"] == "text"
 
 
 def test_bounded_smoke_flow_does_not_treat_hidden_descendant_text_as_visible(
