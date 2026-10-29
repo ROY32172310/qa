@@ -472,7 +472,7 @@ def test_missing_ready_selector_has_actionable_diagnostic(
             viewports=(Viewport(390, 844, "mobile", mobile=True),),
             ready_selector="#missing",
             settle_ms=0,
-            timeout_ms=200,
+            timeout_ms=500,
         ),
         output_dir=tmp_path,
     )
@@ -621,7 +621,7 @@ def test_bounded_smoke_flow_reports_failed_assertion_without_input_value(
         settings=Settings(
             viewports=(Viewport(390, 844, "mobile", mobile=True),),
             settle_ms=0,
-            timeout_ms=250,
+            timeout_ms=500,
             smoke_settle_ms=10,
             smoke_flow=(
                 SmokeStep("fill", selector="#email", value="do-not-persist"),
@@ -647,7 +647,7 @@ def test_bounded_smoke_flow_names_the_failed_action(
         settings=Settings(
             viewports=(Viewport(390, 844, "mobile", mobile=True),),
             settle_ms=0,
-            timeout_ms=200,
+            timeout_ms=500,
             smoke_settle_ms=0,
             smoke_flow=(
                 SmokeStep("click", selector="#missing-action"),
@@ -861,7 +861,7 @@ body{margin:0;font:16px/1.5 system-ui}main{padding:32px}img{width:80px;height:80
                 body = html
                 content_type = "text/html; charset=utf-8"
             elif self.path == "/slow.svg":
-                time.sleep(0.6)
+                time.sleep(1.2)
                 body = svg
                 content_type = "image/svg+xml"
             else:
@@ -884,7 +884,7 @@ body{margin:0;font:16px/1.5 system-ui}main{padding:32px}img{width:80px;height:80
             settings=Settings(
                 viewports=(Viewport(390, 844, "mobile", mobile=True),),
                 settle_ms=0,
-                timeout_ms=120,
+                timeout_ms=500,
             ),
             output_dir=tmp_path,
             smoke=False,
