@@ -78,7 +78,27 @@ jobs:
           print(f"::error title=coverage::line/branch coverage failed at {percent:.2f}%")
       - run: python scripts/dev.py lint
       - run: python scripts/dev.py format-check
-      - run: python scripts/dev.py typecheck
+      - name: Type check with annotations
+        shell: python
+        run: |
+          import subprocess
+          import sys
+
+          completed = subprocess.run(
+              [sys.executable, "scripts/dev.py", "typecheck"],
+              text=True,
+              encoding="utf-8",
+              errors="replace",
+              capture_output=True,
+              check=False,
+          )
+          sys.stdout.write(completed.stdout)
+          sys.stderr.write(completed.stderr)
+          if completed.returncode:
+              detail = (completed.stderr or completed.stdout or "type check failed")
+              detail = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=typecheck::{detail[-8000:]}")
+          raise SystemExit(completed.returncode)
       - name: Upload test diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
