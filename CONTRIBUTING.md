@@ -25,7 +25,7 @@ service, user identity, or application framework.
 
 ```bash
 python -m pip install -e '.[dev]'
-python -m playwright install chromium
+ego-webqa install-browser
 python scripts/dev.py test
 python scripts/dev.py check
 python scripts/dev.py full
