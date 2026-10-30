@@ -1,0 +1,8 @@
+{
+  "url": "https://preview.example/checkout",
+  "out_dir": ".qa/checkout",
+  "viewport_preset": "quick",
+  "smoke_selector": "#buy-now",
+  "smoke_success_selector": "#order-confirmation",
+  "smoke_require_assertion": true
+}

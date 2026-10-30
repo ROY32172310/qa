@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "tool": "ego-webqa",
+  "target": "https://preview.example/checkout",
+  "status": "fail",
+  "failed_items": [
+    {
+      "dimension_id": "horizontal_overflow",
+      "dimension_version": "1.0.0",
+      "detector": "geometry",
+      "default_severity": "block",
+      "severity": "block",
+      "selector": ".order-summary",
+      "selectors": [
+        ".order-summary"
+      ],
+      "text_snippet": "Order total",
+      "trigger": "360px + 1.5x text scale + safe-area 0",
+      "triggers": [
+        "360px + 1.5x text scale + safe-area 0"
+      ],
+      "problem": "Content extends beyond the viewport width.",
+      "problems": [
+        "Content extends beyond the viewport width."
+      ],
+      "suggestion": "Allow the summary row to wrap and constrain its minimum width.",
+      "reproduce": "ego-webqa https://preview.example/checkout --preset quick",
+      "occurrences": 1,
+      "evidence": {},
+      "evidence_by_viewport": {}
+    }
+  ],
+  "summary": {
+    "total_block": 1,
+    "total_warn": 0,
+    "unique_root_causes": 1,
+    "affected_viewports": 1,
+    "duration_ms": 1840,
+    "overridden_dimensions": 0,
+    "downgraded_blocks": 0,
+    "expired_overrides": 0
+  },
+  "scope_statement": "Deterministic coarse check only."
+}

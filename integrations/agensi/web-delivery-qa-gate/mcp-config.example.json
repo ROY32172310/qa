@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "ego-webqa": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "ego-webqa==0.8.0",
+        "ego-webqa",
+        "mcp"
+      ]
+    }
+  }
+}

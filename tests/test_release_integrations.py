@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+import jsonschema
+
 from ego_webqa import __version__
+from ego_webqa.contracts import load_schema
 
 ROOT = Path(__file__).resolve().parents[1]
 AGENSI = ROOT / "integrations" / "agensi"
@@ -41,3 +45,33 @@ def test_agensi_listing_uses_the_current_version_and_describes_new_controls() ->
     assert "baseline/delta gating" in listing
     assert "privacy-first feedback bundles" in listing
     assert "`1.0` JSON Schemas" in listing
+    assert "local MCP configuration" in listing
+    assert "worked\nmobile-checkout example" in listing
+
+
+def test_agensi_package_contains_local_setup_and_worked_example() -> None:
+    package = AGENSI / "web-delivery-qa-gate"
+    config_text = (package / "mcp-config.example.json").read_text(encoding="utf-8")
+    config = json.loads(config_text)
+    setup = (package / "SETUP.md").read_text(encoding="utf-8")
+    example = (package / "examples" / "mobile-checkout-walkthrough.md").read_text(encoding="utf-8")
+    request = (package / "examples" / "mcp-request.json").read_text(encoding="utf-8")
+    summary = (package / "examples" / "expected-agent-summary.json").read_text(encoding="utf-8")
+
+    assert config == {
+        "mcpServers": {
+            "ego-webqa": {
+                "command": "uvx",
+                "args": ["--from", f"ego-webqa=={__version__}", "ego-webqa", "mcp"],
+            }
+        }
+    }
+    assert f"uvx --from ego-webqa=={__version__} playwright" in setup
+    assert f"ego-webqa@{__version__}" not in setup
+    assert f"ego-webqa@{__version__}" not in config_text
+    assert "Agensi does not" in setup
+    assert "host or execute the MCP server" in setup
+    assert "Audit https://preview.example/checkout" in example
+    assert '"viewport_preset": "quick"' in request
+    assert '"dimension_id": "horizontal_overflow"' in summary
+    jsonschema.validate(json.loads(summary), load_schema("agent-summary"))

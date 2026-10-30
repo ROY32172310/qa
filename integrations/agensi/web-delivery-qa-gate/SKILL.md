@@ -43,6 +43,9 @@ ego-webqa doctor --json
 If official `audit_web_page` is already exposed through MCP, prefer that tool.
 Otherwise run the CLI. Agensi does not host or run external MCP servers, so the
 buyer must have `ego-webqa` available in the agent's execution environment.
+See [SETUP.md](SETUP.md) for the local MCP configuration template and
+[the worked example](examples/mobile-checkout-walkthrough.md) for an end-to-end
+request, blocking result, repair, and rerun.
 
 ## Run the gate
 

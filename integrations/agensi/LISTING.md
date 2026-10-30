@@ -23,6 +23,11 @@ AI-generated page with deterministic browser evidence.
 Web Delivery QA Gate tells an AI agent how and when to run the open-source
 `ego-webqa` audit after generating or changing a web page.
 
+The downloadable ZIP contains the `SKILL.md`, a local MCP configuration
+template, setup instructions, the report contract reference, and a worked
+mobile-checkout example. The MCP server runs in the buyer's environment;
+Agensi does not host it.
+
 The audit opens the rendered page in Playwright, runs a compact mobile viewport
 matrix, and returns structured evidence for:
 
