@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.1 - 2026-10-30
 
 - Add `ego-webqa setup` as the idempotent first-run path. It checks the active
   installation first, skips browser downloads when a real launch already

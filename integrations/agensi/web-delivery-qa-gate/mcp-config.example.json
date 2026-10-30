@@ -4,7 +4,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "ego-webqa==0.8.0",
+        "ego-webqa==0.8.1",
         "ego-webqa",
         "mcp"
       ]
