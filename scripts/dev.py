@@ -94,9 +94,9 @@ def typecheck(*arguments: str) -> int:
     source = _run("mypy", *arguments)
     if source:
         return source
-    script = _run("mypy", *arguments, "scripts/dev.py")
-    if script:
-        return script
+    scripts = _run("mypy", *arguments, "scripts", env={"MYPYPATH": "src"})
+    if scripts:
+        return scripts
     benchmark = _run("mypy", *arguments, "benchmarks", env={"MYPYPATH": "src"})
     if benchmark:
         return benchmark

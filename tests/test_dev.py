@@ -57,3 +57,23 @@ def test_main_rejects_missing_or_unknown_task(
     assert dev.main([]) == 2
     assert dev.main(["missing"]) == 2
     assert "tasks:" in capsys.readouterr().err
+
+
+def test_typecheck_covers_release_and_verification_scripts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, tuple[str, ...], dict[str, str] | None]] = []
+
+    def run(
+        module: str,
+        *arguments: str,
+        env: dict[str, str] | None = None,
+        cwd: Path | None = None,
+    ) -> int:
+        calls.append((module, arguments, env))
+        return 0
+
+    monkeypatch.setattr(dev, "_run", run)
+
+    assert dev.typecheck() == 0
+    assert ("mypy", ("scripts",), {"MYPYPATH": "src"}) in calls
