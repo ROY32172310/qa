@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import subprocess
 import sys
@@ -239,6 +240,16 @@ def _json_text(payload: object, encoding: str) -> str:
     except UnicodeEncodeError:
         return json.dumps(payload, ensure_ascii=True, indent=2)
     return text
+
+
+def _configure_console_streams() -> None:
+    """Keep diagnostic text printable on legacy Windows code pages."""
+
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            with contextlib.suppress(OSError, ValueError):
+                reconfigure(errors="backslashreplace")
 
 
 def _doctor_main(arguments: Sequence[str]) -> int:
@@ -565,6 +576,7 @@ def _print_delta_summary(delta: dict[str, Any], output_path: Path) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    _configure_console_streams()
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments[:1] == ["doctor"]:
         return _doctor_main(arguments[1:])

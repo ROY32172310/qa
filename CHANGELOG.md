@@ -15,6 +15,9 @@
   each integration.
 - Make the missing-browser doctor test use platform-native path semantics,
   fixing the Windows-only coverage gate failure.
+- Keep human-readable diagnostics printable when stdout or stderr use a legacy
+  code page such as Windows cp1252; unsupported characters are escaped instead
+  of crashing a successful browser setup.
 - Add a standard-library-only `ego_webqa.platforms` leaf for OS-family checks
   and native path conversion. This borrows ego-uri's adapter/test discipline
   without importing ego-uri or adding a runtime dependency.

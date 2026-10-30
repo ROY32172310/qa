@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import sys
 from dataclasses import dataclass
@@ -495,6 +496,32 @@ def test_json_output_escapes_unsupported_stdout_encoding() -> None:
     assert json.loads(portable) == payload
     assert "\\u5f00\\u59cb" in portable
     assert "开始" in _json_text(payload, "utf-8")
+
+
+def test_console_streams_survive_a_legacy_windows_code_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stdout = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+    stderr = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+    monkeypatch.setattr(sys, "stdout", stdout)
+    monkeypatch.setattr(sys, "stderr", stderr)
+
+    cli._configure_console_streams()
+    print("browser warning: ╔══╗", file=sys.stdout)
+    sys.stdout.flush()
+
+    assert b"\\u2554" in stdout.buffer.getvalue()
+    assert b"\\u2550" in stdout.buffer.getvalue()
+
+
+def test_cli_main_configures_console_streams(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configured: list[bool] = []
+    monkeypatch.setattr(cli, "_configure_console_streams", lambda: configured.append(True))
+
+    assert cli.main(["setup", "--dry-run"]) == 0
+    assert configured == [True]
 
 
 def test_cli_auth_environment_keeps_secrets_off_argv(
