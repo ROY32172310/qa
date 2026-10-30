@@ -27,6 +27,7 @@ def _report(status: str = "pass") -> AuditReport:
 def test_cli_usage_errors(capsys: pytest.CaptureFixture[str]) -> None:
     assert cli.main([]) == 2
     assert cli.main(["https://example.com", "--dir", "."]) == 2
+    assert cli.main(["https://example.com", "--gate", "new"]) == 2
     assert "provide a URL or --dir" in capsys.readouterr().err
 
 
@@ -106,6 +107,63 @@ def test_cli_local_directory_and_fail_exit(
     assert source["directory"] == str(tmp_path.resolve())
     assert source["file"] == "index.html"
     assert source["config"] == str(config_path.resolve())
+
+
+def test_cli_baseline_gate_allows_existing_block_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "index.html").write_text("<h1>ok</h1>", encoding="utf-8")
+    baseline_path = tmp_path / "baseline.json"
+    baseline_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "target": "http://127.0.0.1:9000/index.html",
+                "status": "fail",
+                "counts": {"error": 0, "warning": 0},
+                "issues": [],
+                "viewports": [],
+                "settings": {
+                    "source": {
+                        "kind": "directory",
+                        "directory": str(tmp_path.resolve()),
+                        "file": "index.html",
+                    },
+                    "profile": "baseline",
+                },
+                "runtime": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    report = _report("fail")
+    monkeypatch.setattr(cli, "audit", lambda *args, **kwargs: report)
+    monkeypatch.setattr(
+        cli,
+        "write_reports",
+        lambda *args, **kwargs: {"json": "report.json"},
+    )
+
+    assert (
+        cli.main(
+            [
+                "--dir",
+                str(tmp_path),
+                "--out",
+                str(tmp_path / "current"),
+                "--baseline-report",
+                str(baseline_path),
+                "--no-smoke",
+            ]
+        )
+        == 0
+    )
+    delta = json.loads((tmp_path / "current" / "delta.json").read_text(encoding="utf-8"))
+    assert delta["gate"] == {"mode": "new", "failed": False}
+    assert delta["summary"]["total_changes"] == 0
+    assert "[PASS] delta gate=new" in capsys.readouterr().out
 
 
 def test_cli_config_carries_governed_overrides(

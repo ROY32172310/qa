@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 
 import pytest
 
@@ -107,6 +108,86 @@ def test_cli_mcp_subcommand_rejects_extra_arguments(
 ) -> None:
     assert cli.main(["mcp", "--help"]) == 2
     assert "does not accept arguments" in capsys.readouterr().err
+
+
+def test_cli_doctor_json_uses_shared_diagnostic_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    @dataclass(frozen=True)
+    class Check:
+        id: str
+        status: str
+        message: str
+        hint: str
+
+        def to_dict(self) -> dict[str, str]:
+            return {
+                "id": self.id,
+                "status": self.status,
+                "message": self.message,
+                "hint": self.hint,
+            }
+
+    @dataclass(frozen=True)
+    class Report:
+        status: str
+        checks: tuple[Check, ...]
+        runtime: dict[str, str]
+
+        def to_dict(self) -> dict[str, object]:
+            return {
+                "status": self.status,
+                "runtime": self.runtime,
+                "checks": [check.to_dict() for check in self.checks],
+            }
+
+    monkeypatch.setattr(
+        "ego_webqa.cli.collect_doctor_report",
+        lambda engine, channel: Report(
+            "ok",
+            (Check("python", "ok", "Python 3.12.0", ""),),
+            {"browser_engine": engine, "browser_channel": channel},
+        ),
+    )
+    assert cli.main(["doctor", "--json", "--browser-channel", "msedge"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "ok"
+    assert payload["runtime"] == {
+        "browser_engine": "chromium",
+        "browser_channel": "msedge",
+    }
+
+
+def test_cli_doctor_failure_returns_one(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    @dataclass(frozen=True)
+    class Check:
+        id: str
+        status: str
+        message: str
+        hint: str
+
+    @dataclass(frozen=True)
+    class Report:
+        status: str
+        checks: tuple[Check, ...]
+        runtime: dict[str, str]
+
+    monkeypatch.setattr(
+        "ego_webqa.cli.collect_doctor_report",
+        lambda engine, channel: Report(
+            "fail",
+            (Check("browser_launch", "fail", "launch failed", "install chromium"),),
+            {},
+        ),
+    )
+    assert cli.main(["doctor"]) == 1
+    output = capsys.readouterr().out
+    assert "FAIL browser_launch: launch failed" in output
+    assert "install chromium" in output
 
 
 def test_json_output_escapes_unsupported_stdout_encoding() -> None:

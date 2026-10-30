@@ -48,8 +48,18 @@ def test_machine_report_formats(tmp_path: Path) -> None:
     payload = json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))
     assert payload["tool"] == "ego-webqa"
     assert payload["counts"] == {"error": 1, "warning": 0}
-    assert set(artifacts) == {"json", "agent_summary", "junit", "sarif"}
+    assert set(artifacts) == {
+        "json",
+        "agent_summary",
+        "feedback_bundle",
+        "junit",
+        "sarif",
+    }
     assert Path(artifacts["agent_summary"]).is_file()
+    feedback = json.loads(Path(artifacts["feedback_bundle"]).read_text(encoding="utf-8"))
+    assert feedback["target_kind"] == "local"
+    assert "target" not in feedback
+    assert feedback["findings"][0]["dimension_id"] == "dead_primary_cta"
     suite = ET.fromstring(to_junit(report))
     assert suite.attrib["tests"] == "1"
     assert len(suite.findall("testcase/failure")) == 1

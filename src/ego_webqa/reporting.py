@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .dimensions import dimension_for
+from .feedback import build_feedback_bundle
 from .models import AuditReport, Issue
 
 SCOPE_STATEMENT = (
@@ -26,11 +27,16 @@ def write_reports(report: AuditReport, output_dir: str | Path) -> dict[str, str]
     payload = report.to_dict()
     json_path = out / "report.json"
     agent_summary_path = out / "agent_summary.json"
+    feedback_path = out / "feedback_bundle.json"
     junit_path = out / "junit.xml"
     sarif_path = out / "report.sarif"
     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     agent_summary_path.write_text(
         json.dumps(build_agent_summary(report), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    feedback_path.write_text(
+        json.dumps(build_feedback_bundle(payload), ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     junit_path.write_text(to_junit(report), encoding="utf-8")
@@ -41,6 +47,7 @@ def write_reports(report: AuditReport, output_dir: str | Path) -> dict[str, str]
     return {
         "json": str(json_path),
         "agent_summary": str(agent_summary_path),
+        "feedback_bundle": str(feedback_path),
         "junit": str(junit_path),
         "sarif": str(sarif_path),
     }

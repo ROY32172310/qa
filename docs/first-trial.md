@@ -29,9 +29,9 @@ For a local static build:
 ego-webqa --dir ./dist --file index.html --out .qa/first-trial
 ```
 
-The run writes `agent_summary.json`, `report.json`, JUnit, SARIF, and
-screenshots. Exit code `0` means pass or warnings only; `1` means at least one
-blocking delivery defect; `2` means the audit could not run.
+The run writes `agent_summary.json`, `feedback_bundle.json`, `report.json`,
+JUnit, SARIF, and screenshots. Exit code `0` means pass or warnings only; `1`
+means at least one blocking delivery defect; `2` means the audit could not run.
 
 ## 2. Check the first blocking item
 
@@ -71,15 +71,32 @@ exit code and sanitized terminal tail.
 
 ## 4. Send structured feedback
 
+Build the default privacy-safe bundle and review it before sharing:
+
+```bash
+ego-webqa feedback --report .qa/first-trial/report.json
+```
+
+The default bundle omits the target URL, local paths, custom viewport names,
+selectors, page text, messages, raw evidence, screenshots, and configuration
+contents. Use `--include-target`, `--include-selectors`, or
+`--include-messages` only when a private issue needs that additional context.
+
 Open the
 [result feedback form](https://github.com/ROY32172310/qa/issues/new?template=result-feedback.yml)
 and include only:
 
 - the `ego-webqa --version` output;
-- the target type;
-- the sanitized command or config;
+- the reviewed `feedback_bundle.json`;
 - the relevant Agent summary item;
 - the expected result and why.
+
+Never attach an unreviewed full report, storage state, credentials, or
+page-sensitive screenshots to a public issue.
+
+Maintainers use the
+[field feedback protocol](field-feedback.md) to classify the outcome and decide
+whether it should become a clean control or a new positive fixture.
 
 The evidence board is useful as a reference for the expected
 before/after shape:

@@ -1,15 +1,17 @@
 # Architecture
 
-`ego-webqa` is intentionally split into six core pieces:
+`ego-webqa` is intentionally split into eight core pieces:
 
 1. `config.py`: public configuration and the only threshold source of truth.
 2. `dimensions.py`: the closed, versioned registry of issue dimensions.
 3. `probes.py`: browser-side facts, with no pass/fail decisions.
 4. `engine.py`: Playwright orchestration and Python-side classification.
-5. `reporting.py`: full reports, Agent summaries, JUnit, and SARIF adapters.
-6. `cli.py`: argument handling, local serving, and exit codes.
+5. `feedback.py`: privacy-first external feedback summaries.
+6. `reporting.py`: full reports, Agent summaries, JUnit, and SARIF adapters.
+7. `delta.py`: report compatibility checks and stable root-cause comparisons.
+8. `cli.py`: argument handling, diagnostics, local serving, and exit codes.
 
-The core package has one runtime dependency: Playwright. Browser binaries are
+The core package depends on Playwright and the MCP SDK. Browser binaries are
 installed separately.
 
 ## Viewport variants
@@ -84,7 +86,15 @@ detectors, or a general-purpose E2E DSL.
 `action.yml` is a thin composite Action over the CLI. It owns runner setup,
 selected-browser installation, and artifact upload; audit policy remains in
 `Settings`. Action inputs are passed through environment variables and a Bash
-argument array rather than interpolated into an executable script.
+argument array rather than interpolated into an executable script. After a
+completed run, the Action renders a bounded root-cause table from the
+privacy-safe feedback bundle into `GITHUB_STEP_SUMMARY`; it does not copy the
+full report or page evidence into a public job summary.
+
+`doctor` is a read-only installation diagnostic. It verifies the supported
+Python runtime, installed MCP and Playwright packages, the selected browser
+engine or system channel, and a headless launch. A system channel does not
+require the bundled Chromium executable.
 
 ## Multi-agent boundary
 
@@ -104,6 +114,9 @@ The stable integration surface is:
 - exit code: `0` pass/warn, `1` blocking issue, `2` invocation/runtime failure;
 - `report.json` and `--json` output with explicit `schema_version`;
 - `agent_summary.json` with root-cause aggregation and repair commands;
+- `feedback_bundle.json` with a reviewable, sanitized external-report view;
+- `delta.json` when a baseline report is supplied, with stable root-cause
+  `new`, `persistent`, `changed`, and `resolved` classes;
 - per-viewport evidence for every aggregated root cause, plus structured network
   attribution (resource type, frame, redirect source, status, and error);
 - relative screenshot references inside the report directory;
@@ -112,6 +125,32 @@ The stable integration surface is:
 Sensitive headers, HTTP Basic credentials, and storage-state content are
 accepted but never copied into the report. CI callers should provide secrets
 through environment variables.
+
+The feedback bundle is stricter than the full report. Its default allowlist
+omits target URLs and local paths, custom viewport names, selectors, page text,
+messages, hints, raw evidence, screenshots, configuration files, and storage
+state. Explicit `feedback` flags can add target, selectors/text, and messages
+for a private issue after the user reviews the resulting file.
+
+## Baseline delta
+
+The delta gate compares issue roots rather than screenshots. A fingerprint is
+the SHA-256 of the registered dimension id plus normalized selectors and
+selected root markers such as a failed endpoint, runtime error, or failed flow
+step. Volatile occurrence text, timing, and URL query strings do not define
+identity.
+
+Reports are comparable only when their source identity, profile, viewport
+matrix, browser engine, and channel match. Different local directories, URLs,
+configurations, or engines require explicit override flags so an accidental
+comparison cannot silently turn every finding into a regression.
+
+`--gate new` fails for a new blocking root, a warning root that becomes
+blocking, an increase in blocking occurrences, or a blocking root that expands
+to another viewport. Existing unresolved blockers remain in the delta but do
+not fail an unchanged rerun. `--fail-on-warn` extends the gate to new or changed
+warnings. The delta is a deterministic coarse-gate comparison, not a visual
+baseline.
 
 `mcp_server.py` is an optional protocol adapter over the same `audit()` and
 reporting functions. It does not contain a second QA implementation. An MCP

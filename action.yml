@@ -82,6 +82,22 @@ inputs:
     description: Make warnings fail the audit
     required: false
     default: "false"
+  baseline-report:
+    description: Path to an earlier report.json for root-cause delta gating
+    required: false
+    default: ""
+  delta-gate:
+    description: Baseline gate mode (none or new)
+    required: false
+    default: new
+  allow-target-change:
+    description: Allow baseline comparison across different target sources
+    required: false
+    default: "false"
+  allow-configuration-change:
+    description: Allow baseline comparison across profiles, viewports, or runtimes
+    required: false
+    default: "false"
   browser-channel:
     description: Optional Chromium channel such as chrome or msedge
     required: false
@@ -164,6 +180,10 @@ runs:
         WEBQA_SMOKE_REQUIRE_ASSERTION: ${{ inputs.smoke-require-assertion }}
         WEBQA_STORAGE_STATE: ${{ inputs.storage-state }}
         WEBQA_FAIL_ON_WARN: ${{ inputs.fail-on-warn }}
+        WEBQA_BASELINE_REPORT: ${{ inputs.baseline-report }}
+        WEBQA_DELTA_GATE: ${{ inputs.delta-gate }}
+        WEBQA_ALLOW_TARGET_CHANGE: ${{ inputs.allow-target-change }}
+        WEBQA_ALLOW_CONFIGURATION_CHANGE: ${{ inputs.allow-configuration-change }}
         WEBQA_BROWSER_ENGINE: ${{ inputs.browser-engine }}
         WEBQA_BROWSER_CHANNEL: ${{ inputs.browser-channel }}
         EGO_WEBQA_HTTP_USERNAME: ${{ inputs.http-username }}
@@ -212,6 +232,16 @@ runs:
         if [[ "$WEBQA_FAIL_ON_WARN" == "true" ]]; then
           args+=(--fail-on-warn)
         fi
+        if [[ -n "$WEBQA_BASELINE_REPORT" ]]; then
+          args+=(--baseline-report "$WEBQA_BASELINE_REPORT")
+          args+=(--gate "$WEBQA_DELTA_GATE")
+        fi
+        if [[ "$WEBQA_ALLOW_TARGET_CHANGE" == "true" ]]; then
+          args+=(--allow-target-change)
+        fi
+        if [[ "$WEBQA_ALLOW_CONFIGURATION_CHANGE" == "true" ]]; then
+          args+=(--allow-configuration-change)
+        fi
         if [[ "$WEBQA_BROWSER_ENGINE" != "chromium" ]]; then
           args+=(--browser-engine "$WEBQA_BROWSER_ENGINE")
         fi
@@ -228,6 +258,69 @@ runs:
         path: ${{ inputs.out }}
         if-no-files-found: warn
         retention-days: ${{ inputs.retention-days }}
+
+    - name: Write job summary
+      if: ${{ always() }}
+      shell: bash
+      env:
+        WEBQA_OUT: ${{ inputs.out }}
+      run: |
+        set -euo pipefail
+        python - "$WEBQA_OUT" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+        import json
+        import pathlib
+        import sys
+
+        out = pathlib.Path(sys.argv[1])
+        summary_path = out / "feedback_bundle.json"
+        print("## ego-webqa delivery QA")
+        print()
+        if not summary_path.is_file():
+            print("No privacy-safe feedback bundle was produced. Review the audit log above.")
+            raise SystemExit(0)
+
+        bundle = json.loads(summary_path.read_text(encoding="utf-8"))
+        counts = bundle.get("counts", {})
+        print(f"**Status:** `{bundle.get('status', 'unknown')}`  ")
+        print(
+            f"**Findings:** {counts.get('error', 0)} blocking, "
+            f"{counts.get('warning', 0)} warnings, "
+            f"{counts.get('root_causes', 0)} root causes"
+        )
+        delta_path = out / "delta.json"
+        if delta_path.is_file():
+            delta = json.loads(delta_path.read_text(encoding="utf-8"))
+            delta_summary = delta.get("summary", {})
+            gate = delta.get("gate", {})
+            gate_state = "failed" if gate.get("failed") else "passed"
+            print(
+                f"**Baseline gate:** {gate_state} (`{gate.get('mode', 'unknown')}`) — "
+                f"{delta_summary.get('new', 0)} new, "
+                f"{delta_summary.get('changed', 0)} changed, "
+                f"{delta_summary.get('resolved', 0)} resolved"
+            )
+        print()
+        findings = bundle.get("findings", [])
+        if findings:
+            print("| Dimension | Blocks | Warnings | Viewports |")
+            print("|---|---:|---:|---:|")
+            for finding in findings[:20]:
+                viewport_count = len(finding.get("viewport_indexes", []))
+                print(
+                    f"| `{finding.get('dimension_id', 'unknown')}` "
+                    f"| {finding.get('block_count', 0)} "
+                    f"| {finding.get('warning_count', 0)} "
+                    f"| {viewport_count} |"
+                )
+            if len(findings) > 20:
+                print(f"\n{len(findings) - 20} additional root causes are in the artifact.")
+        print()
+        print(
+            "Review `feedback_bundle.json` before sharing. "
+            "This step intentionally excludes target URLs, selectors, page text, "
+            "messages, raw evidence, and screenshots."
+        )
+        PY
 
 branding:
   icon: check-circle

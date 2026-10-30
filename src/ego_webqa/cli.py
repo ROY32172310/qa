@@ -7,6 +7,7 @@ import json
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from . import __version__
 from .config import (
@@ -15,8 +16,16 @@ from .config import (
     apply_auth_environment,
     load_settings,
 )
+from .delta import (
+    DeltaCompatibilityError,
+    compare_reports,
+    load_report,
+    write_delta,
+)
 from .dimensions import registry_payload
+from .doctor import collect_doctor_report
 from .engine import AuditRuntimeError, audit
+from .feedback import build_feedback_bundle
 from .reporting import write_reports
 from .server import LocalServer
 
@@ -25,7 +34,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ego-webqa",
         description="Deterministic delivery QA for AI-generated web pages.",
-        epilog="Run 'ego-webqa mcp' to start the stdio MCP server.",
+        epilog=(
+            "Run 'ego-webqa doctor' to verify the installation, "
+            "'ego-webqa feedback' to prepare a privacy-safe issue report, or "
+            "'ego-webqa mcp' to start the stdio MCP server."
+        ),
     )
     parser.add_argument("url", nargs="?", help="page URL")
     parser.add_argument("--dir", help="serve this local directory during the audit")
@@ -116,6 +129,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="safe blocks smoke-test network requests; live permits real side effects",
     )
     parser.add_argument("--fail-on-warn", action="store_true", help="make warnings exit non-zero")
+    parser.add_argument(
+        "--baseline-report",
+        help="compare this run with an earlier report.json and write delta.json",
+    )
+    parser.add_argument(
+        "--gate",
+        choices=("none", "new"),
+        help="baseline gate mode (default: new when --baseline-report is provided)",
+    )
+    parser.add_argument(
+        "--allow-target-change",
+        action="store_true",
+        help="allow baseline comparison across different URLs or local directories",
+    )
+    parser.add_argument(
+        "--allow-configuration-change",
+        action="store_true",
+        help="allow baseline comparison across profiles, viewports, or browser runtimes",
+    )
     parser.add_argument("--json", action="store_true", help="print the complete JSON report")
     parser.add_argument(
         "--list-dimensions",
@@ -185,8 +217,171 @@ def _json_text(payload: object, encoding: str) -> str:
     return text
 
 
+def _doctor_main(arguments: Sequence[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ego-webqa doctor",
+        description="Verify the Python, MCP, Playwright, and browser installation.",
+    )
+    parser.add_argument(
+        "--browser-engine",
+        choices=("chromium", "firefox", "webkit"),
+        default="chromium",
+        help="browser engine to verify",
+    )
+    parser.add_argument(
+        "--browser-channel",
+        default="",
+        help="optional Chromium channel such as chrome or msedge",
+    )
+    parser.add_argument("--json", action="store_true", help="print JSON diagnostics")
+    args = parser.parse_args(list(arguments))
+    report = collect_doctor_report(args.browser_engine, args.browser_channel)
+    if args.json:
+        print(_json_text(report.to_dict(), sys.stdout.encoding or "utf-8"))
+    else:
+        print(f"ego-webqa doctor: {report.status.upper()}")
+        for check in report.checks:
+            print(f"  {check.status.upper():4} {check.id}: {check.message}")
+            if check.hint:
+                print(f"       {check.hint}")
+    return 0 if report.status == "ok" else 1
+
+
+def _feedback_main(arguments: Sequence[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ego-webqa feedback",
+        description=(
+            "Build a privacy-first feedback bundle from report.json. "
+            "Review the output before sharing it."
+        ),
+    )
+    parser.add_argument(
+        "--report",
+        default="webqa-report/report.json",
+        help="path to an ego-webqa report.json",
+    )
+    parser.add_argument("--out", help="output path (default: beside the input report)")
+    parser.add_argument(
+        "--include-target",
+        action="store_true",
+        help="include the audited URL or local path",
+    )
+    parser.add_argument(
+        "--include-selectors",
+        action="store_true",
+        help="include CSS selectors from issue evidence",
+    )
+    parser.add_argument(
+        "--include-messages",
+        action="store_true",
+        help="include issue messages, hints, and page text snippets",
+    )
+    parser.add_argument("--json", action="store_true", help="print the bundle to stdout")
+    args = parser.parse_args(list(arguments))
+    report_path = Path(args.report)
+    try:
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+        bundle = build_feedback_bundle(
+            payload,
+            include_target=args.include_target,
+            include_selectors=args.include_selectors,
+            include_messages=args.include_messages,
+        )
+        output_path = Path(args.out) if args.out else report_path.with_name("feedback_bundle.json")
+        if not args.json:
+            output_path.write_text(
+                _json_text(bundle, "utf-8") + "\n",
+                encoding="utf-8",
+            )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"ego-webqa: cannot build feedback bundle: {exc}", file=sys.stderr)
+        return 2
+
+    if args.json:
+        print(_json_text(bundle, sys.stdout.encoding or "utf-8"))
+    else:
+        print(f"feedback bundle: {output_path}")
+        print("Review it before sharing; omitted fields are listed in privacy.excluded_by_default.")
+    return 0
+
+
+def _delta_main(arguments: Sequence[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ego-webqa delta",
+        description="Compare two report.json files by stable root-cause fingerprint.",
+    )
+    parser.add_argument("--baseline", required=True, help="earlier report.json")
+    parser.add_argument("--current", required=True, help="current report.json")
+    parser.add_argument("--out", help="output path (default: beside the current report)")
+    parser.add_argument(
+        "--gate",
+        choices=("none", "new"),
+        default="new",
+        help="new fails only for new or expanding blocking root causes",
+    )
+    parser.add_argument(
+        "--fail-on-warn",
+        action="store_true",
+        help="also fail the gate for new or changed warnings",
+    )
+    parser.add_argument(
+        "--allow-target-change",
+        action="store_true",
+        help="allow comparison across different URLs or local directories",
+    )
+    parser.add_argument(
+        "--allow-configuration-change",
+        action="store_true",
+        help="allow comparison across profiles, viewports, or browser runtimes",
+    )
+    parser.add_argument("--json", action="store_true", help="print the delta JSON")
+    args = parser.parse_args(list(arguments))
+    try:
+        delta = compare_reports(
+            load_report(args.baseline),
+            load_report(args.current),
+            gate=args.gate,
+            fail_on_warn=args.fail_on_warn,
+            allow_target_change=args.allow_target_change,
+            allow_configuration_change=args.allow_configuration_change,
+        )
+        output_path = Path(args.out) if args.out else Path(args.current).with_name("delta.json")
+        if not args.json:
+            write_delta(delta, output_path)
+    except (DeltaCompatibilityError, ValueError, OSError) as exc:
+        print(f"ego-webqa: cannot compare reports: {exc}", file=sys.stderr)
+        return 2
+
+    if args.json:
+        print(_json_text(delta, sys.stdout.encoding or "utf-8"))
+    else:
+        _print_delta_summary(delta, output_path)
+    return 1 if delta["gate"]["failed"] else 0
+
+
+def _print_delta_summary(delta: dict[str, Any], output_path: Path) -> None:
+    summary = delta["summary"]
+    assert isinstance(summary, dict)
+    gate = delta["gate"]
+    assert isinstance(gate, dict)
+    status = "FAIL" if gate["failed"] else "PASS"
+    print(
+        f"[{status}] delta gate={gate['mode']}: "
+        f"{summary['new']} new, {summary['changed']} changed, "
+        f"{summary['persistent']} persistent, {summary['resolved']} resolved, "
+        f"{summary['blocking_regressions']} blocking regression(s)"
+    )
+    print(f"delta: {output_path}")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments[:1] == ["doctor"]:
+        return _doctor_main(arguments[1:])
+    if arguments[:1] == ["feedback"]:
+        return _feedback_main(arguments[1:])
+    if arguments[:1] == ["delta"]:
+        return _delta_main(arguments[1:])
     if arguments[:1] == ["mcp"]:
         if len(arguments) != 1:
             print("ego-webqa: the mcp command does not accept arguments", file=sys.stderr)
@@ -206,6 +401,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.url and args.dir:
         print("ego-webqa: provide either a URL or --dir, not both", file=sys.stderr)
         return 2
+    if args.gate and not args.baseline_report:
+        print("ego-webqa: --gate requires --baseline-report", file=sys.stderr)
+        return 2
+    baseline_report: dict[str, Any] | None = None
+    if args.baseline_report:
+        try:
+            baseline_report = load_report(args.baseline_report)
+        except DeltaCompatibilityError as exc:
+            print(f"ego-webqa: baseline report: {exc}", file=sys.stderr)
+            return 2
     try:
         cfg = _settings(args)
     except (OSError, ValueError) as exc:
@@ -235,7 +440,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             source["config"] = str(Path(args.config).resolve())
         report.settings["source"] = source
         artifacts = write_reports(report, args.out)
-    except (AuditRuntimeError, OSError, ValueError) as exc:
+        delta: dict[str, Any] | None = None
+        if baseline_report is not None:
+            delta = compare_reports(
+                baseline_report,
+                report.to_dict(),
+                gate=args.gate or "new",
+                fail_on_warn=cfg.fail_on_warn,
+                allow_target_change=args.allow_target_change,
+                allow_configuration_change=args.allow_configuration_change,
+            )
+            write_delta(delta, Path(args.out) / "delta.json")
+    except (AuditRuntimeError, DeltaCompatibilityError, OSError, ValueError) as exc:
         print(f"ego-webqa: {exc}", file=sys.stderr)
         return 2
     finally:
@@ -259,4 +475,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             if issue.hint:
                 print(f"          hint: {issue.hint}")
         print(f"artifacts: {artifacts['json']}")
+        if delta is not None:
+            _print_delta_summary(delta, Path(args.out) / "delta.json")
+    if delta is not None:
+        return 1 if delta["gate"]["failed"] else 0
     return 0 if report.status in ("pass", "warn") else 1

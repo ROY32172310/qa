@@ -27,16 +27,20 @@ Prefer to inspect a completed run first? Open the
 ```bash
 python -m pip install ego-webqa
 python -m playwright install chromium
+ego-webqa doctor
 ego-webqa https://your-preview.example --out .qa/first
 ```
 
-The command exits `0` for pass/warnings, `1` for blocking delivery defects, and
-`2` for an audit or browser failure. Each run leaves screenshots and structured
-evidence:
+`ego-webqa doctor` verifies Python, the MCP SDK, Playwright, the selected
+browser executable, and a real headless browser launch before an audit. The
+audit command exits `0` for pass/warnings, `1` for blocking delivery defects,
+and `2` for an audit or browser failure. Each run leaves screenshots and
+structured evidence:
 
 ```text
 .qa/first/
 ├── agent_summary.json   # one aggregated, repair-ready item per root cause
+├── feedback_bundle.json # privacy-safe summary for external issue reports
 ├── report.json
 ├── junit.xml
 ├── report.sarif
@@ -73,6 +77,8 @@ in the
 [vocabulary repair case study](docs/case-study-vocabulary-repair-2026-10-29.md).
 If you want to test the same loop on one of your pages, follow the
 [15-minute first-trial protocol](docs/first-trial.md).
+The [field feedback protocol](docs/field-feedback.md) defines how real cases
+are classified and converted into clean controls or benchmark fixtures.
 
 ## Why
 
@@ -161,6 +167,7 @@ artifact directory without rewriting paths:
 webqa-report/
 ├── report.json
 ├── agent_summary.json
+├── feedback_bundle.json
 ├── junit.xml
 ├── report.sarif
 └── screenshots/
@@ -173,6 +180,50 @@ aggregated by registered dimension, so the same root cause across several
 viewports produces one repair item with affected triggers and a reproducible
 command. MCP callers receive the same summary as structured content and as the
 short text result.
+
+`feedback_bundle.json` is the external-feedback view. By default it includes
+dimension ids, counts, sanitized viewport geometry, browser engine, and target
+type, but omits the target URL, local paths, custom viewport names, selectors,
+page text, messages, raw evidence, screenshots, and configuration contents.
+Review it before sharing. To deliberately add context for a private issue:
+
+```bash
+ego-webqa feedback --report webqa-report/report.json
+ego-webqa feedback --report webqa-report/report.json \
+  --include-target --include-selectors --include-messages \
+  --out webqa-report/feedback-with-context.json
+```
+
+The first command regenerates the default bundle beside the report. The second
+is an explicit opt-in and may contain page-sensitive data.
+
+### Baseline and regression gate
+
+Compare a run with a known-good report without maintaining screenshots. Stable
+fingerprints combine the registered dimension with its selector or root cause:
+
+```bash
+ego-webqa https://your-preview.example \
+  --out .qa/current \
+  --baseline-report .qa/known-good/report.json \
+  --gate new
+
+ego-webqa delta \
+  --baseline .qa/known-good/report.json \
+  --current .qa/current/report.json
+```
+
+The run writes `delta.json` with `new`, `persistent`, `changed`, and `resolved`
+root causes. `--gate new` fails only when a blocking root cause is new, becomes
+blocking, increases its blocking occurrences, or affects an additional viewport.
+Existing unresolved blockers remain visible but do not make an unchanged build
+fail again. Add `--fail-on-warn` to gate new or changed warnings as well.
+
+Both reports must use the same target source, profile, viewport matrix, browser
+engine, and browser channel. Intentional cross-target or cross-configuration
+comparisons require `--allow-target-change` and/or
+`--allow-configuration-change`. This is a deterministic finding delta, not a
+visual-regression baseline.
 
 Each repair item keeps the first evidence object for compatibility and an
 `evidence_by_viewport` map for the complete cross-viewport evidence. Network
@@ -473,7 +524,8 @@ acceptance criteria.
 
 This repository is also a composite GitHub Action. The Action installs the
 package from the Action ref, installs the selected browser engine (Chromium by
-default), runs the audit, and uploads the report even when the audit fails:
+default), runs the audit, uploads the report even when the audit fails, and
+writes a concise privacy-safe root-cause table to the job summary:
 
 ```yaml
 jobs:
@@ -490,6 +542,8 @@ jobs:
           smoke-scope: all
           smoke-require-assertion: "true"
           smoke-success-selector: "#thank-you"
+          baseline-report: .qa/known-good/report.json
+          delta-gate: new
           http-username: ${{ secrets.PREVIEW_USERNAME }}
           http-password: ${{ secrets.PREVIEW_PASSWORD }}
           extra-http-headers: ${{ secrets.PREVIEW_HEADERS_JSON }}

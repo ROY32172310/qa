@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- Add `ego-webqa doctor` to verify Python, MCP, Playwright, browser binaries,
+  system browser channels, and a real headless launch before running an audit.
+- Generate a default `feedback_bundle.json` whose allowlist omits target URLs,
+  local paths, custom viewport names, selectors, page text, messages, raw
+  evidence, screenshots, and configuration contents. Explicit CLI flags can
+  add contextual fields for private issue reports.
+- Render a concise root-cause table in the GitHub Action job summary from the
+  privacy-safe feedback bundle instead of copying the full Agent report.
+- Add baseline/delta report comparison with stable dimension-plus-root
+  fingerprints, strict target/configuration/browser compatibility, and
+  `new`, `persistent`, `changed`, and `resolved` classification.
+- Add `--baseline-report ... --gate new` to the audit CLI and composite Action.
+  Unchanged blocking debt remains visible without failing every rerun; new or
+  expanding blocking roots fail the gate.
+
 ## 0.7.0 - 2026-10-30
 
 - Add the advisory `clipped_text` geometry check for visible text hidden by an
