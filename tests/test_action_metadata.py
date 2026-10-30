@@ -173,7 +173,7 @@ def test_readme_action_example_uses_current_runtime_and_release() -> None:
     assert f"uses: ROY32172310/qa@v{__version__}" in readme
 
 
-def test_release_workflow_publishes_github_release_after_pypi() -> None:
+def test_release_workflow_publishes_github_release_after_pypi_and_registry() -> None:
     workflow = yaml.safe_load(
         (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     )
@@ -186,7 +186,7 @@ def test_release_workflow_publishes_github_release_after_pypi() -> None:
     assert pypi_step["with"]["skip-existing"] is True
 
     github_release = jobs["github-release"]
-    assert github_release["needs"] == "publish"
+    assert github_release["needs"] == ["publish", "mcp-registry"]
     assert github_release["permissions"]["contents"] == "write"
     assert any(
         step.get("uses") == "actions/download-artifact@v5"

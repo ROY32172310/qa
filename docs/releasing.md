@@ -35,10 +35,11 @@ checks the Python artifact metadata. It also invokes the checked-in composite
 Action twice against a clean local fixture: the first run creates a baseline,
 the second must pass a `quick` matrix, explicit smoke assertion, baseline delta
 gate, and privacy-safe job summary. It then publishes the Python distributions
-to PyPI through OIDC, publishes `server.json` to the MCP Registry through GitHub
-OIDC, and creates a GitHub Release with the wheel, source archive, and Agensi
-ZIP attached. PyPI uploads and Registry metadata publication are idempotent so
-a failed downstream job can be retried safely.
+to PyPI through OIDC and publishes `server.json` to the MCP Registry through
+GitHub OIDC. Only after both publications succeed does it create a GitHub
+Release with the wheel, source archive, and Agensi ZIP attached. PyPI uploads
+and Registry metadata publication are idempotent so a failed downstream job can
+be retried safely.
 
 The Agensi ZIP includes the local MCP configuration template and is pinned to
 the package version. Its reproducible build can be checked locally:

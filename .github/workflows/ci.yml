@@ -242,7 +242,7 @@ jobs:
           delta-gate: new
           install-browser: "false"
           upload-artifact: "false"
-      - name: Verify Action outputs and job summary
+      - name: Verify Action artifacts
         shell: bash
         run: >-
           python scripts/verify_action_smoke.py

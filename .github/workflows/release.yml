@@ -78,7 +78,7 @@ jobs:
           delta-gate: new
           install-browser: "false"
           upload-artifact: "false"
-      - name: Verify release Action outputs and job summary
+      - name: Verify release Action artifacts
         shell: bash
         run: >-
           python scripts/verify_action_smoke.py
@@ -161,7 +161,9 @@ jobs:
         run: ./mcp-publisher publish
 
   github-release:
-    needs: publish
+    needs:
+      - publish
+      - mcp-registry
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -2,6 +2,9 @@
 
 ## 0.8.0 - 2026-10-30
 
+- Require both PyPI Trusted Publishing and official MCP Registry publication
+  to succeed before the release workflow creates a GitHub Release, preventing
+  a successful-looking release with missing registry metadata.
 - Build a reproducible Agensi marketplace ZIP with required artifact checks,
   exact MCP-version pinning, CI verification, and GitHub Release attachment.
 - Exercise the composite GitHub Action end to end in CI and release builds
