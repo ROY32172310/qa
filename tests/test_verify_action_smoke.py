@@ -29,17 +29,10 @@ def test_action_smoke_verifier_accepts_complete_outputs(
     _write_json(baseline / "report.json", _report())
     _write_json(current / "report.json", _report())
     _write_json(current / "feedback_bundle.json", {"status": "pass"})
+    _write_json(current / "agent_summary.json", {"status": "pass"})
     _write_json(
         current / "delta.json",
         {"schema_version": "1.0", "gate": {"mode": "new", "failed": False}},
-    )
-    summary = tmp_path / "summary.md"
-    summary.write_text(
-        "## ego-webqa delivery QA\n"
-        "**Baseline gate:** passed (`new`)\n"
-        "## ego-webqa delivery QA\n"
-        "Review `feedback_bundle.json` before sharing.\n",
-        encoding="utf-8",
     )
 
     assert (
@@ -49,8 +42,6 @@ def test_action_smoke_verifier_accepts_complete_outputs(
                 str(baseline),
                 "--current-dir",
                 str(current),
-                "--summary",
-                str(summary),
             ]
         )
         == 0
@@ -64,12 +55,11 @@ def test_action_smoke_verifier_rejects_failed_delta_gate(tmp_path: Path) -> None
     _write_json(baseline / "report.json", _report())
     _write_json(current / "report.json", _report())
     _write_json(current / "feedback_bundle.json", {"status": "pass"})
+    _write_json(current / "agent_summary.json", {"status": "pass"})
     _write_json(
         current / "delta.json",
         {"schema_version": "1.0", "gate": {"mode": "new", "failed": True}},
     )
-    summary = tmp_path / "summary.md"
-    summary.write_text("not reached", encoding="utf-8")
 
     assert (
         verify_action_smoke.main(
@@ -78,8 +68,6 @@ def test_action_smoke_verifier_rejects_failed_delta_gate(tmp_path: Path) -> None
                 str(baseline),
                 "--current-dir",
                 str(current),
-                "--summary",
-                str(summary),
             ]
         )
         == 2

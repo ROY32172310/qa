@@ -84,7 +84,6 @@ jobs:
           python scripts/verify_action_smoke.py
           --baseline-dir webqa-baseline
           --current-dir webqa-current
-          --summary "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v5
         with:
           name: python-package

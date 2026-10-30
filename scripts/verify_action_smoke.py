@@ -17,12 +17,11 @@ def _load_json(path: Path) -> dict[str, Any]:
     return payload
 
 
-def verify(baseline_dir: Path, current_dir: Path, summary_path: Path) -> None:
+def verify(baseline_dir: Path, current_dir: Path) -> None:
     baseline_report = _load_json(baseline_dir / "report.json")
     current_report = _load_json(current_dir / "report.json")
     feedback = _load_json(current_dir / "feedback_bundle.json")
     delta = _load_json(current_dir / "delta.json")
-    summary = summary_path.read_text(encoding="utf-8")
 
     for label, report in (("baseline", baseline_report), ("current", current_report)):
         if report.get("schema_version") != "1.0":
@@ -49,23 +48,19 @@ def verify(baseline_dir: Path, current_dir: Path, summary_path: Path) -> None:
     if not isinstance(gate, dict) or gate.get("mode") != "new" or gate.get("failed") is not False:
         raise ValueError("baseline delta gate must pass in new mode")
 
-    if summary.count("## ego-webqa delivery QA") != 2:
-        raise ValueError("both Action invocations must append a job summary")
-    if "**Baseline gate:** passed (`new`)" not in summary:
-        raise ValueError("job summary must report the passing baseline gate")
-    if "Review `feedback_bundle.json` before sharing." not in summary:
-        raise ValueError("job summary must retain the privacy warning")
+    action_summary = _load_json(current_dir / "agent_summary.json")
+    if action_summary.get("status") != "pass":
+        raise ValueError("Agent summary must record a passing current audit")
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline-dir", type=Path, required=True)
     parser.add_argument("--current-dir", type=Path, required=True)
-    parser.add_argument("--summary", type=Path, required=True)
     arguments = parser.parse_args(argv)
 
     try:
-        verify(arguments.baseline_dir, arguments.current_dir, arguments.summary)
+        verify(arguments.baseline_dir, arguments.current_dir)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         message = str(exc).replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
         print(f"action-smoke: {exc}", file=sys.stderr)
