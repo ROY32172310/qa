@@ -627,12 +627,18 @@ semantics. Product-specific checks belong in plugins, not in the core.
 
 ## Benchmark and trust
 
-The repository includes a public synthetic benchmark. The working tree contains
-128 independent cases across narrow, mobile, tablet, and desktop variants,
-with positive controls and clean controls for all 38 registered dimensions,
-including bounded flows and the accessibility profile. Ground truth is declared
-per scenario; the evaluator does not import detector thresholds to decide
-whether a result is correct.
+The repository separates a controlled local regression benchmark from
+real-world public-network observation:
+
+- `benchmarks/` runs 128 independent synthetic cases across narrow, mobile,
+  tablet, and desktop variants. It is the serial Chromium latency baseline and
+  the correctness corpus for all 38 registered dimensions.
+- `dogfood/` runs a fixed real-page sample and reports `url` and `local`
+  outcomes separately. It is observational evidence, not a latency threshold,
+  because network and target-site behavior change outside the tool's control.
+
+Ground truth is declared per benchmark scenario; the evaluator does not import
+detector thresholds to decide whether a result is correct.
 
 ```bash
 python benchmarks/run.py
@@ -651,6 +657,8 @@ CI fixture for a clean page and a deterministic overflow failure. The
 benchmark's value is regression pressure: its first run exposed a real
 `accessibility` profile crash on standard `<label>` markup and duplicate CTA
 root-cause reporting; both were fixed before the baseline was recorded.
+See [`docs/performance-baselines.md`](docs/performance-baselines.md) for the
+measurement contract and the two evidence classes.
 
 ## Development
 
@@ -665,7 +673,7 @@ python scripts/dev.py typecheck
 python scripts/dev.py benchmark
 python scripts/dev.py package
 python scripts/dev.py check   # lint + format + MyPy + covered tests
-python scripts/dev.py full    # check + public Chromium benchmark
+python scripts/dev.py full    # check + controlled local Chromium benchmark
 ```
 
 The same `scripts/dev.py` entry point is used by GitHub Actions on Linux,

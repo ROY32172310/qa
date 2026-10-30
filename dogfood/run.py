@@ -474,13 +474,29 @@ def _nearest_rank(values: Sequence[int], percentile: int) -> int | None:
     return ordered[min(index, len(ordered) - 1)]
 
 
-def _metrics(results: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def _runtime_metrics(results: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     successful = [item for item in results if not item.get("runtime_error")]
     durations = [
         int(item["wall_duration_ms"])
         for item in successful
         if isinstance(item.get("wall_duration_ms"), int)
     ]
+    return {
+        "cases": len(results),
+        "successful_audits": len(successful),
+        "runtime_errors": len(results) - len(successful),
+        "completion_rate": round(len(successful) / len(results), 4) if results else 0.0,
+        "runtime_ms": {
+            "count": len(durations),
+            "p50": _nearest_rank(durations, 50),
+            "p95": _nearest_rank(durations, 95),
+            "max": max(durations) if durations else None,
+        },
+    }
+
+
+def _metrics(results: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    successful = [item for item in results if not item.get("runtime_error")]
     statuses = Counter(str(item.get("status")) for item in successful)
     finding_codes = Counter(
         code
@@ -488,19 +504,18 @@ def _metrics(results: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         for code in item.get("finding_codes", [])
         if isinstance(code, str)
     )
-    return {
-        "cases": len(results),
-        "successful_audits": len(successful),
-        "runtime_errors": len(results) - len(successful),
+    metrics: dict[str, Any] = {
+        **_runtime_metrics(results),
         "statuses": dict(sorted(statuses.items())),
         "total_issues": sum(int(item.get("issue_count", 0)) for item in successful),
-        "runtime_ms": {
-            "p50": _nearest_rank(durations, 50),
-            "p95": _nearest_rank(durations, 95),
-            "max": max(durations) if durations else None,
-        },
         "finding_codes": dict(sorted(finding_codes.items())),
     }
+    metrics["by_source"] = {
+        kind: _runtime_metrics([item for item in results if item.get("kind") == kind])
+        for kind in ("url", "local")
+        if any(item.get("kind") == kind for item in results)
+    }
+    return metrics
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -528,13 +543,33 @@ def _render_markdown(manifest: DogfoodManifest, results: Sequence[Mapping[str, A
         f"- Cases: {metrics['cases']}",
         f"- Successful audits: {metrics['successful_audits']}",
         f"- Runtime errors: {metrics['runtime_errors']}",
+        f"- Completion rate: {metrics['completion_rate']:.2%}",
+        "- Execution profile: `real-world-mixed`",
+        "- Latency role: `observational`",
         f"- Statuses: {json.dumps(metrics['statuses'], ensure_ascii=False)}",
         f"- Total issues: {metrics['total_issues']}",
-        f"- P50/P95/max: {runtime['p50']}/{runtime['p95']}/{runtime['max']} ms",
+        f"- P50/P95/max completed runtime: "
+        f"{runtime['p50']}/{runtime['p95']}/{runtime['max']} ms",
         "",
-        "| Case | Smoke | Categories | Result | Issues | Wall time | Finding codes |",
-        "|---|---|---|---:|---:|---:|---|",
+        "| Source group | Cases | Completed | Errors | Completion | P50/P95/max |",
+        "|---|---:|---:|---:|---:|---:|",
     ]
+    source_labels = {"url": "public URL", "local": "local artifact"}
+    for kind, source_metrics in metrics["by_source"].items():
+        source_runtime = source_metrics["runtime_ms"]
+        lines.append(
+            f"| {source_labels[kind]} | {source_metrics['cases']} | "
+            f"{source_metrics['successful_audits']} | {source_metrics['runtime_errors']} | "
+            f"{source_metrics['completion_rate']:.2%} | "
+            f"{source_runtime['p50']}/{source_runtime['p95']}/{source_runtime['max']} ms |"
+        )
+    lines.extend(
+        [
+            "",
+            "| Case | Smoke | Categories | Result | Issues | Wall time | Finding codes |",
+            "|---|---|---|---:|---:|---:|---|",
+        ]
+    )
     for item in results:
         result = "runtime error" if item.get("runtime_error") else str(item.get("status"))
         codes = ", ".join(item.get("finding_codes", [])) or "-"
@@ -635,6 +670,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             "platform": platform.platform(),
             "ego_webqa_version": __version__,
             "browser_channel": args.browser_channel or "playwright-default",
+            "execution_profile": "real-world-mixed",
+            "latency_role": "observational",
+            "latency_comparable": False,
         },
         "manifest": {
             "path": str(manifest.path),
@@ -654,7 +692,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(
         f"dogfood: {metrics['successful_audits']}/{metrics['cases']} audited, "
         f"{metrics['runtime_errors']} runtime error(s), "
-        f"P50={metrics['runtime_ms']['p50']}ms, P95={metrics['runtime_ms']['p95']}ms"
+        f"completed-run P50={metrics['runtime_ms']['p50']}ms, "
+        f"P95={metrics['runtime_ms']['p95']}ms"
     )
     print(f"dogfood: evidence {output / 'result.json'}")
     return 1 if metrics["runtime_errors"] else 0

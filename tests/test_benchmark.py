@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 import pytest
 
+from benchmarks import run as benchmark_run
 from benchmarks.eval import (
     BenchmarkCase,
     BenchmarkConfigError,
@@ -136,8 +137,30 @@ def test_markdown_report_is_honest_about_scope() -> None:
             "git_commit": "abc",
             "suite_sha256": "def",
             "browser": "chromium",
+            "execution_profile": "controlled-local",
+            "latency_role": "regression",
         },
     )
     assert "# ego-webqa benchmark" in markdown
     assert "not evidence of real-site coverage" in markdown
+    assert "Execution profile: `controlled-local`" in markdown
+    assert "Latency role: `regression`" in markdown
     assert "42" in markdown
+
+
+def test_benchmark_environment_marks_serial_latency_as_regression_only() -> None:
+    common = {
+        "suite_sha256": "suite",
+        "generated_at": "2026-10-30T00:00:00+00:00",
+        "browser": "chromium",
+        "wall_ms": 100,
+    }
+
+    serial = benchmark_run._environment(**common, jobs=1)
+    parallel = benchmark_run._environment(**common, jobs=4)
+
+    assert serial["execution_profile"] == "controlled-local"
+    assert serial["latency_role"] == "regression"
+    assert serial["latency_comparable"] is True
+    assert parallel["latency_role"] == "throughput-only"
+    assert parallel["latency_comparable"] is False

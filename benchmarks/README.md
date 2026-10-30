@@ -1,8 +1,11 @@
-# Public delivery benchmark
+# Controlled local delivery benchmark
 
 This directory is a reproducible regression benchmark for `ego-webqa`. It
 contains curated positive and clean-control fixtures, a versioned manifest, a
 real-Chromium runner, and an evaluator independent of detector thresholds.
+It is the controlled-local baseline: serial runtime is comparable only within
+this corpus and machine profile. Real-world URL observations belong to the
+separate dogfood runner and must not be compared with these thresholds.
 
 ## Run
 
@@ -89,7 +92,8 @@ hide an important failure:
   emit none.
 - **Dimension TP/FP/FN:** per-dimension behavior across every expanded case.
 - **Runtime P50/P95/max:** complete `audit()` wall time, including browser and
-  artifact overhead.
+  artifact overhead. This is a regression signal only for serial controlled
+  fixtures; parallel runs are marked throughput-only.
 
 Unexpected warnings on positive cases still make that case non-exact. This is
 intentional: an extra root cause can send an Agent to repair unrelated code.
@@ -97,7 +101,7 @@ intentional: an extra root cause can send an Agent to repair unrelated code.
 ## Boundaries
 
 The fixtures are synthetic and run only in local Chromium. A perfect result is
-not evidence of real-site coverage, browser-engine parity, business
-correctness, security, or WCAG conformance. Add adversarial clean controls when
-real projects expose a false positive; do not silently duplicate a detector
-threshold into the expected result.
+not evidence of real-site coverage, public-network latency, browser-engine
+parity, business correctness, security, or WCAG conformance. Add adversarial
+clean controls when real projects expose a false positive; do not silently
+duplicate a detector threshold into the expected result.

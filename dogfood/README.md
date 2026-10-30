@@ -1,9 +1,14 @@
-# Real-world dogfood sample
+# Real-world observational dogfood sample
 
 This directory records a fixed sample of Ego-owned production pages and
 canonical generated artifacts. Its purpose is to measure whether `ego-webqa`
 finds actionable delivery defects on real pages before the detector registry is
 expanded.
+
+This is an observational profile, not a release latency threshold. It reports
+public URL and local artifact results separately. Public-network timing can
+change independently of the tool, so completion rate and runtime errors remain
+first-class outcomes and failed cases are never hidden inside a combined P95.
 
 The sample deliberately excludes:
 
@@ -53,8 +58,9 @@ dogfood-results/<timestamp>/
    the tool; record each miss as `FN`. A clean report is not proof by itself.
 4. Record whether the repair suggestion is specific enough for an Agent to act
    on, and whether a second run confirms the repair.
-5. Report P50/P95 runtime from serial execution. Parallel runs are throughput
-   evidence, not latency evidence.
+5. Report P50/P95 completed runtime from serial execution and keep `url` and
+   `local` groups separate. This is real-world observation, not a controlled
+   regression baseline; never compare it directly with the local fixture P95.
 
 Ground truth is manually established from the page and screenshot evidence. The
 runner only collects observations; it does not label real-world findings.

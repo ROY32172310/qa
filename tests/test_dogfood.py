@@ -227,6 +227,7 @@ def test_run_case_writes_flow_config_and_uses_it(
 def test_metrics_use_nearest_rank_runtime_and_count_findings() -> None:
     results = [
         {
+            "kind": "local",
             "status": "pass",
             "wall_duration_ms": duration,
             "issue_count": issues,
@@ -238,15 +239,69 @@ def test_metrics_use_nearest_rank_runtime_and_count_findings() -> None:
             (300, 2, ["overflow", "dead_primary_cta"]),
         )
     ]
-    results.append({"wall_duration_ms": 9_999, "runtime_error": "failed"})
+    results.append(
+        {
+            "kind": "url",
+            "wall_duration_ms": 9_999,
+            "runtime_error": "failed",
+        }
+    )
 
     metrics = run._metrics(results)
 
     assert metrics["successful_audits"] == 3
     assert metrics["runtime_errors"] == 1
+    assert metrics["completion_rate"] == 0.75
     assert metrics["total_issues"] == 3
-    assert metrics["runtime_ms"] == {"p50": 200, "p95": 300, "max": 300}
+    assert metrics["runtime_ms"] == {"count": 3, "p50": 200, "p95": 300, "max": 300}
     assert metrics["finding_codes"] == {"dead_primary_cta": 1, "overflow": 2}
+    assert metrics["by_source"]["local"] == {
+        "cases": 3,
+        "successful_audits": 3,
+        "runtime_errors": 0,
+        "completion_rate": 1.0,
+        "runtime_ms": {"count": 3, "p50": 200, "p95": 300, "max": 300},
+    }
+    assert metrics["by_source"]["url"] == {
+        "cases": 1,
+        "successful_audits": 0,
+        "runtime_errors": 1,
+        "completion_rate": 0.0,
+        "runtime_ms": {"count": 0, "p50": None, "p95": None, "max": None},
+    }
+
+
+def test_markdown_keeps_public_and_local_runtime_groups_separate() -> None:
+    manifest = run.DogfoodManifest(Path("cases.json"), "sha", "sample", ())
+    results = [
+        {
+            "id": "public",
+            "kind": "url",
+            "status": "pass",
+            "wall_duration_ms": 900,
+            "issue_count": 0,
+            "finding_codes": [],
+            "smoke_mode": "disabled",
+            "categories": ["landing"],
+        },
+        {
+            "id": "local",
+            "kind": "local",
+            "status": "warn",
+            "wall_duration_ms": 200,
+            "issue_count": 1,
+            "finding_codes": ["tiny_fonts"],
+            "smoke_mode": "disabled",
+            "categories": ["tool"],
+        },
+    ]
+
+    markdown = run._render_markdown(manifest, results)
+
+    assert "Execution profile: `real-world-mixed`" in markdown
+    assert "Latency role: `observational`" in markdown
+    assert "| public URL | 1 | 1 | 0 | 100.00% | 900/900/900 ms |" in markdown
+    assert "| local artifact | 1 | 1 | 0 | 100.00% | 200/200/200 ms |" in markdown
 
 
 def test_case_timeout_is_recorded_without_killing_the_batch(

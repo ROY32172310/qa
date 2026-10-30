@@ -271,6 +271,8 @@ def _environment(
         "platform": platform.platform(),
         "machine": platform.machine(),
         "jobs": jobs,
+        "execution_profile": "controlled-local",
+        "latency_role": "regression" if jobs == 1 else "throughput-only",
         "latency_comparable": jobs == 1,
         "wall_ms": wall_ms,
     }

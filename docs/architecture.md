@@ -175,10 +175,15 @@ runtime dependency, while the `mcp` extra adds the protocol SDK for agent hosts.
 
 `benchmarks/` is deliberately outside the installed package. Its suite declares
 expected dimensions and clean controls; its runner invokes the public `audit()`
-API against real local Chromium. The evaluator imports only the closed
-dimension registry to validate IDs and default severity. It does not import
-thresholds or detector branches, keeping the benchmark independent of the code
-under test.
+API against real local Chromium. Serial wall time is the controlled-local
+regression baseline; parallel runs are marked throughput-only. The evaluator
+imports only the closed dimension registry to validate IDs and default severity.
+It does not import thresholds or detector branches, keeping the benchmark
+independent of the code under test.
+
+`dogfood/` is a separate observational profile over real public URLs and local
+artifacts. It reports completion and runtime by source group because public
+network behavior is not comparable with the controlled fixture threshold.
 
 ## Development quality gate
 
@@ -193,7 +198,7 @@ and CI resolve the same package.
 - `lint`: Ruff;
 - `format-check`: Black check mode;
 - `typecheck`: MyPy over the package, development script, and benchmark;
-- `benchmark`: the complete public Chromium corpus;
+- `benchmark`: the complete controlled-local Chromium corpus;
 - `package`: build and validate wheel/source distributions;
 - `check`: lint, formatting, types, and covered tests;
 - `full`: `check` followed by the complete benchmark.

@@ -24,6 +24,10 @@
   definitions and select one for a run through CLI, MCP, or the GitHub Action.
   Every definition is validated; only the selected flow executes and reports
   retain the selected name without exposing unselected flow contents.
+- Separate controlled-local benchmark latency from real-world dogfood
+  observation. Benchmark results now mark serial latency as a regression
+  signal; dogfood marks latency as observational and reports public URL and
+  local artifact completion/runtime metrics separately.
 
 ## 0.7.0 - 2026-10-30
 

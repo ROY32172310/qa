@@ -1,9 +1,10 @@
-# Public benchmark baseline — ego-webqa 0.7.0
+# Controlled-local benchmark baseline — ego-webqa 0.7.0
 
-The 0.7.0 baseline extends the public deterministic corpus with positive and
-clean controls for the advisory `clipped_text` dimension. It also covers the
-bounded `expect_text` smoke assertion, navigation-replacement retries, and the
-real-page dogfood path exercised by the release candidate.
+The 0.7.0 baseline extends the controlled-local deterministic corpus with
+positive and clean controls for the advisory `clipped_text` dimension. It also
+covers the bounded `expect_text` smoke assertion and navigation-replacement
+retries. Real-page behavior is recorded separately as observational dogfood
+evidence.
 
 ## Environment
 
@@ -14,6 +15,7 @@ real-page dogfood path exercised by the release candidate.
 | Python | `3.11.16` |
 | Platform | Linux x86_64, glibc `2.39` |
 | Execution | Serial, `--jobs 1` |
+| Performance role | Controlled-local regression baseline |
 | Suite SHA-256 | `867fee7d62385b32d3ea82087274c65e8cf420e0740342e2bccee59ec6f593f8` |
 
 ## Result

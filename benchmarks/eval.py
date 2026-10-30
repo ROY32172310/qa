@@ -449,6 +449,8 @@ def render_markdown(result: Mapping[str, Any], environment: Mapping[str, Any]) -
         f"- Commit: `{environment.get('git_commit', '')}`",
         f"- Suite SHA-256: `{environment.get('suite_sha256', '')}`",
         f"- Browser: `{environment.get('browser', '')}`",
+        f"- Execution profile: `{environment.get('execution_profile', '')}`",
+        f"- Latency role: `{environment.get('latency_role', '')}`",
         "",
         "## Result",
         "",
@@ -494,10 +496,10 @@ def render_markdown(result: Mapping[str, Any], environment: Mapping[str, Any]) -
             "",
             "## Scope",
             "",
-            "This benchmark covers curated synthetic fixtures and local Chromium. "
-            "It measures detector correctness and latency on those fixtures; it is not "
-            "evidence of real-site coverage, cross-browser parity, security, business "
-            "correctness, or WCAG conformance.",
+            "This controlled-local benchmark covers curated synthetic fixtures and local "
+            "Chromium. Serial latency is a regression baseline for that corpus only. It is "
+            "not evidence of real-site coverage, public-network latency, cross-browser "
+            "parity, security, business correctness, or WCAG conformance.",
             "",
         ]
     )
