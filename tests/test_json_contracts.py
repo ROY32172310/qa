@@ -20,6 +20,189 @@ from ego_webqa.reporting import build_agent_summary
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_FIXTURES = ROOT / "tests" / "fixtures" / "contracts" / "v1.0"
 _SEMVER = re.compile(r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)$")
+V1_REQUIRED_FIELDS = {
+    "report": {
+        "": {
+            "schema_version",
+            "tool",
+            "target",
+            "status",
+            "counts",
+            "started_at",
+            "duration_ms",
+            "issues",
+            "viewports",
+            "smoke",
+            "smoke_runs",
+            "screenshots",
+            "settings",
+            "runtime",
+        },
+        "/properties/counts": {"error", "warning"},
+        "/properties/issues/items": {
+            "code",
+            "severity",
+            "viewport",
+            "message",
+            "hint",
+            "evidence",
+        },
+    },
+    "agent-summary": {
+        "": {
+            "schema_version",
+            "tool",
+            "target",
+            "status",
+            "failed_items",
+            "summary",
+            "scope_statement",
+        },
+        "/properties/failed_items/items": {
+            "dimension_id",
+            "dimension_version",
+            "detector",
+            "default_severity",
+            "severity",
+            "selector",
+            "selectors",
+            "text_snippet",
+            "trigger",
+            "triggers",
+            "problem",
+            "problems",
+            "suggestion",
+            "reproduce",
+            "occurrences",
+            "evidence",
+            "evidence_by_viewport",
+        },
+        "/properties/summary": {
+            "total_block",
+            "total_warn",
+            "unique_root_causes",
+            "affected_viewports",
+            "duration_ms",
+            "overridden_dimensions",
+            "downgraded_blocks",
+            "expired_overrides",
+        },
+    },
+    "dimensions": {
+        "": {"schema_version", "dimensions"},
+        "/properties/dimensions/items": {
+            "id",
+            "version",
+            "description",
+            "detector",
+            "default_severity",
+            "introduced_in",
+            "profile",
+            "parameters",
+            "deprecated_in",
+        },
+    },
+    "feedback-bundle": {
+        "": {
+            "bundle_schema_version",
+            "tool",
+            "tool_version",
+            "report_schema_version",
+            "status",
+            "duration_ms",
+            "target_kind",
+            "counts",
+            "settings",
+            "runtime",
+            "viewports",
+            "findings",
+            "privacy",
+        },
+        "/properties/counts": {"error", "warning", "root_causes"},
+        "/properties/viewports/items": {
+            "index",
+            "width",
+            "height",
+            "text_scale",
+            "safe_area_bottom_px",
+            "has_touch",
+        },
+        "/properties/findings/items": {
+            "dimension_id",
+            "dimension_version",
+            "detector",
+            "default_severity",
+            "block_count",
+            "warning_count",
+            "occurrences",
+            "viewport_indexes",
+        },
+        "/properties/privacy": {
+            "target_included",
+            "selectors_included",
+            "messages_included",
+            "excluded_by_default",
+        },
+    },
+    "delta": {
+        "": {
+            "schema_version",
+            "tool",
+            "status",
+            "gate",
+            "compatibility",
+            "baseline",
+            "current",
+            "summary",
+            "changes",
+        },
+        "/properties/gate": {"mode", "failed"},
+        "/properties/compatibility": {
+            "target_matches",
+            "configuration_matches",
+            "runtime_matches",
+            "target_change_allowed",
+            "configuration_change_allowed",
+        },
+        "/$defs/reportIdentity": {
+            "target_kind",
+            "status",
+            "counts",
+            "duration_ms",
+            "runtime",
+        },
+        "/properties/summary": {
+            "new",
+            "persistent",
+            "changed",
+            "resolved",
+            "total_changes",
+            "blocking_regressions",
+        },
+        "/properties/changes/items": {
+            "fingerprint",
+            "dimension_id",
+            "dimension_version_after",
+            "dimension_version_before",
+            "change_type",
+            "block_count_before",
+            "block_count_after",
+            "warning_count_before",
+            "warning_count_after",
+            "occurrences_before",
+            "occurrences_after",
+            "viewports_before",
+            "viewports_after",
+            "selectors",
+            "problem",
+            "gate_failed",
+        },
+    },
+    "doctor": {
+        "": {"schema_version", "tool", "status", "runtime", "checks"},
+        "/properties/checks/items": {"id", "status", "message", "hint"},
+    },
+}
 
 
 def _report_object() -> AuditReport:
@@ -59,6 +242,14 @@ def _validate(name: str, payload: dict[str, Any]) -> None:
     Draft202012Validator(load_schema(name)).validate(payload)
 
 
+def _schema_node(schema: dict[str, Any], pointer: str) -> dict[str, Any]:
+    node: Any = schema
+    for token in pointer.lstrip("/").split("/") if pointer else ():
+        node = node[token.replace("~1", "/").replace("~0", "~")]
+    assert isinstance(node, dict), pointer
+    return node
+
+
 def _assert_deprecation_annotations(node: Any, path: str = "$") -> None:
     if isinstance(node, dict):
         if node.get("deprecated") is True:
@@ -95,6 +286,15 @@ def test_every_packaged_schema_is_a_valid_draft_2020_12_schema(name: str) -> Non
     Draft202012Validator.check_schema(schema)
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     assert schema["$id"].endswith(f"/{name}.schema.json")
+
+
+@pytest.mark.parametrize("name", SCHEMA_NAMES)
+def test_v1_required_field_shapes_are_frozen(name: str) -> None:
+    schema = load_schema(name)
+
+    for pointer, expected in V1_REQUIRED_FIELDS[name].items():
+        node = _schema_node(schema, pointer)
+        assert set(node.get("required", [])) == expected, f"{name}:{pointer or '/'}"
 
 
 @pytest.mark.parametrize("name", SCHEMA_NAMES)
