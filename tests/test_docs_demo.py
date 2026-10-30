@@ -82,6 +82,6 @@ def test_pages_workflow_publishes_only_the_static_demo() -> None:
     workflow = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
 
     assert "path: docs/demo" in workflow
-    assert "actions/upload-pages-artifact@v3" in workflow
-    assert "actions/deploy-pages@v4" in workflow
+    assert "actions/upload-pages-artifact@v4" in workflow
+    assert "actions/deploy-pages@v5" in workflow
     assert "enablement: true" in workflow

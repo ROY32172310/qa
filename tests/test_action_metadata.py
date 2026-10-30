@@ -78,8 +78,8 @@ def test_composite_action_metadata_and_input_safety() -> None:
     assert '--smoke-flow-name "$WEBQA_SMOKE_FLOW_NAME"' in script
     assert "EGO_WEBQA_HTTP_PASSWORD" not in script
     python_step = next(step for step in steps if step.get("name") == "Set up Python")
-    assert python_step["uses"] == "actions/setup-python@v6"
-    assert any(step.get("uses") == "actions/upload-artifact@v4" for step in steps)
+    assert python_step["uses"] == "actions/setup-python@v7"
+    assert any(step.get("uses") == "actions/upload-artifact@v5" for step in steps)
     summary_step = next(step for step in steps if step.get("name") == "Write job summary")
     assert summary_step["if"] == "${{ always() }}"
     assert summary_step["env"]["WEBQA_OUT"] == "${{ inputs.out }}"
@@ -176,7 +176,7 @@ def test_release_workflow_publishes_github_release_after_pypi() -> None:
     assert github_release["needs"] == "publish"
     assert github_release["permissions"]["contents"] == "write"
     assert any(
-        step.get("uses") == "actions/download-artifact@v4"
+        step.get("uses") == "actions/download-artifact@v5"
         and step.get("with", {}).get("name") == "python-package"
         for step in github_release["steps"]
     )
