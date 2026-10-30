@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Clipped text</title>
+  <link rel="stylesheet" href="/base.css">
+  <style>
+    .hard-clip {
+      width: 150px;
+      overflow: hidden;
+      white-space: nowrap;
+      background: #eee;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Account status</h1>
+    <p>Text without an explicit escape affordance is cut off.</p>
+    <p id="hard-clip" class="hard-clip">Premium account renewal is overdue</p>
+  </main>
+</body>
+</html>

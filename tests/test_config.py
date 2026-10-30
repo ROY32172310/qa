@@ -91,6 +91,8 @@ def test_invalid_threshold_is_rejected() -> None:
         Settings(overlay_ratio=1.2)
     with pytest.raises(ValueError, match="aspect_min_rendered_px"):
         Settings(aspect_min_rendered_px=0)
+    with pytest.raises(ValueError, match="text_clip_tolerance_px"):
+        Settings(text_clip_tolerance_px=-0.1)
     with pytest.raises(ValueError, match="regular expression"):
         Settings(ignore_console_patterns=("[",))
     with pytest.raises(ValueError, match="regular expression"):
@@ -129,6 +131,7 @@ def test_mapping_accepts_noise_patterns() -> None:
             "smoke_success_selector": "#success",
             "smoke_success_url_pattern": "/complete$",
             "profile": "accessibility",
+            "text_clip_tolerance_px": 2.5,
         }
     )
     assert settings.ready_selector == "#ready"
@@ -138,6 +141,7 @@ def test_mapping_accepts_noise_patterns() -> None:
     assert settings.smoke_success_selector == "#success"
     assert settings.smoke_success_url_pattern == "/complete$"
     assert settings.profile == "accessibility"
+    assert settings.text_clip_tolerance_px == 2.5
 
 
 def test_mapping_accepts_bounded_smoke_flow_and_redacts_fill_values() -> None:
@@ -551,6 +555,26 @@ def test_shared_threshold_accepts_the_same_governed_value() -> None:
 
     assert resolved.settings.small_issue_report_min == 2
     assert len(resolved.active) == 2
+
+
+def test_clipped_text_tolerance_is_governed() -> None:
+    settings = Settings.from_mapping(
+        {
+            "overrides": [
+                {
+                    "dimension_id": "clipped_text",
+                    "reason": "Account for font metric rounding",
+                    "owner": "design-system",
+                    "expires": "2999-12-31",
+                    "parameters": {"text_clip_tolerance_px": 2.5},
+                }
+            ]
+        }
+    )
+
+    resolved = resolve_overrides(settings, as_of=date(2026, 11, 1))
+
+    assert resolved.settings.text_clip_tolerance_px == 2.5
 
 
 def test_governed_example_config_loads() -> None:

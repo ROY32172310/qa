@@ -28,6 +28,12 @@ bottom-layer geometry check, not a claim that Chromium emulates a specific
 physical device inset. Bottom fixed/sticky layers pass when they reserve enough
 padding or explicitly consume `env(safe-area-inset-bottom)`.
 
+The text-clipping probe compares visible text ranges with the nearest clipping
+ancestor. Explicit ellipsis, line-clamp, and genuinely scrollable containers are
+escape affordances and remain clean controls. An otherwise hidden text range is
+reported only when the clipped amount exceeds the governed
+`text_clip_tolerance_px` threshold.
+
 The variant name, dimensions, text scale, and safe-area value are retained in
 per-viewport evidence, screenshot names, and Agent reproduction commands.
 

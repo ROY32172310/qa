@@ -537,8 +537,8 @@ semantics. Product-specific checks belong in plugins, not in the core.
 ## Benchmark and trust
 
 The repository includes a public synthetic benchmark. The working tree contains
-124 independent cases across narrow, mobile, tablet, and desktop variants,
-with positive controls and clean controls for all 37 registered dimensions,
+128 independent cases across narrow, mobile, tablet, and desktop variants,
+with positive controls and clean controls for all 38 registered dimensions,
 including bounded flows and the accessibility profile. Ground truth is declared
 per scenario; the evaluator does not import detector thresholds to decide
 whether a result is correct.
@@ -550,8 +550,8 @@ python benchmarks/run.py
 The evaluator reports exact dimension matches, case precision/recall/F1,
 blocking false-positive and false-negative rates, dimension-level TP/FP/FN, and
 complete audit latency. It writes machine-readable evidence plus a Markdown
-summary. The unreleased working tree is 124/124 exact with 0% blocking FP/FN,
-P50 338ms, P95 1164ms, and max 3608ms in serial local Chromium. The published
+summary. The unreleased working tree is 128/128 exact with 0% blocking FP/FN,
+P50 344ms, P95 1151ms, and max 3582ms in serial local Chromium. The published
 0.6.0 baseline is 122/122 exact with P50 340ms, P95 1161ms, and max 3614ms:
 [`docs/benchmark-2026-10-29-v0.6.0.md`](docs/benchmark-2026-10-29-v0.6.0.md).
 

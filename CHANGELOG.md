@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add the advisory `clipped_text` geometry check for visible text hidden by an
+  overflow boundary. Explicit ellipsis, line-clamp, and scroll affordances are
+  treated as intentional controls, and the clip tolerance is governed through
+  `text_clip_tolerance_px`. A three-page production dogfood sample found the
+  expected footer-label truncation without reporting the two clean layouts.
 - Add the closed `expect_text` smoke-flow assertion for visible rendered text
   and current input, textarea, or select values. Matching is case-insensitive,
   mismatches use the dedicated blocking

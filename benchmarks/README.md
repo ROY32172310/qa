@@ -14,7 +14,7 @@ python -m playwright install chromium
 python benchmarks/run.py
 ```
 
-The working tree expands `suite.json` to 124 independent cases, starts a local
+The working tree expands `suite.json` to 128 independent cases, starts a local
 fixture server, executes them serially, and writes:
 
 ```text

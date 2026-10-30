@@ -40,6 +40,7 @@ def _summary(**updates: Any) -> dict[str, Any]:
         "tinyFonts": [],
         "smallTargets": [],
         "hugeOverlays": [],
+        "clippedText": [],
         "brokenImages": [],
         "distortedMedia": [],
     }
@@ -137,6 +138,42 @@ def test_text_scale_reflow_is_not_reported_as_page_layout_shift() -> None:
     )
 
     assert [issue.code for issue in _issues_for_viewport(summary, Settings())] == []
+
+
+def test_clipped_text_uses_the_configured_tolerance() -> None:
+    summary = _summary(
+        measurements={
+            "clippedText": [
+                {
+                    "label": "Account status",
+                    "selector": "#status",
+                    "clipped_by": "#status-card",
+                    "clip_px": 12.5,
+                },
+                {
+                    "label": "Round-off only",
+                    "selector": "#rounding",
+                    "clipped_by": "#rounding-card",
+                    "clip_px": 1,
+                },
+            ]
+        }
+    )
+    issues = _issues_for_viewport(summary, Settings())
+    assert _codes(issues) == {"clipped_text"}
+    issue = issues[0]
+    assert issue.severity == "warning"
+    assert issue.evidence["tolerance_px"] == 1.5
+    assert issue.evidence["samples"] == [
+        {
+            "label": "Account status",
+            "selector": "#status",
+            "clipped_by": "#status-card",
+            "clip_px": 12.5,
+        }
+    ]
+
+    assert _codes(_issues_for_viewport(summary, Settings(text_clip_tolerance_px=13))) == set()
 
 
 class _NavigationPage:

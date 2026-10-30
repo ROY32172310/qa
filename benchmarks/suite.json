@@ -446,6 +446,24 @@
       "rationale": "A non-wrapping heading pushes the document beyond the viewport at 1.5x text scale."
     },
     {
+      "id": "clipped-text",
+      "fixture": "clipped-text.html",
+      "expected_issue_codes": ["clipped_text"],
+      "expected_clean": false,
+      "expected_severities": {"clipped_text": "warning"},
+      "tags": ["geometry", "warning"],
+      "rationale": "Hidden overflow cuts off visible text without an ellipsis or scroll affordance."
+    },
+    {
+      "id": "text-clipping-control",
+      "fixture": "text-clipping-control.html",
+      "variants": ["mobile"],
+      "expected_issue_codes": [],
+      "expected_clean": true,
+      "tags": ["geometry", "clean-control"],
+      "rationale": "Intentional ellipsis and horizontally scrollable text are valid escape affordances."
+    },
+    {
       "id": "safe-area-clean",
       "fixture": "safe-area-clean.html",
       "variants": ["safe-area"],

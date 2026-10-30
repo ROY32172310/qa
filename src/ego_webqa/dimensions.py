@@ -119,6 +119,14 @@ _DIMENSIONS = {
         introduced="0.4.0",
         parameters=("overflow_tolerance_px", "text_scale"),
     ),
+    "clipped_text": _dimension(
+        "clipped_text",
+        "Visible text is clipped by an overflow boundary without an ellipsis or scroll affordance.",
+        "text_clipping",
+        severity="warn",
+        introduced="0.7.0",
+        parameters=("text_clip_tolerance_px",),
+    ),
     "bottom_safe_area_penetration": _dimension(
         "bottom_safe_area_penetration",
         "Bottom-anchored content enters the device safe-area band.",

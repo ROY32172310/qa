@@ -49,6 +49,7 @@ OVERRIDABLE_PARAMETER_FIELDS = MappingProxyType(
         "small_issue_report_min": "small_issue_report_min",
         "min_tap_target_px": "min_tap_target_px",
         "overlay_ratio": "overlay_ratio",
+        "text_clip_tolerance_px": "text_clip_tolerance_px",
         "aspect_tolerance": "aspect_tolerance",
         "aspect_min_rendered_px": "aspect_min_rendered_px",
         "fcp_warn_ms": "fcp_warn_ms",
@@ -70,6 +71,7 @@ OVERRIDABLE_PARAMETER_TYPES = MappingProxyType(
         "small_issue_report_min": int,
         "min_tap_target_px": float,
         "overlay_ratio": float,
+        "text_clip_tolerance_px": float,
         "aspect_tolerance": float,
         "aspect_min_rendered_px": float,
         "fcp_warn_ms": float,
@@ -408,6 +410,7 @@ class Settings:
     small_issue_report_min: int = 3
     overlay_ratio: float = 0.4
     overflow_tolerance_px: int = 2
+    text_clip_tolerance_px: float = 1.5
     aspect_tolerance: float = 0.05
     aspect_min_rendered_px: float = 48.0
     blank_text_chars: int = 10
@@ -462,6 +465,7 @@ class Settings:
             "min_tap_target_px": self.min_tap_target_px,
             "hard_font_px": self.hard_font_px,
             "min_font_px": self.min_font_px,
+            "text_clip_tolerance_px": self.text_clip_tolerance_px,
             "aspect_min_rendered_px": self.aspect_min_rendered_px,
         }
         for name, value in positive.items():
@@ -661,6 +665,7 @@ class Settings:
             "small_issue_report_min": self.small_issue_report_min,
             "overlay_ratio": self.overlay_ratio,
             "overflow_tolerance_px": self.overflow_tolerance_px,
+            "text_clip_tolerance_px": self.text_clip_tolerance_px,
             "aspect_tolerance": self.aspect_tolerance,
             "blank_text_chars": self.blank_text_chars,
             "blank_element_count": self.blank_element_count,

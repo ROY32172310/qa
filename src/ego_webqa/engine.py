@@ -1072,6 +1072,28 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
                 {"overflow_px": overflow, "text_scale": text_scale},
             )
         )
+    clipped_text = [
+        row
+        for row in data.get("clippedText") or []
+        if float(row.get("clip_px") or 0) > cfg.text_clip_tolerance_px
+    ]
+    if clipped_text:
+        largest_clip = max(float(row.get("clip_px") or 0) for row in clipped_text)
+        issues.append(
+            Issue(
+                "clipped_text",
+                "warning",
+                f"{len(clipped_text)} visible text node(s) are clipped by up to "
+                f"{largest_clip:g}px",
+                name,
+                "Remove the fixed overflow boundary, allow the text to wrap, or use an "
+                "explicit ellipsis or scroll affordance.",
+                {
+                    "tolerance_px": cfg.text_clip_tolerance_px,
+                    "samples": clipped_text[:5],
+                },
+            )
+        )
     if (
         int(data.get("textLength") or 0) < cfg.blank_text_chars
         and int(data.get("elementCount") or 0) < cfg.blank_element_count

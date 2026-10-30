@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width">
+  <title>Text clipping controls</title>
+  <link rel="stylesheet" href="/base.css">
+  <style>
+    .bounded {
+      width: 150px;
+      white-space: nowrap;
+    }
+
+    .ellipsis {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .scroll {
+      overflow-x: auto;
+    }
+
+    .clamp {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 1;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Account status</h1>
+    <p>Normal text wraps without a hidden overflow boundary.</p>
+    <p id="ellipsis" class="bounded ellipsis">Premium account renewal is overdue</p>
+    <div id="scroll" class="bounded scroll">Scrollable account activity details</div>
+    <p id="clamp" class="bounded clamp">Premium account renewal is overdue</p>
+  </main>
+</body>
+</html>

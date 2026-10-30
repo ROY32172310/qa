@@ -221,6 +221,33 @@ body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:24
 </main></body></html>""",
         encoding="utf-8",
     )
+    (root / "clipped-text.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
+<title>Clipped text</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:24px}
+.hard{width:150px;overflow:hidden;white-space:nowrap;background:#eee}
+</style></head><body><main><h1>Account status</h1>
+<p>Text without a visible escape affordance is cut off.</p>
+<p id="hard-clip" class="hard">Premium account renewal is overdue</p>
+</main></body></html>""",
+        encoding="utf-8",
+    )
+    (root / "text-clipping-control.html").write_text(
+        """<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width">
+<title>Text clipping controls</title><style>
+body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:24px}
+.bounded{width:150px;white-space:nowrap}
+.ellipsis{overflow:hidden;text-overflow:ellipsis}
+.scroll{overflow-x:auto}
+.clamp{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden}
+</style></head><body><main><h1>Account status</h1>
+<p>Normal text wraps without a hidden overflow boundary.</p>
+<p id="ellipsis" class="bounded ellipsis">Premium account renewal is overdue</p>
+<div id="scroll" class="bounded scroll">Scrollable account activity details</div>
+<p id="clamp" class="bounded clamp">Premium account renewal is overdue</p>
+</main></body></html>""",
+        encoding="utf-8",
+    )
     (root / "safe-area-clean.html").write_text(
         """<!doctype html><html lang="en"><head><meta name="viewport"
 content="width=device-width,viewport-fit=cover"><title>Safe area control</title><style>
@@ -765,6 +792,29 @@ def test_bounded_smoke_flow_reports_text_assertion_without_echoing_content(
     )
     assert failed_item["selector"] == "#count"
     assert failed_item["evidence"]["step"]["text_source"] == "text"
+
+
+def test_clipped_text_requires_an_explicit_escape_affordance(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        viewports=(Viewport(390, 844, "mobile", mobile=True),),
+        settle_ms=0,
+    )
+    broken = audit(served.url("clipped-text.html"), settings=settings, output_dir=tmp_path)
+    clipped = next(issue for issue in broken.issues if issue.code == "clipped_text")
+    assert clipped.severity == "warning"
+    assert clipped.evidence["samples"][0]["selector"] == "#hard-clip"
+    assert clipped.evidence["samples"][0]["clipped_by"] == "#hard-clip"
+    assert clipped.evidence["samples"][0]["horizontal_clip_px"] > 1.5
+
+    clean = audit(
+        served.url("text-clipping-control.html"),
+        settings=settings,
+        output_dir=tmp_path / "clean",
+    )
+    assert "clipped_text" not in {issue.code for issue in clean.issues}
 
 
 def test_bounded_smoke_flow_does_not_treat_hidden_descendant_text_as_visible(

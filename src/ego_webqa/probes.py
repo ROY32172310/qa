@@ -224,6 +224,93 @@ COLLECT_JS = r"""
       });
     }
   }
+  const clippedText = [];
+  for (const el of allElements("*")) {
+    if (!visible(el) || ignored(el) || composedClosest(el, "[aria-hidden=true]")) continue;
+    const textNodes = [...el.childNodes].filter(node =>
+      node.nodeType === Node.TEXT_NODE && (node.nodeValue || "").trim().length >= 2
+    );
+    if (!textNodes.length) continue;
+    const elementRect = el.getBoundingClientRect();
+    if (
+      elementRect.width <= 2 ||
+      elementRect.height <= 2 ||
+      elementRect.right <= 0 ||
+      elementRect.left >= innerWidth ||
+      elementRect.bottom <= 0 ||
+      elementRect.top >= innerHeight
+    ) continue;
+    for (const textNode of textNodes) {
+      let textRect;
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(textNode);
+        textRect = range.getBoundingClientRect();
+      } catch (_) {
+        continue;
+      }
+      if (
+        textRect.width <= 0 ||
+        textRect.height <= 0 ||
+        textRect.right <= 0 ||
+        textRect.left >= innerWidth ||
+        textRect.bottom <= 0 ||
+        textRect.top >= innerHeight
+      ) continue;
+      for (
+        let clipper = el;
+        clipper && clipper !== documentRoot;
+        clipper = composedParent(clipper)
+      ) {
+        const clipStyle = getComputedStyle(clipper);
+        const overflowX = clipStyle.overflowX;
+        const overflowY = clipStyle.overflowY;
+        const scrollsX = ["auto", "scroll"].includes(overflowX) &&
+          clipper.scrollWidth > clipper.clientWidth + 1;
+        const scrollsY = ["auto", "scroll"].includes(overflowY) &&
+          clipper.scrollHeight > clipper.clientHeight + 1;
+        if (scrollsX || scrollsY) break;
+        const clipsX = ["hidden", "clip"].includes(overflowX);
+        const clipsY = ["hidden", "clip"].includes(overflowY);
+        if (!clipsX && !clipsY) continue;
+        const lineClamp = (
+          clipStyle.getPropertyValue("-webkit-line-clamp") ||
+          clipStyle.getPropertyValue("line-clamp") ||
+          "none"
+        ).trim();
+        if (clipsX && clipStyle.textOverflow === "ellipsis") break;
+        if (lineClamp !== "none" && lineClamp !== "0") break;
+        const clipperRect = clipper.getBoundingClientRect();
+        const left = clipperRect.left + (parseFloat(clipStyle.borderLeftWidth) || 0);
+        const right = clipperRect.right - (parseFloat(clipStyle.borderRightWidth) || 0);
+        const top = clipperRect.top + (parseFloat(clipStyle.borderTopWidth) || 0);
+        const bottom = clipperRect.bottom - (parseFloat(clipStyle.borderBottomWidth) || 0);
+        const horizontalClip = clipsX
+          ? Math.max(0, left - textRect.left, textRect.right - right)
+          : 0;
+        const verticalClip = clipsY
+          ? Math.max(0, top - textRect.top, textRect.bottom - bottom)
+          : 0;
+        if (horizontalClip <= 0.1 && verticalClip <= 0.1) continue;
+        clippedText.push({
+          label: (textNode.nodeValue || "").trim().replace(/\s+/g, " ").slice(0, 48),
+          selector: selectorFor(el),
+          clipped_by: selectorFor(clipper),
+          box: box(el),
+          text_box: {
+            x: Math.round(textRect.x),
+            y: Math.round(textRect.y),
+            width: Math.round(textRect.width),
+            height: Math.round(textRect.height),
+          },
+          horizontal_clip_px: Number(horizontalClip.toFixed(1)),
+          vertical_clip_px: Number(verticalClip.toFixed(1)),
+          clip_px: Number(Math.max(horizontalClip, verticalClip).toFixed(1)),
+        });
+        break;
+      }
+    }
+  }
   const brokenImages = allElements("img")
     .filter(img => visible(img) && !ignored(img) && img.complete && img.naturalWidth === 0)
     .map(img => ({
@@ -286,6 +373,7 @@ COLLECT_JS = r"""
     tinyFonts,
     hugeOverlays,
     safeAreaPenetrations: safeAreaPenetrations.slice(0, 10),
+    clippedText: clippedText.slice(0, 20),
     brokenImages,
     distortedMedia,
   };
