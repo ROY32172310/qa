@@ -87,7 +87,13 @@ jobs:
       - uses: actions/upload-artifact@v5
         with:
           name: python-package
-          path: dist/
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+      - uses: actions/upload-artifact@v5
+        with:
+          name: release-extras
+          path: dist/agensi/*.zip
 
   publish:
     needs: build
@@ -172,6 +178,10 @@ jobs:
         with:
           name: python-package
           path: dist/
+      - uses: actions/download-artifact@v5
+        with:
+          name: release-extras
+          path: dist/agensi/
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

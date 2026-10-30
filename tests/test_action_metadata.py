@@ -193,6 +193,12 @@ def test_release_workflow_publishes_github_release_after_pypi_and_registry() -> 
         and step.get("with", {}).get("name") == "python-package"
         for step in github_release["steps"]
     )
+    assert any(
+        step.get("uses") == "actions/download-artifact@v5"
+        and step.get("with", {}).get("name") == "release-extras"
+        and step.get("with", {}).get("path") == "dist/agensi/"
+        for step in github_release["steps"]
+    )
 
     release_step = next(
         step for step in github_release["steps"] if step.get("name") == "Publish GitHub release"
@@ -202,6 +208,24 @@ def test_release_workflow_publishes_github_release_after_pypi_and_registry() -> 
     assert 'gh release create "$GITHUB_REF_NAME" "${assets[@]}"' in script
     assert "--verify-tag" in script
     assert 'gh release upload "$GITHUB_REF_NAME" "${assets[@]}"' in script
+
+
+def test_release_workflow_keeps_non_python_assets_out_of_the_pypi_artifact() -> None:
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    )
+    build_steps = workflow["jobs"]["build"]["steps"]
+    artifacts = {
+        step["with"]["name"]: step["with"]["path"]
+        for step in build_steps
+        if step.get("uses") == "actions/upload-artifact@v5"
+    }
+
+    assert artifacts["python-package"].splitlines() == [
+        "dist/*.whl",
+        "dist/*.tar.gz",
+    ]
+    assert artifacts["release-extras"] == "dist/agensi/*.zip"
 
 
 def test_release_workflow_publishes_mcp_registry_metadata_after_pypi() -> None:
