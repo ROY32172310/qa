@@ -72,7 +72,7 @@ def test_demo_llms_txt_declares_the_agent_discovery_contract() -> None:
     normalized = " ".join(text.split())
 
     assert text.startswith("# ego-webqa\n")
-    assert "`ego-webqa install-browser`" in text
+    assert "`ego-webqa setup`" in text
     assert "`uvx ego-webqa mcp`" in text
     assert "`audit_web_page`" in text
     assert "https://roy32172310.github.io/qa/" in text

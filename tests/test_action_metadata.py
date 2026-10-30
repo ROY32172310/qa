@@ -59,11 +59,11 @@ def test_composite_action_metadata_and_input_safety() -> None:
     assert action["inputs"]["smoke-flow-name"]["default"] == ""
 
     steps = action["runs"]["steps"]
-    install = next(step for step in steps if step.get("name") == "Install browser")
+    install = next(step for step in steps if step.get("name") == "Set up browser")
     assert install["env"]["WEBQA_BROWSER_ENGINE"] == "${{ inputs.browser-engine }}"
     assert 'args=(--browser-engine "$WEBQA_BROWSER_ENGINE")' in install["run"]
     assert "args+=(--with-deps)" in install["run"]
-    assert 'ego-webqa install-browser "${args[@]}"' in install["run"]
+    assert 'ego-webqa setup "${args[@]}"' in install["run"]
     audit = next(step for step in steps if step.get("name") == "Run audit")
     script = audit["run"]
     assert 'python -m ego_webqa "${args[@]}"' in script

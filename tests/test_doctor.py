@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from ego_webqa import doctor
+from ego_webqa.platforms import native_path
 
 
 class FakeBrowser:
@@ -19,10 +20,13 @@ class FakeBrowser:
 class FakeBrowserType:
     def __init__(self, executable: Path | None) -> None:
         self.executable_path = str(executable or "/missing/browser")
+        self.launch_available = executable is not None
         self.launches: list[dict[str, object]] = []
         self.browser = FakeBrowser()
 
     def launch(self, **options: object) -> FakeBrowser:
+        if not self.launch_available and "channel" not in options:
+            raise FileNotFoundError(f"browser missing at {self.executable_path}")
         self.launches.append(options)
         return self.browser
 
@@ -79,6 +83,7 @@ def test_doctor_reports_success_and_launches_selected_channel(
     assert report.runtime["environment"] in {"system", "isolated"}
     assert report.runtime["python_executable"]
     assert report.runtime["python_prefix"]
+    assert report.runtime["browser_runtime"] == "system-channel"
 
 
 def test_doctor_channel_does_not_require_the_bundled_browser(
@@ -98,6 +103,7 @@ def test_doctor_channel_does_not_require_the_bundled_browser(
     assert report.status == "ok"
     browser_binary = next(check for check in report.checks if check.id == "browser_channel")
     assert browser_binary.status == "ok"
+    assert report.runtime["browser_runtime"] == "system-channel"
 
 
 def test_doctor_stops_when_playwright_package_is_missing(
@@ -130,10 +136,52 @@ def test_doctor_reports_missing_browser_binary(
     report = doctor.collect_doctor_report()
 
     assert report.status == "fail"
-    browser = next(check for check in report.checks if check.id == "browser_binary")
+    browser = next(check for check in report.checks if check.id == "browser_launch")
     assert browser.status == "fail"
-    assert "ego-webqa install-browser --browser-engine chromium" in browser.hint
-    assert report.runtime["browser_executable"].endswith("missing/browser")
+    assert "ego-webqa setup" in browser.hint
+    assert report.runtime["browser_executable"].endswith(str(native_path("missing/browser")))
+
+
+def test_doctor_accepts_a_successful_headless_shell_without_full_chromium(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    browser_type = FakeBrowserType(None)
+    browser_type.launch_available = True
+    sync = FakeSyncPlaywright(browser_type)
+    monkeypatch.setattr(doctor, "_distribution_version", lambda name: "1.0")
+    monkeypatch.setattr(
+        doctor.importlib,
+        "import_module",
+        lambda name: SimpleNamespace(sync_playwright=lambda: sync),
+    )
+
+    report = doctor.collect_doctor_report()
+
+    assert report.status == "ok"
+    assert report.runtime["browser_runtime"] == "headless-shell"
+    browser_binary = next(check for check in report.checks if check.id == "browser_binary")
+    assert browser_binary.status == "ok"
+    assert "headless runtime launched" in browser_binary.message
+
+
+def test_doctor_reports_the_full_browser_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    executable = tmp_path / "chromium"
+    executable.write_text("", encoding="utf-8")
+    sync = FakeSyncPlaywright(FakeBrowserType(executable))
+    monkeypatch.setattr(doctor, "_distribution_version", lambda name: "1.0")
+    monkeypatch.setattr(
+        doctor.importlib,
+        "import_module",
+        lambda name: SimpleNamespace(sync_playwright=lambda: sync),
+    )
+
+    report = doctor.collect_doctor_report()
+
+    assert report.status == "ok"
+    assert report.runtime["browser_runtime"] == "full"
 
 
 def test_doctor_rejects_channel_for_non_chromium(
@@ -187,4 +235,4 @@ def test_doctor_reports_playwright_import_and_launch_failures(
     assert launch_failure.status == "fail"
     assert launch_failure.checks[-1].id == "browser_launch"
     assert "no display" in launch_failure.checks[-1].message
-    assert "ego-webqa install-browser --browser-engine chromium" in (launch_failure.checks[-1].hint)
+    assert "ego-webqa setup" in launch_failure.checks[-1].hint

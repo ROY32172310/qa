@@ -26,13 +26,13 @@ jobs:
       - name: Install package and development tools
         timeout-minutes: 10
         run: python -m pip install -e ".[dev]"
-      - name: Install Chromium
+      - name: Set up Chromium
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            ego-webqa install-browser --with-deps
+            ego-webqa setup --with-deps
           else
-            ego-webqa install-browser
+            ego-webqa setup
           fi
       - run: python scripts/dev.py coverage
       - name: Summarize pytest failures
@@ -131,7 +131,7 @@ jobs:
       - name: Verify all schemas are present in the installed wheel
         shell: bash
         run: |
-          for schema in report agent-summary dimensions feedback-bundle delta doctor browser-install; do
+          for schema in report agent-summary dimensions feedback-bundle delta doctor browser-install setup; do
             ego-webqa --print-schema "$schema" > /dev/null
           done
       - run: >-
@@ -157,7 +157,7 @@ jobs:
       - name: Install package and development tools
         timeout-minutes: 10
         run: python -m pip install -e ".[dev]"
-      - run: ego-webqa install-browser --with-deps
+      - run: ego-webqa setup --with-deps
       - run: python scripts/dev.py benchmark --out benchmark-results
       - uses: actions/upload-artifact@v5
         if: ${{ always() }}

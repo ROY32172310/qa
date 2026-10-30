@@ -68,16 +68,15 @@ host or execute the external MCP server.
 
 ```bash
 python -m pip install "ego-webqa==0.8.0"
-ego-webqa install-browser
-ego-webqa doctor
+ego-webqa setup
 ego-webqa --version
 ```
 
 Firefox and WebKit preview engines are optional:
 
 ```bash
-ego-webqa install-browser --browser-engine firefox
-ego-webqa install-browser --browser-engine webkit
+ego-webqa setup --browser-engine firefox
+ego-webqa setup --browser-engine webkit
 ```
 
 ## Example request

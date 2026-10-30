@@ -68,7 +68,7 @@ def test_agensi_package_contains_local_setup_and_worked_example() -> None:
             }
         }
     }
-    assert f"uvx --from ego-webqa=={__version__} ego-webqa install-browser" in setup
+    assert f"uvx --from ego-webqa=={__version__} ego-webqa setup" in setup
     assert f"ego-webqa@{__version__}" not in setup
     assert f"ego-webqa@{__version__}" not in config_text
     assert "Agensi does not" in setup

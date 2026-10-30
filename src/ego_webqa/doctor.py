@@ -7,10 +7,10 @@ import importlib.metadata
 import platform
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Literal
 
 from . import __version__
+from .platforms import native_path
 
 CheckStatus = Literal["ok", "fail"]
 
@@ -70,6 +70,7 @@ def collect_doctor_report(
 
     checks: list[DoctorCheck] = []
     browser_executable = ""
+    browser_runtime = ""
 
     # The package cannot import on a Python older than its declared minimum.
     checks.append(_required_check("python", f"Python {platform.python_version()}"))
@@ -154,35 +155,36 @@ def collect_doctor_report(
                     )
                 launch_options["channel"] = browser_channel
                 label = browser_channel
+                browser_runtime = "system-channel"
             else:
-                executable = Path(str(browser_type.executable_path))
+                executable = native_path(str(browser_type.executable_path))
                 browser_executable = str(executable)
-                if not executable.is_file():
+            browser = browser_type.launch(**launch_options)
+            browser.close()
+            if not browser_channel:
+                if executable.is_file():
+                    browser_runtime = "full"
                     checks.append(
-                        _failed_check(
+                        _required_check(
                             "browser_binary",
-                            f"{browser_engine} browser binary is missing at {executable}",
+                            f"{browser_engine} full browser found at {executable}",
+                        )
+                    )
+                else:
+                    browser_runtime = "headless-shell"
+                    checks.append(
+                        _required_check(
+                            "browser_binary",
                             (
-                                "Run: ego-webqa install-browser "
-                                f"--browser-engine {browser_engine}"
+                                f"{browser_engine} headless runtime launched; "
+                                f"full browser is not installed at {executable}"
+                            ),
+                            (
+                                "Install the full browser only if another tool requires "
+                                "headed Chromium."
                             ),
                         )
                     )
-                    return _report(
-                        checks,
-                        browser_engine,
-                        browser_channel,
-                        playwright_version,
-                        browser_executable,
-                    )
-                checks.append(
-                    _required_check(
-                        "browser_binary",
-                        f"{browser_engine} executable found at {executable}",
-                    )
-                )
-            browser = browser_type.launch(**launch_options)
-            browser.close()
             checks.append(_required_check("browser_launch", f"{label} launched successfully"))
             if browser_channel:
                 checks.append(
@@ -197,9 +199,8 @@ def collect_doctor_report(
             f"--browser-engine {browser_engine}"
             if browser_channel
             else (
-                "Run: ego-webqa install-browser "
-                f"--browser-engine {browser_engine}; on Linux use "
-                "ego-webqa install-browser --with-deps if system libraries are missing"
+                "Run: ego-webqa setup; on Linux use ego-webqa setup --with-deps "
+                "if system libraries are missing"
             )
         )
         checks.append(
@@ -216,6 +217,7 @@ def collect_doctor_report(
         browser_channel,
         playwright_version,
         browser_executable,
+        browser_runtime,
     )
 
 
@@ -225,6 +227,7 @@ def _report(
     browser_channel: str,
     playwright_version: str,
     browser_executable: str,
+    browser_runtime: str = "",
 ) -> DoctorReport:
     status: CheckStatus = "fail" if any(check.status == "fail" for check in checks) else "ok"
     return DoctorReport(
@@ -240,5 +243,6 @@ def _report(
             "browser_engine": browser_engine,
             "browser_channel": browser_channel,
             "browser_executable": browser_executable,
+            "browser_runtime": browser_runtime,
         },
     )

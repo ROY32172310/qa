@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Add `ego-webqa setup` as the idempotent first-run path. It checks the active
+  installation first, skips browser downloads when a real launch already
+  succeeds, otherwise installs one browser, and returns structured readiness
+  evidence under a new `setup` JSON Schema.
+- Install only Chromium's Playwright headless shell by default, avoiding the
+  full headed browser build for a headless-only audit tool. The full build
+  remains an explicit `--full-chromium` opt-in, and `doctor` accepts a real
+  headless-shell launch without reporting the missing full binary as a failure.
+- Route the composite Action, release workflow, and platform CI through the
+  idempotent setup command instead of reconstructing browser installation in
+  each integration.
+- Make the missing-browser doctor test use platform-native path semantics,
+  fixing the Windows-only coverage gate failure.
+- Add a standard-library-only `ego_webqa.platforms` leaf for OS-family checks
+  and native path conversion. This borrows ego-uri's adapter/test discipline
+  without importing ego-uri or adding a runtime dependency.
 - Add `ego-webqa install-browser` as the explicit, interpreter-bound browser
   repair path. It supports one engine at a time, `--dry-run`, `--force`,
   Linux-only `--with-deps`, structured JSON, and a real headless launch check

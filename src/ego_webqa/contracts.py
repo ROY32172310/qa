@@ -14,6 +14,7 @@ SCHEMA_NAMES = (
     "delta",
     "doctor",
     "browser-install",
+    "setup",
 )
 
 

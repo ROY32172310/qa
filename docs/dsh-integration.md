@@ -38,7 +38,7 @@ The integration sequence is:
 The adapter must preserve these boundaries:
 
 - the operator installs the browser once with
-  `uvx --from ego-webqa@<tested-version> ego-webqa install-browser`;
+  `uvx --from ego-webqa@<tested-version> ego-webqa setup`;
 - one bounded `audit_web_page` call per MCP invocation;
 - argv-only process launch through DSH and `uvx`, never shell construction from
   model-provided values;

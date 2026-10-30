@@ -19,8 +19,7 @@ unreviewed full report in a public issue.
 
 ```bash
 python -m pip install ego-webqa
-ego-webqa install-browser
-ego-webqa doctor
+ego-webqa setup
 ego-webqa https://your-preview.example --out .qa/first-trial
 ```
 
@@ -33,6 +32,8 @@ ego-webqa --dir ./dist --file index.html --out .qa/first-trial
 The run writes `agent_summary.json`, `feedback_bundle.json`, `report.json`,
 JUnit, SARIF, and screenshots. Exit code `0` means pass or warnings only; `1`
 means at least one blocking delivery defect; `2` means the audit could not run.
+Setup is idempotent: it performs no browser download when the selected runtime
+already passes a real headless launch.
 
 ## 2. Check the first blocking item
 

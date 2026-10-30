@@ -23,15 +23,14 @@ before installing anything:
 
 ```bash
 python -m pip install "ego-webqa==0.8.0"
-ego-webqa install-browser
-ego-webqa doctor
+ego-webqa setup
 ```
 
 Install Firefox or WebKit only when the user asks for that engine:
 
 ```bash
-ego-webqa install-browser --browser-engine firefox
-ego-webqa install-browser --browser-engine webkit
+ego-webqa setup --browser-engine firefox
+ego-webqa setup --browser-engine webkit
 ```
 
 When the environment is uncertain or a browser failure is hard to classify,
@@ -123,9 +122,9 @@ make every rerun fail. Do not compare reports from incompatible targets,
 profiles, viewports, or browser runtimes unless the user explicitly accepts
 that difference.
 
-Machine-readable report, Agent summary, dimensions, feedback, delta, and doctor
-payloads share the `1.0` contract. Print a packaged schema when an integration
-needs to validate one:
+Machine-readable report, Agent summary, dimensions, feedback, delta, doctor,
+browser-install, and setup payloads share the `1.0` contract. Print a packaged
+schema when an integration needs to validate one:
 
 ```bash
 ego-webqa --print-schema report

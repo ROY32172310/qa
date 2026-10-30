@@ -9,11 +9,12 @@ Use Python 3.10 or newer. `uv` provides `uvx`, which runs the pinned package in
 an isolated environment.
 
 ```bash
-uvx --from ego-webqa==0.8.0 ego-webqa install-browser
+uvx --from ego-webqa==0.8.0 ego-webqa setup
 uvx --from ego-webqa==0.8.0 ego-webqa doctor --json
 ```
 
-Run `doctor` again after browser installation. It must report that Python, the
+Setup performs no download when the browser already launches. The following
+`doctor` command independently confirms that Python, the
 MCP dependency, Playwright, the browser executable, and a real headless launch
 are available. The package pins its Playwright dependency so separate `uvx`
 runs select the same browser revision. A browser-install failure is an

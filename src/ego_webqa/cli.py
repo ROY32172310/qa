@@ -29,7 +29,7 @@ from .dimensions import registry_payload
 from .doctor import collect_doctor_report
 from .engine import AuditRuntimeError, audit
 from .feedback import build_feedback_bundle
-from .installer import BROWSER_ENGINES, install_browser
+from .installer import BROWSER_ENGINES, install_browser, setup_environment
 from .reporting import write_reports
 from .server import LocalServer
 
@@ -39,7 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="ego-webqa",
         description="Deterministic delivery QA for AI-generated web pages.",
         epilog=(
-            "Run 'ego-webqa install-browser' once, then 'ego-webqa doctor' to verify it, "
+            "Run 'ego-webqa setup' once to install and verify the browser, "
             "'ego-webqa feedback' to prepare a privacy-safe issue report, or "
             "'ego-webqa mcp' to start the stdio MCP server."
         ),
@@ -295,6 +295,20 @@ def _install_browser_main(arguments: Sequence[str]) -> int:
         action="store_true",
         help="reinstall even when the browser revision is already present",
     )
+    install_mode = parser.add_mutually_exclusive_group()
+    install_mode.add_argument(
+        "--headless-only",
+        dest="headless_only",
+        action="store_true",
+        help="install only Chromium's headless shell (default)",
+    )
+    install_mode.add_argument(
+        "--full-chromium",
+        dest="headless_only",
+        action="store_false",
+        help="install the full Chromium build when another tool requires headed operation",
+    )
+    parser.set_defaults(headless_only=True)
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -309,6 +323,7 @@ def _install_browser_main(arguments: Sequence[str]) -> int:
             force=args.force,
             dry_run=args.dry_run,
             machine_readable=args.json,
+            headless_only=args.headless_only,
         )
     except ValueError as exc:
         print(f"ego-webqa install-browser: {exc}", file=sys.stderr)
@@ -319,6 +334,8 @@ def _install_browser_main(arguments: Sequence[str]) -> int:
     else:
         print(f"ego-webqa install-browser: {result.status.upper()}")
         print(f"  engine: {result.engine}")
+        mode = "headless-only" if result.headless_only else "full browser"
+        print(f"  mode: {mode}")
         print(f"  python: {sys.executable}")
         print(f"  command: {subprocess.list2cmdline(list(result.command))}")
         print(f"  {result.detail}")
@@ -330,6 +347,92 @@ def _install_browser_main(arguments: Sequence[str]) -> int:
                         print(f"       {check.hint}")
         if result.dry_run:
             print("  Run the command above without --dry-run to install and verify.")
+
+    return 0 if result.status in ("ok", "planned") else 1
+
+
+def _setup_main(arguments: Sequence[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ego-webqa setup",
+        description=(
+            "Check the installation, install one missing Playwright browser, "
+            "then verify a real headless launch."
+        ),
+    )
+    parser.add_argument(
+        "--browser-engine",
+        choices=BROWSER_ENGINES,
+        default="chromium",
+        help="browser engine to prepare (default: chromium)",
+    )
+    parser.add_argument(
+        "--with-deps",
+        action="store_true",
+        help="also install Linux system dependencies (may require elevated permissions)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="reinstall the browser even when the readiness check already passes",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print the exact installation command without checking, downloading, or launching",
+    )
+    install_mode = parser.add_mutually_exclusive_group()
+    install_mode.add_argument(
+        "--headless-only",
+        dest="headless_only",
+        action="store_true",
+        help="install only Chromium's headless shell (default)",
+    )
+    install_mode.add_argument(
+        "--full-chromium",
+        dest="headless_only",
+        action="store_false",
+        help="install the full Chromium build when another tool requires headed operation",
+    )
+    parser.set_defaults(headless_only=True)
+    parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    args = parser.parse_args(list(arguments))
+    try:
+        result = setup_environment(
+            args.browser_engine,
+            with_deps=args.with_deps,
+            force=args.force,
+            dry_run=args.dry_run,
+            machine_readable=args.json,
+            headless_only=args.headless_only,
+        )
+    except ValueError as exc:
+        print(f"ego-webqa setup: {exc}", file=sys.stderr)
+        return 2
+
+    if args.json:
+        print(_json_text(result.to_dict(), sys.stdout.encoding or "utf-8"))
+    else:
+        print(f"ego-webqa setup: {result.status.upper()}")
+        print(f"  engine: {result.engine}")
+        mode = "headless-only" if result.headless_only else "full browser"
+        print(f"  mode: {mode}")
+        print(f"  python: {sys.executable}")
+        print(f"  command: {subprocess.list2cmdline(list(result.command))}")
+        print(f"  {result.detail}")
+        if result.initial_doctor is not None:
+            for check in result.initial_doctor.checks:
+                if check.status == "fail":
+                    print(f"  initial FAIL {check.id}: {check.message}")
+        if result.install is not None and result.install.verification is not None:
+            for check in result.install.verification.checks:
+                if check.status == "fail":
+                    print(f"  final FAIL {check.id}: {check.message}")
+                    if check.hint:
+                        print(f"       {check.hint}")
+        if result.dry_run:
+            print("  Run the command above without --dry-run to install and verify.")
+        elif result.status == "ok":
+            print("  Ready: ego-webqa https://your-preview.example")
 
     return 0 if result.status in ("ok", "planned") else 1
 
@@ -467,6 +570,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _doctor_main(arguments[1:])
     if arguments[:1] == ["install-browser"]:
         return _install_browser_main(arguments[1:])
+    if arguments[:1] == ["setup"]:
+        return _setup_main(arguments[1:])
     if arguments[:1] == ["feedback"]:
         return _feedback_main(arguments[1:])
     if arguments[:1] == ["delta"]:

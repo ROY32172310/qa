@@ -107,16 +107,28 @@ full report or page evidence into a public job summary.
 
 `doctor` is a read-only installation diagnostic. It verifies the supported
 Python runtime, active interpreter and environment, installed MCP and
-Playwright packages, the selected browser engine or system channel, the exact
-browser executable, and a headless launch. A system channel does not require
-the bundled Chromium executable.
+Playwright packages, the selected browser engine or system channel, the full
+browser path when present, and a real headless launch. A successful headless
+shell launch is sufficient; the full Chromium build is not required. A system
+channel does not require either bundled Chromium component.
 
-`install-browser` is the only first-party command that may download a browser.
-It launches Playwright through the active `sys.executable`, supports one
-explicit engine at a time, can request Linux system dependencies, and verifies
-a real headless launch before returning success. `doctor` and `audit` remain
-read-only with respect to downloads so an implicit network side effect cannot
-turn a page assessment into a package-management operation.
+`setup` is the normal first-party bootstrap path. It runs the read-only doctor
+check first, skips all downloads when the selected browser already launches,
+and otherwise delegates to the explicit installer. `install-browser` is the
+lower-level command that may download a browser. Both launch Playwright through
+the active `sys.executable`, support one explicit engine at a time, can request
+Linux system dependencies, and verify a real headless launch before returning
+success. Chromium installs only the headless shell by default; the full build is
+available through an explicit opt-in. `doctor` and `audit` remain read-only with
+respect to downloads so an implicit network side effect cannot turn a page
+assessment into a package-management operation.
+
+Host differences are isolated in a small standard-library-only
+`ego_webqa.platforms` leaf. QA does not import the ego ecosystem's `ego_uri`
+package. The local boundary owns OS-family checks and native path conversion;
+deterministic pure-path tests exercise POSIX and Windows shapes without
+depending on the CI host. This borrows the useful design discipline from
+`ego_uri` while keeping the public package standalone.
 
 ## Multi-agent boundary
 
@@ -265,5 +277,6 @@ the deterministic core.
 The JSON report uses `schema_version`. New optional fields may be added inside
 the same major schema. Removing or changing existing field semantics requires a
 new schema version. Draft 2020-12 schemas for report, Agent summary, dimensions,
-feedback, delta, and doctor are packaged with the distribution and exposed by
-`ego-webqa --print-schema`; see [`json-contracts.md`](json-contracts.md).
+feedback, delta, doctor, browser installation, and setup are packaged with the
+distribution and exposed by `ego-webqa --print-schema`; see
+[`json-contracts.md`](json-contracts.md).

@@ -286,6 +286,7 @@ def test_cli_install_browser_json_and_option_forwarding(
         "force": True,
         "dry_run": False,
         "machine_readable": True,
+        "headless_only": True,
     }
     assert payload["status"] == "ok"
     assert payload["engine"] == "chromium"
@@ -345,6 +346,67 @@ def test_cli_install_browser_human_dry_run_and_failure(
     assert "install Linux dependencies" in failure
 
 
+def test_cli_setup_json_and_ready_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from ego_webqa.installer import SetupResult
+
+    ready = DoctorReport(
+        status="ok",
+        checks=(DoctorCheck("browser_launch", "ok", "chromium launched successfully"),),
+        runtime={"browser_runtime": "headless-shell"},
+    )
+    seen: dict[str, object] = {}
+
+    def fake_setup(engine: str, **options: object) -> SetupResult:
+        seen.update({"engine": engine, **options})
+        return SetupResult(
+            status="ok",
+            engine="chromium",
+            command=(sys.executable, "-m", "playwright", "install", "--only-shell", "chromium"),
+            headless_only=True,
+            with_deps=False,
+            force=False,
+            dry_run=False,
+            initial_doctor=ready,
+            install=None,
+            detail="chromium is already installed and launched successfully",
+        )
+
+    monkeypatch.setattr("ego_webqa.cli.setup_environment", fake_setup)
+
+    assert cli.main(["setup", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert seen == {
+        "engine": "chromium",
+        "with_deps": False,
+        "force": False,
+        "dry_run": False,
+        "machine_readable": True,
+        "headless_only": True,
+    }
+    assert payload["action"] == "setup"
+    assert payload["initial_doctor"]["status"] == "ok"
+
+    assert cli.main(["setup"]) == 0
+    output = capsys.readouterr().out
+    assert "Ready: ego-webqa https://your-preview.example" in output
+
+
+def test_cli_setup_rejects_invalid_mode_and_reports_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def reject(*args: object, **kwargs: object) -> None:
+        raise ValueError("full-browser selection applies only to Chromium")
+
+    monkeypatch.setattr("ego_webqa.cli.setup_environment", reject)
+
+    assert cli.main(["setup", "--browser-engine", "firefox", "--full-chromium"]) == 2
+    assert "only to Chromium" in capsys.readouterr().err
+
+
 def test_cli_install_browser_rejects_platform_specific_options(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -356,6 +418,75 @@ def test_cli_install_browser_rejects_platform_specific_options(
 
     assert cli.main(["install-browser", "--with-deps"]) == 2
     assert "only on Linux" in capsys.readouterr().err
+
+
+def test_cli_install_browser_full_chromium_mode_is_explicit(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    seen: dict[str, object] = {}
+
+    def fake_install(engine: str, **options: object) -> BrowserInstallResult:
+        seen.update({"engine": engine, **options})
+        return BrowserInstallResult(
+            status="ok",
+            engine="chromium",
+            command=(sys.executable, "-m", "playwright", "install", "chromium"),
+            dry_run=False,
+            returncode=0,
+            verification=None,
+            detail="chromium is installed and launched successfully",
+            headless_only=False,
+        )
+
+    monkeypatch.setattr("ego_webqa.cli.install_browser", fake_install)
+
+    assert cli.main(["install-browser", "--full-chromium"]) == 0
+    assert seen["headless_only"] is False
+    assert "mode: full browser" in capsys.readouterr().out
+
+
+def test_cli_setup_reports_a_failed_final_verification(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from ego_webqa.installer import SetupResult
+
+    failed = DoctorReport(
+        status="fail",
+        checks=(DoctorCheck("browser_launch", "fail", "launch failed", "retry setup"),),
+        runtime={},
+    )
+    install = BrowserInstallResult(
+        status="fail",
+        engine="chromium",
+        command=(sys.executable, "-m", "playwright", "install", "--only-shell", "chromium"),
+        dry_run=False,
+        returncode=0,
+        verification=failed,
+        detail="browser installed but verification failed: browser_launch",
+    )
+    monkeypatch.setattr(
+        "ego_webqa.cli.setup_environment",
+        lambda *args, **kwargs: SetupResult(
+            status="fail",
+            engine="chromium",
+            command=install.command,
+            headless_only=True,
+            with_deps=False,
+            force=False,
+            dry_run=False,
+            initial_doctor=failed,
+            install=install,
+            detail=install.detail,
+        ),
+    )
+
+    assert cli.main(["setup"]) == 1
+    output = capsys.readouterr().out
+    assert "initial FAIL browser_launch" in output
+    assert "final FAIL browser_launch" in output
+    assert "retry setup" in output
 
 
 def test_json_output_escapes_unsupported_stdout_encoding() -> None:

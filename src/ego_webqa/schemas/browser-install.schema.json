@@ -35,6 +35,9 @@
     "dry_run": {
       "type": "boolean"
     },
+    "headless_only": {
+      "type": "boolean"
+    },
     "command": {
       "type": "array",
       "minItems": 1,

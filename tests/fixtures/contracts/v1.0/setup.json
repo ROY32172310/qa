@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "tool": "ego-webqa",
+  "action": "setup",
+  "status": "ok",
+  "engine": "chromium",
+  "headless_only": true,
+  "with_deps": false,
+  "force": false,
+  "dry_run": false,
+  "command": [
+    "/usr/bin/python3",
+    "-m",
+    "playwright",
+    "install",
+    "--only-shell",
+    "chromium"
+  ],
+  "python_executable": "/usr/bin/python3",
+  "detail": "chromium is already installed and launched successfully"
+}

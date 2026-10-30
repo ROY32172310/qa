@@ -87,7 +87,7 @@ user-defined detector code.
 ## Stable contracts and feedback
 
 The public `1.0` contracts are `report`, `agent-summary`, `dimensions`,
-`feedback-bundle`, `delta`, and `doctor`. Validate a received payload against
+`feedback-bundle`, `delta`, `doctor`, `browser-install`, and `setup`. Validate a received payload against
 the bundled schema instead of assuming package compatibility:
 
 ```bash

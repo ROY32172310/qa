@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/ROY32172310/qa/master/src/ego_webqa/schemas/setup.schema.json",
+  "title": "ego-webqa setup result",
+  "description": "Explicit readiness check, conditional browser installation, and launch verification.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "tool",
+    "action",
+    "status",
+    "engine",
+    "headless_only",
+    "with_deps",
+    "force",
+    "dry_run",
+    "command",
+    "python_executable",
+    "detail"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "tool": {
+      "const": "ego-webqa"
+    },
+    "action": {
+      "const": "setup"
+    },
+    "status": {
+      "enum": ["ok", "fail", "planned"]
+    },
+    "engine": {
+      "enum": ["chromium", "firefox", "webkit"]
+    },
+    "headless_only": {
+      "type": "boolean"
+    },
+    "with_deps": {
+      "type": "boolean"
+    },
+    "force": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "command": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "python_executable": {
+      "type": "string",
+      "minLength": 1
+    },
+    "detail": {
+      "type": "string"
+    },
+    "initial_doctor": {
+      "type": "object"
+    },
+    "install": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}
