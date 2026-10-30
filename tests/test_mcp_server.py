@@ -7,12 +7,14 @@ import sys
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 pytest.importorskip("mcp", reason="mcp is not installed")
 
 from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
+from ego_webqa.contracts import load_schema
 from ego_webqa.mcp_server import TOOL_NAME, audit_web_page, build_server
 from ego_webqa.server import LocalServer
 
@@ -97,6 +99,8 @@ def test_mcp_tool_returns_blocking_evidence(
     assert payload["screenshots"] == ["screenshots/mobile.png"]
     assert payload["artifacts"]["json"] == str(artifact_dir / "report.json")
     assert (artifact_dir / "agent_summary.json").is_file()
+    Draft202012Validator(load_schema("report")).validate(payload)
+    Draft202012Validator(load_schema("agent-summary")).validate(payload["agent_summary"])
     summary = json.loads(result.content[0].text)
     assert summary["status"] == "pass"
 
@@ -330,4 +334,6 @@ def test_mcp_stdio_round_trip(site: tuple[LocalServer, Path], tmp_path: Path) ->
     tool_names, payload = asyncio.run(scenario())
     assert tool_names == [TOOL_NAME]
     assert payload["status"] == "pass"
+    Draft202012Validator(load_schema("report")).validate(payload)
+    Draft202012Validator(load_schema("agent-summary")).validate(payload["agent_summary"])
     assert (tmp_path / "stdio" / "report.json").is_file()

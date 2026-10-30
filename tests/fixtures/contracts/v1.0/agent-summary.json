@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "tool": "ego-webqa",
+  "target": "https://example.test/",
+  "status": "fail",
+  "failed_items": [
+    {
+      "dimension_id": "horizontal_overflow",
+      "dimension_version": "1.0.0",
+      "detector": "geometry",
+      "default_severity": "block",
+      "severity": "block",
+      "selector": "html",
+      "selectors": [],
+      "text_snippet": "",
+      "trigger": "mobile (390x844)",
+      "triggers": [
+        "mobile (390x844)"
+      ],
+      "problem": "Content extends beyond the viewport width.",
+      "problems": [
+        "Content extends beyond the viewport width."
+      ],
+      "suggestion": "Constrain the overflowing element.",
+      "reproduce": "ego-webqa https://example.test/ --viewports 390x844:mobile",
+      "occurrences": 1,
+      "evidence": {},
+      "evidence_by_viewport": {}
+    }
+  ],
+  "summary": {
+    "total_block": 1,
+    "total_warn": 0,
+    "unique_root_causes": 1,
+    "affected_viewports": 1,
+    "duration_ms": 42,
+    "overridden_dimensions": 0,
+    "downgraded_blocks": 0,
+    "expired_overrides": 0
+  },
+  "scope_statement": "Deterministic coarse check only."
+}

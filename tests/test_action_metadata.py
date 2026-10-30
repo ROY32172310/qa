@@ -9,8 +9,12 @@ from pathlib import Path
 
 import pytest
 import yaml
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
+
+from ego_webqa.contracts import load_schema
 
 ROOT = Path(__file__).resolve().parents[1]
+CONTRACT_FIXTURES = ROOT / "tests" / "fixtures" / "contracts" / "v1.0"
 
 
 def test_workflows_keep_matrices_under_strategy() -> None:
@@ -106,36 +110,22 @@ def test_action_job_summary_renders_only_sanitized_findings(tmp_path: Path) -> N
     step = next(step for step in action["runs"]["steps"] if step.get("name") == "Write job summary")
     output = tmp_path / "out"
     output.mkdir()
+    feedback = json.loads((CONTRACT_FIXTURES / "feedback-bundle.json").read_text(encoding="utf-8"))
+    feedback["counts"] = {"error": 1, "warning": 2, "root_causes": 1}
+    feedback["findings"][0]["viewport_indexes"] = [0, 1]
+    feedback["target"] = "https://private.example"
+    feedback["findings"][0]["selectors"] = ["#secret"]
+    Draft202012Validator(load_schema("feedback-bundle")).validate(feedback)
     (output / "feedback_bundle.json").write_text(
-        json.dumps(
-            {
-                "status": "fail",
-                "counts": {"error": 1, "warning": 2, "root_causes": 1},
-                "findings": [
-                    {
-                        "dimension_id": "horizontal_overflow",
-                        "block_count": 1,
-                        "warning_count": 0,
-                        "viewport_indexes": [0, 1],
-                    }
-                ],
-                "target": "https://private.example",
-                "selectors": ["#secret"],
-            }
-        ),
+        json.dumps(feedback),
         encoding="utf-8",
     )
+    delta = json.loads((CONTRACT_FIXTURES / "delta.json").read_text(encoding="utf-8"))
+    delta["gate"]["failed"] = True
+    delta["summary"].update({"new": 1, "changed": 2, "resolved": 3})
+    Draft202012Validator(load_schema("delta")).validate(delta)
     (output / "delta.json").write_text(
-        json.dumps(
-            {
-                "gate": {"mode": "new", "failed": True},
-                "summary": {
-                    "new": 1,
-                    "changed": 2,
-                    "resolved": 3,
-                },
-            }
-        ),
+        json.dumps(delta),
         encoding="utf-8",
     )
     github_summary = tmp_path / "step-summary.md"

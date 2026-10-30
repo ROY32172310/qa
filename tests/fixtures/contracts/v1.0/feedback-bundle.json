@@ -1,0 +1,50 @@
+{
+  "bundle_schema_version": "1.0",
+  "tool": "ego-webqa",
+  "tool_version": "0.7.0",
+  "report_schema_version": "1.0",
+  "status": "fail",
+  "duration_ms": 42,
+  "target_kind": "remote",
+  "counts": {
+    "error": 1,
+    "warning": 0,
+    "root_causes": 1
+  },
+  "settings": {},
+  "runtime": {},
+  "viewports": [
+    {
+      "index": 0,
+      "width": 390,
+      "height": 844,
+      "text_scale": 1.0,
+      "safe_area_bottom_px": 0,
+      "has_touch": true
+    }
+  ],
+  "findings": [
+    {
+      "dimension_id": "horizontal_overflow",
+      "dimension_version": "1.0.0",
+      "detector": "geometry",
+      "default_severity": "block",
+      "block_count": 1,
+      "warning_count": 0,
+      "occurrences": 1,
+      "viewport_indexes": [
+        0
+      ]
+    }
+  ],
+  "privacy": {
+    "target_included": false,
+    "selectors_included": false,
+    "messages_included": false,
+    "excluded_by_default": [
+      "target",
+      "selectors",
+      "messages"
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "tool": "ego-webqa",
+  "status": "pass",
+  "gate": {
+    "mode": "new",
+    "failed": false
+  },
+  "compatibility": {
+    "target_matches": true,
+    "configuration_matches": true,
+    "runtime_matches": true,
+    "target_change_allowed": false,
+    "configuration_change_allowed": false
+  },
+  "baseline": {
+    "target_kind": "target",
+    "status": "fail",
+    "counts": {
+      "error": 1,
+      "warning": 0
+    },
+    "duration_ms": 40,
+    "runtime": {}
+  },
+  "current": {
+    "target_kind": "target",
+    "status": "fail",
+    "counts": {
+      "error": 1,
+      "warning": 0
+    },
+    "duration_ms": 42,
+    "runtime": {}
+  },
+  "summary": {
+    "new": 0,
+    "persistent": 1,
+    "changed": 0,
+    "resolved": 0,
+    "total_changes": 1,
+    "blocking_regressions": 0
+  },
+  "changes": [
+    {
+      "fingerprint": "horizontal_overflow:html",
+      "dimension_id": "horizontal_overflow",
+      "dimension_version_after": "1.0.0",
+      "dimension_version_before": "1.0.0",
+      "change_type": "persistent",
+      "block_count_before": 1,
+      "block_count_after": 1,
+      "warning_count_before": 0,
+      "warning_count_after": 0,
+      "occurrences_before": 1,
+      "occurrences_after": 1,
+      "viewports_before": [
+        "mobile"
+      ],
+      "viewports_after": [
+        "mobile"
+      ],
+      "selectors": [],
+      "problem": "Content extends beyond the viewport width.",
+      "gate_failed": false
+    }
+  ]
+}

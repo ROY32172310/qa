@@ -5,8 +5,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 from ego_webqa import cli
+from ego_webqa.contracts import load_schema
 from ego_webqa.models import AuditReport
 
 
@@ -66,6 +68,7 @@ def test_cli_json_success(
     assert cli.main(["https://example.com", "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "pass"
+    Draft202012Validator(load_schema("report")).validate(payload)
 
 
 def test_cli_local_directory_and_fail_exit(

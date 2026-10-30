@@ -32,6 +32,9 @@ from the package version alone.
   they do not understand.
 - A field may be marked deprecated in docs and changelog while remaining
   present and semantically unchanged for at least two minor releases.
+- A schema field marked `"deprecated": true` must carry
+  `x-ego-webqa-deprecation` metadata with `deprecated_in` and
+  `remove_no_earlier_than`; CI enforces the two-minor-release window.
 - Removing a required field, changing its type or meaning, changing an enum
   value's meaning, or changing exit-code semantics requires a new schema major.
 - New issue dimensions do not require a schema major because `dimensions` is a
@@ -51,6 +54,17 @@ from the package version alone.
 The CLI, MCP server, and GitHub Action call the same audit engine and report
 builder. Integration tests validate shared configuration behavior and generated
 payloads; compatibility does not depend on which entry point produced them.
+
+## Compatibility evidence
+
+The repository keeps frozen minimal `1.0` payloads under
+`tests/fixtures/contracts/v1.0/`. CI validates all six payloads against the
+packaged schemas, validates actual CLI and MCP output, and checks that the
+GitHub Action summary consumes schema-valid feedback and delta documents.
+
+The installed-wheel job prints every packaged schema from the wheel rather than
+testing source-tree files. This catches both contract drift and missing schema
+package data.
 
 ## Scope
 

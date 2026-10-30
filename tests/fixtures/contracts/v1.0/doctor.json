@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "tool": "ego-webqa",
+  "status": "ok",
+  "runtime": {
+    "python": "3.11"
+  },
+  "checks": [
+    {
+      "id": "python",
+      "status": "ok",
+      "message": "Python 3.11",
+      "hint": ""
+    }
+  ]
+}

@@ -127,7 +127,12 @@ jobs:
       - run: python scripts/dev.py package
       - run: python -m pip install --force-reinstall dist/*.whl
       - run: ego-webqa --version
-      - run: ego-webqa --print-schema report > /dev/null
+      - name: Verify all schemas are present in the installed wheel
+        shell: bash
+        run: |
+          for schema in report agent-summary dimensions feedback-bundle delta doctor; do
+            ego-webqa --print-schema "$schema" > /dev/null
+          done
       - run: >-
           python -c "from importlib.metadata import version; import ego_webqa;
           assert version('ego-webqa') == ego_webqa.__version__"

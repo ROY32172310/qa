@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "dimensions": [
+    {
+      "id": "horizontal_overflow",
+      "version": "1.0.0",
+      "description": "Content extends beyond the viewport width.",
+      "detector": "geometry",
+      "default_severity": "block",
+      "introduced_in": "0.1.0",
+      "profile": "baseline",
+      "parameters": [
+        "overflow_tolerance_px"
+      ],
+      "deprecated_in": null
+    }
+  ]
+}
