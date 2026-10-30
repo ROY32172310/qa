@@ -29,6 +29,62 @@ jobs:
       - run: python scripts/dev.py full
       - run: python scripts/dev.py package
       - run: python scripts/dev.py agensi-package
+      - name: Serve the clean fixture for Action acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8765 \
+            --bind 127.0.0.1 \
+            --directory benchmarks/fixtures \
+            >/tmp/ego-webqa-http.log 2>&1 &
+          echo "$!" >/tmp/ego-webqa-http.pid
+          python3 - <<'PY'
+          import time
+          import urllib.request
+
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:8765/clean.html") as response:
+                      if response.status == 200:
+                          break
+              except OSError:
+                  time.sleep(1)
+          else:
+              raise SystemExit("fixture server did not become ready")
+          PY
+      - name: Create a release baseline through the composite Action
+        uses: ./
+        with:
+          url: http://127.0.0.1:8765/clean.html
+          out: webqa-baseline
+          viewport-preset: quick
+          smoke-selector: "#start"
+          smoke-success-selector: "#result"
+          smoke-require-assertion: "true"
+          fail-on-warn: "true"
+          install-browser: "false"
+          upload-artifact: "false"
+      - name: Gate a second release Action run against the baseline
+        uses: ./
+        with:
+          url: http://127.0.0.1:8765/clean.html
+          out: webqa-current
+          viewport-preset: quick
+          smoke-selector: "#start"
+          smoke-success-selector: "#result"
+          smoke-require-assertion: "true"
+          fail-on-warn: "true"
+          baseline-report: webqa-baseline/report.json
+          delta-gate: new
+          install-browser: "false"
+          upload-artifact: "false"
+      - name: Verify release Action outputs and job summary
+        shell: bash
+        run: >-
+          python scripts/verify_action_smoke.py
+          --baseline-dir webqa-baseline
+          --current-dir webqa-current
+          --summary "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v5
         with:
           name: python-package

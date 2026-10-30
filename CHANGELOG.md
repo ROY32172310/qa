@@ -4,6 +4,9 @@
 
 - Build a reproducible Agensi marketplace ZIP with required artifact checks,
   exact MCP-version pinning, CI verification, and GitHub Release attachment.
+- Exercise the composite GitHub Action end to end in CI and release builds
+  against a clean fixture, including `quick`, an explicit smoke assertion,
+  baseline delta gating, privacy-safe feedback, and job-summary output.
 - Add `ego-webqa doctor` to verify Python, MCP, Playwright, browser binaries,
   system browser channels, and a real headless launch before running an audit.
 - Generate a default `feedback_bundle.json` whose allowlist omits target URLs,

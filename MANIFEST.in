@@ -3,6 +3,7 @@ include CHANGELOG.md
 include server.json
 include scripts/dev.py
 include scripts/package_agensi.py
+include scripts/verify_action_smoke.py
 recursive-include benchmarks *
 recursive-include docs *.md
 recursive-include integrations *.md

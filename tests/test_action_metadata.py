@@ -218,3 +218,38 @@ def test_release_workflow_publishes_mcp_registry_metadata_after_pypi() -> None:
     assert "mcp-publisher login github-oidc" in script
     assert "mcp-publisher publish" in script
     assert "registry-version.outputs.published != 'true'" in script
+
+
+def test_ci_exercises_the_composite_action_end_to_end() -> None:
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+    steps = workflow["jobs"]["action-smoke"]["steps"]
+
+    assert [step.get("uses") for step in steps].count("./") == 2
+    assert any(
+        step.get("name") == "Create a baseline through the composite Action"
+        and step.get("with", {}).get("viewport-preset") == "quick"
+        for step in steps
+    )
+    assert any(
+        step.get("name") == "Gate a second Action run against the baseline"
+        and step.get("with", {}).get("delta-gate") == "new"
+        for step in steps
+    )
+    assert any("scripts/verify_action_smoke.py" in step.get("run", "") for step in steps)
+
+
+def test_release_build_exercises_the_composite_action_end_to_end() -> None:
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    )
+    steps = workflow["jobs"]["build"]["steps"]
+
+    assert [step.get("uses") for step in steps].count("./") == 2
+    assert any(
+        step.get("name") == "Create a release baseline through the composite Action"
+        and step.get("with", {}).get("fail-on-warn") == "true"
+        for step in steps
+    )
+    assert any("scripts/verify_action_smoke.py" in step.get("run", "") for step in steps)

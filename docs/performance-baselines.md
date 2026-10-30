@@ -14,13 +14,14 @@ source of comparable tool-latency regression evidence.
 | Evidence | Latest recorded value |
 |---|---:|
 | Cases | 128 / 128 exact |
+| Registered dimensions covered | 38 / 38 |
 | Blocking FP / FN | 0% / 0% |
-| Complete audit P50 | 356 ms |
-| Complete audit P95 | 1157 ms |
-| Complete audit max | 3603 ms |
+| Complete audit P50 | 342 ms |
+| Complete audit P95 | 1154 ms |
+| Complete audit max | 3610 ms |
 
 Evidence:
-`benchmark-results/20261030T023117Z/result.json`.
+`benchmark-results/20261030T1127Z-release-0.8.0/result.json`.
 
 Rules:
 
