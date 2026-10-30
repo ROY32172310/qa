@@ -28,6 +28,7 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - run: python scripts/dev.py full
       - run: python scripts/dev.py package
+      - run: python scripts/dev.py agensi-package
       - uses: actions/upload-artifact@v5
         with:
           name: python-package
@@ -119,12 +120,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          assets=(dist/*.whl dist/*.tar.gz dist/agensi/*.zip)
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" dist/* \
+            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" \
               --repo "$GITHUB_REPOSITORY" \
               --clobber
           else
-            gh release create "$GITHUB_REF_NAME" dist/* \
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
               --repo "$GITHUB_REPOSITORY" \
               --verify-tag \
               --generate-notes \

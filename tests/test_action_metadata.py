@@ -198,9 +198,10 @@ def test_release_workflow_publishes_github_release_after_pypi() -> None:
         step for step in github_release["steps"] if step.get("name") == "Publish GitHub release"
     )
     script = release_step["run"]
-    assert 'gh release create "$GITHUB_REF_NAME" dist/*' in script
+    assert "assets=(dist/*.whl dist/*.tar.gz dist/agensi/*.zip)" in script
+    assert 'gh release create "$GITHUB_REF_NAME" "${assets[@]}"' in script
     assert "--verify-tag" in script
-    assert 'gh release upload "$GITHUB_REF_NAME" dist/*' in script
+    assert 'gh release upload "$GITHUB_REF_NAME" "${assets[@]}"' in script
 
 
 def test_release_workflow_publishes_mcp_registry_metadata_after_pypi() -> None:

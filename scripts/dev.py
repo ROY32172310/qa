@@ -130,6 +130,10 @@ def package(*arguments: str) -> int:
     return _run("twine", "check", *artifacts)
 
 
+def agensi_package(*arguments: str) -> int:
+    return _script("scripts/package_agensi.py", *arguments)
+
+
 def check() -> int:
     for task in (lint, format_check, typecheck, coverage):
         result = task()
@@ -154,6 +158,7 @@ TASKS = {
     "benchmark": benchmark,
     "dogfood": dogfood,
     "package": package,
+    "agensi-package": agensi_package,
     "check": check,
     "full": full,
 }

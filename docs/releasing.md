@@ -30,11 +30,21 @@ publishing token is stored in GitHub. The PyPI publisher is active, not pending.
 
 The release workflow rejects a tag that does not match the package version,
 runs the complete local quality gate and Chromium benchmark, builds the wheel
-and source distribution, checks their metadata, publishes them to PyPI through
-OIDC, publishes `server.json` to the MCP Registry through GitHub OIDC, and
-creates a GitHub Release with the same artifacts attached. PyPI uploads and
-Registry metadata publication are idempotent so a failed downstream job can be
-retried safely.
+and source distribution, builds the deterministic Agensi marketplace ZIP, and
+checks the Python artifact metadata. It publishes the Python distributions to
+PyPI through OIDC, publishes `server.json` to the MCP Registry through GitHub
+OIDC, and creates a GitHub Release with the wheel, source archive, and Agensi
+ZIP attached. PyPI uploads and Registry metadata publication are idempotent so
+a failed downstream job can be retried safely.
+
+The Agensi ZIP includes the local MCP configuration template and is pinned to
+the package version. Its reproducible build can be checked locally:
+
+```bash
+python scripts/dev.py agensi-package
+python scripts/dev.py agensi-package --check
+sha256sum dist/agensi/web-delivery-qa-gate.zip
+```
 
 ## Verify a release
 
