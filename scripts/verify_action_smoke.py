@@ -67,7 +67,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         verify(arguments.baseline_dir, arguments.current_dir, arguments.summary)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
+        message = str(exc).replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
         print(f"action-smoke: {exc}", file=sys.stderr)
+        print(f"::error title=action-smoke::{message}")
         return 2
     print("action-smoke: pass")
     return 0
