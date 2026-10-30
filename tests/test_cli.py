@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass
 
 import pytest
@@ -13,6 +14,8 @@ from ego_webqa.config import (
     HTTP_USERNAME_ENV,
     Viewport,
 )
+from ego_webqa.doctor import DoctorCheck, DoctorReport
+from ego_webqa.installer import BrowserInstallResult
 
 
 @pytest.fixture(autouse=True)
@@ -236,6 +239,123 @@ def test_cli_doctor_failure_returns_one(
     output = capsys.readouterr().out
     assert "FAIL browser_launch: launch failed" in output
     assert "install chromium" in output
+
+
+def test_cli_install_browser_json_and_option_forwarding(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    seen: dict[str, object] = {}
+    verification = DoctorReport(
+        status="ok",
+        checks=(DoctorCheck("browser_launch", "ok", "chromium launched successfully"),),
+        runtime={"browser_engine": "chromium"},
+    )
+
+    def fake_install(engine: str, **options: object) -> BrowserInstallResult:
+        seen.update({"engine": engine, **options})
+        return BrowserInstallResult(
+            status="ok",
+            engine="chromium",
+            command=(sys.executable, "-m", "playwright", "install", "--force", "chromium"),
+            dry_run=False,
+            returncode=0,
+            verification=verification,
+            detail="chromium is installed and launched successfully",
+        )
+
+    monkeypatch.setattr("ego_webqa.cli.install_browser", fake_install)
+
+    assert (
+        cli.main(
+            [
+                "install-browser",
+                "--browser-engine",
+                "chromium",
+                "--with-deps",
+                "--force",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert seen == {
+        "engine": "chromium",
+        "with_deps": True,
+        "force": True,
+        "dry_run": False,
+        "machine_readable": True,
+    }
+    assert payload["status"] == "ok"
+    assert payload["engine"] == "chromium"
+    assert payload["verification"]["status"] == "ok"
+    assert payload["command"][-1] == "chromium"
+
+
+def test_cli_install_browser_human_dry_run_and_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        "ego_webqa.cli.install_browser",
+        lambda *args, **kwargs: BrowserInstallResult(
+            status="planned",
+            engine="chromium",
+            command=(sys.executable, "-m", "playwright", "install", "chromium"),
+            dry_run=True,
+            returncode=None,
+            verification=None,
+            detail="installation and launch verification were not run",
+        ),
+    )
+    assert cli.main(["install-browser", "--dry-run"]) == 0
+    dry_run = capsys.readouterr().out
+    assert "PLANNED" in dry_run
+    assert "playwright install chromium" in dry_run
+    assert "without --dry-run" in dry_run
+
+    failed_checks = DoctorReport(
+        status="fail",
+        checks=(
+            DoctorCheck(
+                "browser_launch",
+                "fail",
+                "launch failed",
+                "install Linux dependencies",
+            ),
+        ),
+        runtime={},
+    )
+    monkeypatch.setattr(
+        "ego_webqa.cli.install_browser",
+        lambda *args, **kwargs: BrowserInstallResult(
+            status="fail",
+            engine="chromium",
+            command=(sys.executable, "-m", "playwright", "install", "chromium"),
+            dry_run=False,
+            returncode=0,
+            verification=failed_checks,
+            detail="browser installed but verification failed: browser_launch",
+        ),
+    )
+    assert cli.main(["install-browser"]) == 1
+    failure = capsys.readouterr().out
+    assert "FAIL browser_launch: launch failed" in failure
+    assert "install Linux dependencies" in failure
+
+
+def test_cli_install_browser_rejects_platform_specific_options(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def reject(*args: object, **kwargs: object) -> None:
+        raise ValueError("--with-deps is supported only on Linux")
+
+    monkeypatch.setattr("ego_webqa.cli.install_browser", reject)
+
+    assert cli.main(["install-browser", "--with-deps"]) == 2
+    assert "only on Linux" in capsys.readouterr().err
 
 
 def test_json_output_escapes_unsupported_stdout_encoding() -> None:

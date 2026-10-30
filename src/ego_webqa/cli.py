@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -28,6 +29,7 @@ from .dimensions import registry_payload
 from .doctor import collect_doctor_report
 from .engine import AuditRuntimeError, audit
 from .feedback import build_feedback_bundle
+from .installer import BROWSER_ENGINES, install_browser
 from .reporting import write_reports
 from .server import LocalServer
 
@@ -37,7 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="ego-webqa",
         description="Deterministic delivery QA for AI-generated web pages.",
         epilog=(
-            "Run 'ego-webqa doctor' to verify the installation, "
+            "Run 'ego-webqa install-browser' once, then 'ego-webqa doctor' to verify it, "
             "'ego-webqa feedback' to prepare a privacy-safe issue report, or "
             "'ego-webqa mcp' to start the stdio MCP server."
         ),
@@ -269,6 +271,69 @@ def _doctor_main(arguments: Sequence[str]) -> int:
     return 0 if report.status == "ok" else 1
 
 
+def _install_browser_main(arguments: Sequence[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="ego-webqa install-browser",
+        description=(
+            "Install one Playwright browser with this ego-webqa interpreter, "
+            "then verify a real headless launch."
+        ),
+    )
+    parser.add_argument(
+        "--browser-engine",
+        choices=BROWSER_ENGINES,
+        default="chromium",
+        help="browser engine to install (default: chromium)",
+    )
+    parser.add_argument(
+        "--with-deps",
+        action="store_true",
+        help="also install Linux system dependencies (may require elevated permissions)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="reinstall even when the browser revision is already present",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print the exact installation command without downloading or launching",
+    )
+    parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    args = parser.parse_args(list(arguments))
+    try:
+        result = install_browser(
+            args.browser_engine,
+            with_deps=args.with_deps,
+            force=args.force,
+            dry_run=args.dry_run,
+            machine_readable=args.json,
+        )
+    except ValueError as exc:
+        print(f"ego-webqa install-browser: {exc}", file=sys.stderr)
+        return 2
+
+    if args.json:
+        print(_json_text(result.to_dict(), sys.stdout.encoding or "utf-8"))
+    else:
+        print(f"ego-webqa install-browser: {result.status.upper()}")
+        print(f"  engine: {result.engine}")
+        print(f"  python: {sys.executable}")
+        print(f"  command: {subprocess.list2cmdline(list(result.command))}")
+        print(f"  {result.detail}")
+        if result.verification is not None:
+            for check in result.verification.checks:
+                if check.status == "fail":
+                    print(f"  FAIL {check.id}: {check.message}")
+                    if check.hint:
+                        print(f"       {check.hint}")
+        if result.dry_run:
+            print("  Run the command above without --dry-run to install and verify.")
+
+    return 0 if result.status in ("ok", "planned") else 1
+
+
 def _feedback_main(arguments: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="ego-webqa feedback",
@@ -400,6 +465,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments[:1] == ["doctor"]:
         return _doctor_main(arguments[1:])
+    if arguments[:1] == ["install-browser"]:
+        return _install_browser_main(arguments[1:])
     if arguments[:1] == ["feedback"]:
         return _feedback_main(arguments[1:])
     if arguments[:1] == ["delta"]:

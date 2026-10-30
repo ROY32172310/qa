@@ -14,6 +14,7 @@ from ego_webqa.delta import compare_reports
 from ego_webqa.dimensions import registry_payload
 from ego_webqa.doctor import DoctorCheck, DoctorReport
 from ego_webqa.feedback import build_feedback_bundle
+from ego_webqa.installer import BrowserInstallResult
 from ego_webqa.models import AuditReport
 from ego_webqa.reporting import build_agent_summary
 
@@ -202,6 +203,20 @@ V1_REQUIRED_FIELDS = {
         "": {"schema_version", "tool", "status", "runtime", "checks"},
         "/properties/checks/items": {"id", "status", "message", "hint"},
     },
+    "browser-install": {
+        "": {
+            "schema_version",
+            "tool",
+            "action",
+            "status",
+            "engine",
+            "dry_run",
+            "command",
+            "python_executable",
+            "returncode",
+            "detail",
+        },
+    },
 }
 
 
@@ -334,6 +349,18 @@ def test_core_generated_payloads_validate_against_packaged_schemas() -> None:
             status="ok",
             checks=(DoctorCheck("python", "ok", "Python 3.11"),),
             runtime={"python": "3.11"},
+        ).to_dict(),
+    )
+    _validate(
+        "browser-install",
+        BrowserInstallResult(
+            status="planned",
+            engine="chromium",
+            command=("/usr/bin/python3", "-m", "playwright", "install", "chromium"),
+            dry_run=True,
+            returncode=None,
+            verification=None,
+            detail="installation and launch verification were not run",
         ).to_dict(),
     )
 

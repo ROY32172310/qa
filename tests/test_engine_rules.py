@@ -248,10 +248,22 @@ def test_browser_launcher_selects_each_playwright_engine() -> None:
 
 def test_browser_launcher_explains_missing_preview_engines() -> None:
     playwright = _FakePlaywright(firefox_fail=True, webkit_fail=True)
-    with pytest.raises(AuditRuntimeError, match="playwright install firefox"):
+    with pytest.raises(AuditRuntimeError, match="install-browser --browser-engine firefox"):
         _launch_browser(playwright, "firefox", "")
-    with pytest.raises(AuditRuntimeError, match="playwright install webkit"):
+    with pytest.raises(AuditRuntimeError, match="install-browser --browser-engine webkit"):
         _launch_browser(playwright, "webkit", "")
+
+
+def test_browser_launcher_explains_missing_chromium() -> None:
+    playwright = _FakePlaywright(chromium_fail=True)
+    with pytest.raises(AuditRuntimeError, match="install-browser --browser-engine chromium"):
+        _launch_browser(playwright, "chromium", "")
+
+
+def test_browser_launcher_explains_failed_system_channel() -> None:
+    playwright = _FakePlaywright(chromium_fail=True)
+    with pytest.raises(AuditRuntimeError, match="could not launch browser channel 'msedge'"):
+        _launch_browser(playwright, "chromium", "msedge")
 
 
 def test_dom_content_loaded_timeout_is_non_fatal() -> None:

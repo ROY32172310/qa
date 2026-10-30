@@ -19,7 +19,8 @@ unreviewed full report in a public issue.
 
 ```bash
 python -m pip install ego-webqa
-python -m playwright install chromium
+ego-webqa install-browser
+ego-webqa doctor
 ego-webqa https://your-preview.example --out .qa/first-trial
 ```
 

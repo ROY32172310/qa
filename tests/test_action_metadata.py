@@ -61,7 +61,9 @@ def test_composite_action_metadata_and_input_safety() -> None:
     steps = action["runs"]["steps"]
     install = next(step for step in steps if step.get("name") == "Install browser")
     assert install["env"]["WEBQA_BROWSER_ENGINE"] == "${{ inputs.browser-engine }}"
-    assert 'install --with-deps "$WEBQA_BROWSER_ENGINE"' in install["run"]
+    assert 'args=(--browser-engine "$WEBQA_BROWSER_ENGINE")' in install["run"]
+    assert "args+=(--with-deps)" in install["run"]
+    assert 'ego-webqa install-browser "${args[@]}"' in install["run"]
     audit = next(step for step in steps if step.get("name") == "Run audit")
     script = audit["run"]
     assert 'python -m ego_webqa "${args[@]}"' in script
@@ -87,6 +89,13 @@ def test_composite_action_metadata_and_input_safety() -> None:
     assert "GITHUB_STEP_SUMMARY" in summary_step["run"]
     assert "feedback_bundle.json" in summary_step["run"]
     assert "target URLs, selectors, page text" in summary_step["run"]
+    completed = subprocess.run(
+        [_bash_executable(), "-n"],
+        input=install["run"].encode("utf-8"),
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr.decode("utf-8", errors="replace")
     # Binary input avoids Windows text-mode CRLF translation, which is not
     # meaningful to the Bash script that GitHub executes with LF endings.
     completed = subprocess.run(

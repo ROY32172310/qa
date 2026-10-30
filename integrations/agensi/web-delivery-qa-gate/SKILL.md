@@ -23,14 +23,15 @@ before installing anything:
 
 ```bash
 python -m pip install "ego-webqa==0.8.0"
-python -m playwright install chromium
+ego-webqa install-browser
+ego-webqa doctor
 ```
 
 Install Firefox or WebKit only when the user asks for that engine:
 
 ```bash
-python -m playwright install firefox
-python -m playwright install webkit
+ego-webqa install-browser --browser-engine firefox
+ego-webqa install-browser --browser-engine webkit
 ```
 
 When the environment is uncertain or a browser failure is hard to classify,

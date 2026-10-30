@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/ROY32172310/qa/master/src/ego_webqa/schemas/browser-install.schema.json",
+  "title": "ego-webqa browser installation result",
+  "description": "Explicit Playwright browser installation and launch-verification result.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "tool",
+    "action",
+    "status",
+    "engine",
+    "dry_run",
+    "command",
+    "python_executable",
+    "returncode",
+    "detail"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "tool": {
+      "const": "ego-webqa"
+    },
+    "action": {
+      "const": "install-browser"
+    },
+    "status": {
+      "enum": ["ok", "fail", "planned"]
+    },
+    "engine": {
+      "enum": ["chromium", "firefox", "webkit"]
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "command": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "python_executable": {
+      "type": "string",
+      "minLength": 1
+    },
+    "returncode": {
+      "type": ["integer", "null"]
+    },
+    "detail": {
+      "type": "string"
+    },
+    "verification": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

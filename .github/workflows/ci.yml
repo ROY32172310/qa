@@ -30,9 +30,9 @@ jobs:
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            python -m playwright install --with-deps chromium
+            ego-webqa install-browser --with-deps
           else
-            python -m playwright install chromium
+            ego-webqa install-browser
           fi
       - run: python scripts/dev.py coverage
       - name: Summarize pytest failures
@@ -131,7 +131,7 @@ jobs:
       - name: Verify all schemas are present in the installed wheel
         shell: bash
         run: |
-          for schema in report agent-summary dimensions feedback-bundle delta doctor; do
+          for schema in report agent-summary dimensions feedback-bundle delta doctor browser-install; do
             ego-webqa --print-schema "$schema" > /dev/null
           done
       - run: >-
@@ -157,7 +157,7 @@ jobs:
       - name: Install package and development tools
         timeout-minutes: 10
         run: python -m pip install -e ".[dev]"
-      - run: python -m playwright install --with-deps chromium
+      - run: ego-webqa install-browser --with-deps
       - run: python scripts/dev.py benchmark --out benchmark-results
       - uses: actions/upload-artifact@v5
         if: ${{ always() }}

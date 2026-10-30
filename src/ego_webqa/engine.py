@@ -85,8 +85,9 @@ def audit(
         from playwright.sync_api import sync_playwright
     except ImportError as exc:
         raise AuditRuntimeError(
-            "Playwright is not installed. Run: python -m pip install playwright "
-            "&& python -m playwright install chromium"
+            "Playwright could not be imported by this ego-webqa installation. "
+            "Reinstall ego-webqa in the same Python environment, then run "
+            "'ego-webqa doctor'."
         ) from exc
 
     issues: list[Issue] = []
@@ -322,14 +323,15 @@ def _launch_browser(playwright: Any, engine: str, requested_channel: str) -> tup
             return playwright.firefox.launch(headless=True), "bundled-firefox"
         except Exception as exc:  # noqa: BLE001
             raise AuditRuntimeError(
-                "Firefox is not available. Run: python -m playwright install firefox"
+                "Firefox is not available. Run: "
+                "ego-webqa install-browser --browser-engine firefox"
             ) from exc
     if engine == "webkit":
         try:
             return playwright.webkit.launch(headless=True), "bundled-webkit"
         except Exception as exc:  # noqa: BLE001
             raise AuditRuntimeError(
-                "WebKit is not available. Run: python -m playwright install webkit"
+                "WebKit is not available. Run: " "ego-webqa install-browser --browser-engine webkit"
             ) from exc
     if requested_channel:
         try:
@@ -348,7 +350,8 @@ def _launch_browser(playwright: Any, engine: str, requested_channel: str) -> tup
             return playwright.chromium.launch(channel="chrome", headless=True), "chrome"
         except Exception as exc:  # noqa: BLE001
             raise AuditRuntimeError(
-                "no Chromium browser is available. Run: python -m playwright install chromium"
+                "no Chromium browser is available. Run: "
+                "ego-webqa install-browser --browser-engine chromium"
             ) from exc
 
 

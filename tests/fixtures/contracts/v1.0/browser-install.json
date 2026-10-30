@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "tool": "ego-webqa",
+  "action": "install-browser",
+  "status": "ok",
+  "engine": "chromium",
+  "dry_run": false,
+  "command": [
+    "/usr/bin/python3",
+    "-m",
+    "playwright",
+    "install",
+    "chromium"
+  ],
+  "python_executable": "/usr/bin/python3",
+  "returncode": 0,
+  "detail": "chromium is installed and launched successfully"
+}

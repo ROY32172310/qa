@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import importlib.metadata
 import platform
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -68,6 +69,7 @@ def collect_doctor_report(
     """Check the local Python, MCP, and Playwright browser installation."""
 
     checks: list[DoctorCheck] = []
+    browser_executable = ""
 
     # The package cannot import on a Python older than its declared minimum.
     checks.append(_required_check("python", f"Python {platform.python_version()}"))
@@ -92,10 +94,16 @@ def collect_doctor_report(
             _failed_check(
                 "playwright_package",
                 "Playwright package is not installed",
-                'Run: python -m pip install "ego-webqa".',
+                "Reinstall ego-webqa in this Python environment, then retry.",
             )
         )
-        return _report(checks, browser_engine, browser_channel, playwright_version or "")
+        return _report(
+            checks,
+            browser_engine,
+            browser_channel,
+            playwright_version or "",
+            browser_executable,
+        )
 
     checks.append(_required_check("playwright_package", f"Playwright {playwright_version}"))
 
@@ -107,10 +115,16 @@ def collect_doctor_report(
             _failed_check(
                 "playwright_import",
                 f"Playwright import failed: {exc}",
-                'Reinstall with: python -m pip install --force-reinstall "ego-webqa".',
+                "Reinstall ego-webqa in this Python environment, then retry.",
             )
         )
-        return _report(checks, browser_engine, browser_channel, playwright_version)
+        return _report(
+            checks,
+            browser_engine,
+            browser_channel,
+            playwright_version,
+            browser_executable,
+        )
 
     checks.append(_required_check("playwright_import", "Playwright import"))
 
@@ -136,18 +150,22 @@ def collect_doctor_report(
                         browser_engine,
                         browser_channel,
                         playwright_version,
+                        browser_executable,
                     )
                 launch_options["channel"] = browser_channel
                 label = browser_channel
             else:
                 executable = Path(str(browser_type.executable_path))
+                browser_executable = str(executable)
                 if not executable.is_file():
-                    install_command = f"python -m playwright install {browser_engine}"
                     checks.append(
                         _failed_check(
                             "browser_binary",
-                            f"{browser_engine} browser binary is missing",
-                            f"Run: {install_command}",
+                            f"{browser_engine} browser binary is missing at {executable}",
+                            (
+                                "Run: ego-webqa install-browser "
+                                f"--browser-engine {browser_engine}"
+                            ),
                         )
                     )
                     return _report(
@@ -155,6 +173,7 @@ def collect_doctor_report(
                         browser_engine,
                         browser_channel,
                         playwright_version,
+                        browser_executable,
                     )
                 checks.append(
                     _required_check(
@@ -174,10 +193,14 @@ def collect_doctor_report(
                 )
     except Exception as exc:  # Playwright raises several platform-specific exception types.
         hint = (
-            f"Install {browser_channel} or retry with a bundled browser after: "
-            f"python -m playwright install {browser_engine}"
+            f"Install {browser_channel}, or run: ego-webqa install-browser "
+            f"--browser-engine {browser_engine}"
             if browser_channel
-            else f"Run: python -m playwright install {browser_engine}"
+            else (
+                "Run: ego-webqa install-browser "
+                f"--browser-engine {browser_engine}; on Linux use "
+                "ego-webqa install-browser --with-deps if system libraries are missing"
+            )
         )
         checks.append(
             _failed_check(
@@ -187,7 +210,13 @@ def collect_doctor_report(
             )
         )
 
-    return _report(checks, browser_engine, browser_channel, playwright_version)
+    return _report(
+        checks,
+        browser_engine,
+        browser_channel,
+        playwright_version,
+        browser_executable,
+    )
 
 
 def _report(
@@ -195,6 +224,7 @@ def _report(
     browser_engine: str,
     browser_channel: str,
     playwright_version: str,
+    browser_executable: str,
 ) -> DoctorReport:
     status: CheckStatus = "fail" if any(check.status == "fail" for check in checks) else "ok"
     return DoctorReport(
@@ -203,8 +233,12 @@ def _report(
         runtime={
             "platform": platform.platform(),
             "python": platform.python_version(),
+            "python_executable": sys.executable,
+            "python_prefix": sys.prefix,
+            "environment": "isolated" if sys.prefix != sys.base_prefix else "system",
             "playwright": playwright_version,
             "browser_engine": browser_engine,
             "browser_channel": browser_channel,
+            "browser_executable": browser_executable,
         },
     )

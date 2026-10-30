@@ -162,11 +162,11 @@ runs:
             exit 2
             ;;
         esac
+        args=(--browser-engine "$WEBQA_BROWSER_ENGINE")
         if [[ "$RUNNER_OS" == "Linux" ]]; then
-          python -m playwright install --with-deps "$WEBQA_BROWSER_ENGINE"
-        else
-          python -m playwright install "$WEBQA_BROWSER_ENGINE"
+          args+=(--with-deps)
         fi
+        ego-webqa install-browser "${args[@]}"
 
     - name: Run audit
       shell: bash

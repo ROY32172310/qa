@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Add `ego-webqa install-browser` as the explicit, interpreter-bound browser
+  repair path. It supports one engine at a time, `--dry-run`, `--force`,
+  Linux-only `--with-deps`, structured JSON, and a real headless launch check
+  before accepting success.
+- Pin Playwright to the tested browser adapter version so separate `uvx` or
+  `pipx` invocations reuse the same installed browser revision instead of
+  drifting to an incompatible one.
+- Expand `doctor` runtime evidence with the active Python executable,
+  environment kind, prefix, and browser executable, and direct missing-browser
+  failures to the first-party installation command.
+- Use the first-party installation command in the GitHub Action and
+  cross-platform CI instead of requiring callers to reconstruct Playwright's
+  interpreter-specific command.
 - Identify the most likely overflowing elements for horizontal and text-scale
   layout failures, including selectors, boxes, labels, and measured overflow,
   so Agent reports point at a repair target instead of only `html`.

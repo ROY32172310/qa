@@ -26,13 +26,16 @@ Prefer to inspect a completed run first? Open the
 
 ```bash
 python -m pip install ego-webqa
-python -m playwright install chromium
+ego-webqa install-browser
 ego-webqa doctor
 ego-webqa https://your-preview.example --out .qa/first
 ```
 
-`ego-webqa doctor` verifies Python, the MCP SDK, Playwright, the selected
-browser executable, and a real headless browser launch before an audit. The
+`install-browser` uses the same Python environment as `ego-webqa`, downloads
+the pinned Playwright browser once, and verifies a real headless launch.
+`ego-webqa doctor` independently reports the active interpreter, environment,
+Playwright version, browser executable, and launch result. Ordinary `doctor`
+and audit commands never download a browser implicitly. The
 audit command exits `0` for pass/warnings, `1` for blocking delivery defects,
 and `2` for an audit or browser failure. Each run leaves screenshots and
 structured evidence:
@@ -102,7 +105,8 @@ Install the published package from PyPI:
 
 ```bash
 python -m pip install ego-webqa
-python -m playwright install chromium
+ego-webqa install-browser
+ego-webqa doctor
 ```
 
 To install the current checkout before a release:
@@ -111,10 +115,35 @@ To install the current checkout before a release:
 git clone https://github.com/ROY32172310/qa.git
 cd qa
 python -m pip install .
-python -m playwright install chromium
+ego-webqa install-browser
 ```
 
 For development, use `python -m pip install -e '.[dev]'`.
+
+If `uv` is available and you do not want a persistent Python package install,
+use the same commands through an isolated, version-pinned `uvx` environment:
+
+```bash
+uvx --from ego-webqa==0.8.0 ego-webqa install-browser
+uvx --from ego-webqa==0.8.0 ego-webqa doctor
+uvx --from ego-webqa==0.8.0 ego-webqa https://your-preview.example
+```
+
+Playwright is pinned by the package, and browser binaries live in Playwright's
+shared cache, so the temporary `uvx` environment and later MCP launches reuse
+the same browser revision.
+
+If `doctor` reports missing Linux system libraries, install them explicitly:
+
+```bash
+ego-webqa install-browser --with-deps
+```
+
+The installation command is intentionally separate from package installation:
+wheel installs remain offline-safe, while browser downloads and operating
+system changes are visible, retryable user actions. Use `--dry-run` to inspect
+the exact interpreter-bound command before running it, or `--force` to repair
+a damaged browser revision.
 
 Use a system Chrome instead of downloading Chromium:
 
@@ -127,10 +156,10 @@ ego-webqa https://example.com --browser-channel chrome
 Install only the additional engine you need, then select it for the whole audit:
 
 ```bash
-python -m playwright install firefox
+ego-webqa install-browser --browser-engine firefox
 ego-webqa https://example.com --browser-engine firefox
 
-python -m playwright install webkit
+ego-webqa install-browser --browser-engine webkit
 ego-webqa https://example.com --browser-engine webkit
 ```
 
@@ -465,7 +494,7 @@ ego-webqa "$PREVIEW_URL" --out "webqa/$AGENT_ID" --json \
 same in-memory issue list. Agents should treat exit code `0` as pass/warn, `1`
 as blocking findings, and `2` as an invocation or browser failure.
 
-The six public JSON payloads have packaged Draft 2020-12 schemas. Print one with
+The seven public JSON payloads have packaged Draft 2020-12 schemas. Print one with
 `ego-webqa --print-schema report`; see
 [`docs/json-contracts.md`](docs/json-contracts.md) for names and the
 compatibility policy.
@@ -480,7 +509,7 @@ Expose the gate directly inside an AI coding agent:
 
 ```bash
 python -m pip install ego-webqa
-python -m playwright install chromium
+ego-webqa install-browser
 ego-webqa mcp
 ```
 
@@ -675,7 +704,7 @@ measurement contract and the two evidence classes.
 
 ```bash
 python -m pip install -e '.[dev]'
-python -m playwright install chromium
+ego-webqa install-browser
 python scripts/dev.py test
 python scripts/dev.py coverage
 python scripts/dev.py lint

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import re
+from importlib.metadata import version
 from pathlib import Path
 
 import jsonschema
@@ -66,7 +68,7 @@ def test_agensi_package_contains_local_setup_and_worked_example() -> None:
             }
         }
     }
-    assert f"uvx --from ego-webqa=={__version__} playwright" in setup
+    assert f"uvx --from ego-webqa=={__version__} ego-webqa install-browser" in setup
     assert f"ego-webqa@{__version__}" not in setup
     assert f"ego-webqa@{__version__}" not in config_text
     assert "Agensi does not" in setup
@@ -75,3 +77,10 @@ def test_agensi_package_contains_local_setup_and_worked_example() -> None:
     assert '"viewport_preset": "quick"' in request
     assert '"dimension_id": "horizontal_overflow"' in summary
     jsonschema.validate(json.loads(summary), load_schema("agent-summary"))
+
+
+def test_playwright_is_pinned_for_isolated_browser_reuse() -> None:
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+
+    assert f'playwright=={version("playwright")}' in pyproject
+    assert re.search(r'"playwright>=\d', pyproject) is None

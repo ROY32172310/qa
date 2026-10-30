@@ -9,13 +9,15 @@ Use Python 3.10 or newer. `uv` provides `uvx`, which runs the pinned package in
 an isolated environment.
 
 ```bash
+uvx --from ego-webqa==0.8.0 ego-webqa install-browser
 uvx --from ego-webqa==0.8.0 ego-webqa doctor --json
-uvx --from ego-webqa==0.8.0 playwright install chromium
 ```
 
-The doctor must report that Python, the MCP dependency, Playwright, and a
-Chromium browser are available. A browser-install failure is an environment
-problem, not evidence about the page being audited.
+Run `doctor` again after browser installation. It must report that Python, the
+MCP dependency, Playwright, the browser executable, and a real headless launch
+are available. The package pins its Playwright dependency so separate `uvx`
+runs select the same browser revision. A browser-install failure is an
+environment problem, not evidence about the page being audited.
 
 ## 2. Add the MCP server to the local agent
 

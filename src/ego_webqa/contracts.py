@@ -13,6 +13,7 @@ SCHEMA_NAMES = (
     "feedback-bundle",
     "delta",
     "doctor",
+    "browser-install",
 )
 
 

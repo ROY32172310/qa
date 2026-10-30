@@ -76,6 +76,9 @@ def test_doctor_reports_success_and_launches_selected_channel(
         "browser_launch",
         "browser_channel",
     }
+    assert report.runtime["environment"] in {"system", "isolated"}
+    assert report.runtime["python_executable"]
+    assert report.runtime["python_prefix"]
 
 
 def test_doctor_channel_does_not_require_the_bundled_browser(
@@ -129,7 +132,8 @@ def test_doctor_reports_missing_browser_binary(
     assert report.status == "fail"
     browser = next(check for check in report.checks if check.id == "browser_binary")
     assert browser.status == "fail"
-    assert "playwright install chromium" in browser.hint
+    assert "ego-webqa install-browser --browser-engine chromium" in browser.hint
+    assert report.runtime["browser_executable"].endswith("missing/browser")
 
 
 def test_doctor_rejects_channel_for_non_chromium(
@@ -183,3 +187,4 @@ def test_doctor_reports_playwright_import_and_launch_failures(
     assert launch_failure.status == "fail"
     assert launch_failure.checks[-1].id == "browser_launch"
     assert "no display" in launch_failure.checks[-1].message
+    assert "ego-webqa install-browser --browser-engine chromium" in (launch_failure.checks[-1].hint)

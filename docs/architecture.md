@@ -106,9 +106,17 @@ privacy-safe feedback bundle into `GITHUB_STEP_SUMMARY`; it does not copy the
 full report or page evidence into a public job summary.
 
 `doctor` is a read-only installation diagnostic. It verifies the supported
-Python runtime, installed MCP and Playwright packages, the selected browser
-engine or system channel, and a headless launch. A system channel does not
-require the bundled Chromium executable.
+Python runtime, active interpreter and environment, installed MCP and
+Playwright packages, the selected browser engine or system channel, the exact
+browser executable, and a headless launch. A system channel does not require
+the bundled Chromium executable.
+
+`install-browser` is the only first-party command that may download a browser.
+It launches Playwright through the active `sys.executable`, supports one
+explicit engine at a time, can request Linux system dependencies, and verifies
+a real headless launch before returning success. `doctor` and `audit` remain
+read-only with respect to downloads so an implicit network side effect cannot
+turn a page assessment into a package-management operation.
 
 ## Multi-agent boundary
 
