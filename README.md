@@ -574,7 +574,7 @@ jobs:
   delivery-qa:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: ROY32172310/qa@v0.8.0
         with:
           url: ${{ vars.PREVIEW_URL }}

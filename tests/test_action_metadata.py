@@ -11,6 +11,7 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
+from ego_webqa import __version__
 from ego_webqa.contracts import load_schema
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -155,9 +156,21 @@ def test_action_job_summary_renders_only_sanitized_findings(tmp_path: Path) -> N
 def test_example_action_workflow_uses_accessibility_profile() -> None:
     workflow = yaml.safe_load((ROOT / "examples" / "github-action.yml").read_text(encoding="utf-8"))
     steps = workflow["jobs"]["webqa"]["steps"]
-    action = next(step for step in steps if str(step.get("uses", "")).startswith("ROY"))
+    checkout = next(
+        step for step in steps if str(step.get("uses", "")).startswith("actions/checkout@")
+    )
+    action = next(step for step in steps if str(step.get("uses", "")).startswith("ROY32172310/qa@"))
+    assert checkout["uses"] == "actions/checkout@v6"
+    assert action["uses"] == f"ROY32172310/qa@v{__version__}"
     assert action["with"]["profile"] == "accessibility"
     assert action["with"]["fail-on-warn"] == "true"
+
+
+def test_readme_action_example_uses_current_runtime_and_release() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "uses: actions/checkout@v6" in readme
+    assert f"uses: ROY32172310/qa@v{__version__}" in readme
 
 
 def test_release_workflow_publishes_github_release_after_pypi() -> None:
