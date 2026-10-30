@@ -480,7 +480,7 @@ ego-webqa mcp
 
 `ego-webqa-mcp` remains available as a compatibility alias. An MCP client can
 launch either command over stdio. The registry-compatible one-shot form is
-`uvx ego-webqa@0.7.0 mcp`. The server advertises one tool, `audit_web_page`,
+`uvx ego-webqa@0.8.0 mcp`. The server advertises one tool, `audit_web_page`,
 with structured success and blocking-error results:
 
 ```json
@@ -488,7 +488,7 @@ with structured success and blocking-error results:
   "mcpServers": {
     "ego-webqa": {
       "command": "uvx",
-      "args": ["ego-webqa@0.7.0", "mcp"]
+      "args": ["ego-webqa@0.8.0", "mcp"]
     }
   }
 }
@@ -575,7 +575,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ROY32172310/qa@v0.7.0
+      - uses: ROY32172310/qa@v0.8.0
         with:
           url: ${{ vars.PREVIEW_URL }}
           browser-engine: webkit
@@ -596,7 +596,7 @@ For a local checkout of this repository, use `uses: ./` after checkout. The
 Action's `safe` smoke mode is the default; set `smoke-mode: live` only when the
 click is intentionally allowed to cause real side effects. See
 [`examples/github-action.yml`](examples/github-action.yml) and
-[`action.yml`](action.yml) for the full input set. The `@v0.7.0` tag is created
+[`action.yml`](action.yml) for the full input set. The `@v0.8.0` tag is created
 only after the same commit passes the full cross-platform CI matrix.
 
 ## Python API

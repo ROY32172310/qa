@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 - 2026-10-30
 
 - Add `ego-webqa doctor` to verify Python, MCP, Playwright, browser binaries,
   system browser channels, and a real headless launch before running an audit.
@@ -31,6 +31,12 @@
 - Publish Draft 2020-12 JSON Schemas for report, Agent summary, dimensions,
   feedback, delta, and doctor payloads. Add `ego-webqa --print-schema NAME` and
   define the `1.0` optional-addition and deprecation policy for integrations.
+- Freeze minimal `1.0` payloads for all six public JSON contracts, validate
+  actual CLI/MCP/Action output and installed-wheel schemas, and mechanically
+  enforce the two-minor-release deprecation window.
+- Preserve `1.0` compatibility by keeping fields added after the initial
+  contract optional, and freeze each schema's required-field set so a later
+  change cannot silently turn an optional field into a breaking requirement.
 
 ## 0.7.0 - 2026-10-30
 

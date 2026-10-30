@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from ego_webqa import __version__
+
 ROOT = Path(__file__).resolve().parents[1]
 SERVER_NAME = "io.github.ROY32172310/qa"
 
@@ -25,6 +27,7 @@ def _project_version() -> str:
 def test_mcp_registry_metadata_matches_the_release_package() -> None:
     server = _server()
     version = _project_version()
+    assert __version__ == version
     assert server["$schema"].endswith("/2025-12-11/server.schema.json")
     assert server["name"] == SERVER_NAME
     assert server["version"] == version
