@@ -9,8 +9,8 @@ Use Python 3.10 or newer. `uv` provides `uvx`, which runs the pinned package in
 an isolated environment.
 
 ```bash
-uvx --from ego-webqa==0.8.1 ego-webqa setup
-uvx --from ego-webqa==0.8.1 ego-webqa doctor --json
+uvx --from ego-webqa==0.8.2 ego-webqa setup
+uvx --from ego-webqa==0.8.2 ego-webqa doctor --json
 ```
 
 Setup performs no download when the browser already launches. The following
@@ -29,7 +29,7 @@ environment problem, not evidence about the page being audited.
   "mcpServers": {
     "ego-webqa": {
       "command": "uvx",
-      "args": ["--from", "ego-webqa==0.8.1", "ego-webqa", "mcp"]
+      "args": ["--from", "ego-webqa==0.8.2", "ego-webqa", "mcp"]
     }
   }
 }
@@ -71,7 +71,7 @@ means Python, the browser, or the MCP process could not complete.
 The Skill also documents direct CLI commands. The shortest check is:
 
 ```bash
-uvx --from ego-webqa==0.8.1 ego-webqa "https://example.com" \
+uvx --from ego-webqa==0.8.2 ego-webqa "https://example.com" \
   --out .qa/agent-delivery --json
 ```
 

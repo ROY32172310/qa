@@ -24,8 +24,8 @@ publishing token is stored in GitHub. The PyPI publisher is active, not pending.
 5. Create and push an annotated tag:
 
    ```bash
-   git tag -a v0.8.1 -m "ego-webqa 0.8.1"
-   git push github v0.8.1
+   git tag -a v0.8.2 -m "ego-webqa 0.8.2"
+   git push github v0.8.2
    ```
 
 The release workflow rejects a tag that does not match the package version,
@@ -58,7 +58,7 @@ provenance:
 
 ```bash
 curl -fsS \
-  https://pypi.org/integrity/ego-webqa/0.8.1/ego_webqa-0.8.1-py3-none-any.whl/provenance |
+  https://pypi.org/integrity/ego-webqa/0.8.2/ego_webqa-0.8.2-py3-none-any.whl/provenance |
   jq '.attestation_bundles[0].publisher'
 ```
 
@@ -69,5 +69,5 @@ Expected publisher fields are `kind: GitHub`,
 The package itself can be verified from a clean `uvx` environment:
 
 ```bash
-uvx --from ego-webqa==0.8.1 ego-webqa --version
+uvx --from ego-webqa==0.8.2 ego-webqa --version
 ```

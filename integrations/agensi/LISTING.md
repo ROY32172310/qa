@@ -67,7 +67,7 @@ The software runs locally in the buyer's agent environment. Agensi does not
 host or execute the external MCP server.
 
 ```bash
-python -m pip install "ego-webqa==0.8.1"
+python -m pip install "ego-webqa==0.8.2"
 ego-webqa setup
 ego-webqa --version
 ```

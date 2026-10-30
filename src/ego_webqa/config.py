@@ -7,6 +7,7 @@ does not import another ego package.
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 from collections.abc import Mapping
@@ -141,7 +142,10 @@ class DimensionOverride:
             elif type(value) not in {int, float}:
                 raise ValueError(f"override parameter {name} must be a number")
             else:
-                parameters[name] = float(value)
+                numeric_value = float(value)
+                if not math.isfinite(numeric_value):
+                    raise ValueError(f"override parameter {name} must be finite")
+                parameters[name] = numeric_value
         object.__setattr__(self, "dimension_id", dimension_id)
         object.__setattr__(self, "reason", reason)
         object.__setattr__(self, "owner", owner)
@@ -228,6 +232,8 @@ class Viewport:
             raise ValueError("viewport dimensions must both be at least 200")
         if type(self.device_scale_factor) not in {int, float}:
             raise ValueError("device_scale_factor must be a number")
+        if not math.isfinite(self.device_scale_factor):
+            raise ValueError("device_scale_factor must be finite")
         if self.device_scale_factor <= 0:
             raise ValueError("device_scale_factor must be positive")
         if type(self.text_scale) not in {int, float}:
@@ -503,6 +509,7 @@ class Settings:
 
     def __post_init__(self) -> None:
         self._validate_types()
+        self._validate_finite_numbers()
         object.__setattr__(
             self,
             "extra_http_headers",
@@ -689,6 +696,14 @@ class Settings:
                     raise ValueError(f"{name} must be a tuple of strings")
             else:
                 _validate_scalar_type(name, value, hints[name])
+
+    def _validate_finite_numbers(self) -> None:
+        hints = get_type_hints(type(self))
+        for name, expected in hints.items():
+            if expected is float:
+                value = getattr(self, name)
+                if not math.isfinite(value):
+                    raise ValueError(f"{name} must be finite")
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, Any], base: Settings | None = None) -> Settings:

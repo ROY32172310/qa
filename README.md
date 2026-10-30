@@ -123,8 +123,8 @@ If `uv` is available and you do not want a persistent Python package install,
 use the same commands through an isolated, version-pinned `uvx` environment:
 
 ```bash
-uvx --from ego-webqa==0.8.1 ego-webqa setup
-uvx --from ego-webqa==0.8.1 ego-webqa https://your-preview.example
+uvx --from ego-webqa==0.8.2 ego-webqa setup
+uvx --from ego-webqa==0.8.2 ego-webqa https://your-preview.example
 ```
 
 Playwright is pinned by the package, and browser binaries live in Playwright's
@@ -527,7 +527,7 @@ ego-webqa mcp
 
 `ego-webqa-mcp` remains available as a compatibility alias. An MCP client can
 launch either command over stdio. The registry-compatible one-shot form is
-`uvx ego-webqa@0.8.1 mcp`. The server advertises one tool, `audit_web_page`,
+`uvx ego-webqa@0.8.2 mcp`. The server advertises one tool, `audit_web_page`,
 with structured success and blocking-error results:
 
 ```json
@@ -535,7 +535,7 @@ with structured success and blocking-error results:
   "mcpServers": {
     "ego-webqa": {
       "command": "uvx",
-      "args": ["ego-webqa@0.8.1", "mcp"]
+      "args": ["ego-webqa@0.8.2", "mcp"]
     }
   }
 }
@@ -622,7 +622,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: ROY32172310/qa@v0.8.1
+      - uses: ROY32172310/qa@v0.8.2
         with:
           url: ${{ vars.PREVIEW_URL }}
           browser-engine: webkit
@@ -643,7 +643,7 @@ For a local checkout of this repository, use `uses: ./` after checkout. The
 Action's `safe` smoke mode is the default; set `smoke-mode: live` only when the
 click is intentionally allowed to cause real side effects. See
 [`examples/github-action.yml`](examples/github-action.yml) and
-[`action.yml`](action.yml) for the full input set. The `@v0.8.1` tag is created
+[`action.yml`](action.yml) for the full input set. The `@v0.8.2` tag is created
 only after the same commit passes the full cross-platform CI matrix.
 
 ## Python API

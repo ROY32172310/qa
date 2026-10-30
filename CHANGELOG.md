@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.2 - 2026-10-30
+
+- Reject NaN and infinite numbers in numeric settings, viewport scale factors,
+  and governed override parameters. Python's JSON parser accepts these
+  non-standard constants by default, so a malformed config could otherwise
+  bypass some threshold comparisons or emit non-standard report JSON.
+
 ## 0.8.1 - 2026-10-30
 
 - Add `ego-webqa setup` as the idempotent first-run path. It checks the active

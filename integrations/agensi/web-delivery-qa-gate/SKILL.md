@@ -17,12 +17,12 @@ Do not claim the tool is installed without checking it:
 ego-webqa --version
 ```
 
-The tested release is `0.8.1`. It requires Python 3.10+ and a compatible
+The tested release is `0.8.2`. It requires Python 3.10+ and a compatible
 Playwright browser. If the command is missing, explain the dependency and ask
 before installing anything:
 
 ```bash
-python -m pip install "ego-webqa==0.8.1"
+python -m pip install "ego-webqa==0.8.2"
 ego-webqa setup
 ```
 

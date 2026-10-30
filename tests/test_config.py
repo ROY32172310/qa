@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from datetime import date
 from pathlib import Path
 from types import MappingProxyType
@@ -126,6 +127,56 @@ def test_invalid_threshold_is_rejected() -> None:
         Settings(smoke_success_url_pattern="[")
     with pytest.raises(ValueError, match="profile"):
         Settings(profile="wcag")
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        (field, value)
+        for field in (
+            "min_tap_target_px",
+            "hard_font_px",
+            "min_font_px",
+            "overlay_ratio",
+            "text_clip_tolerance_px",
+            "aspect_tolerance",
+            "aspect_min_rendered_px",
+            "fcp_warn_ms",
+            "cls_warn",
+            "cls_error",
+        )
+        for value in (math.nan, math.inf, -math.inf)
+    ],
+)
+def test_non_finite_float_settings_are_rejected(field: str, value: float) -> None:
+    with pytest.raises(ValueError, match=rf"{field} must be finite"):
+        Settings.from_mapping({field: value})
+
+
+def test_json_config_with_non_finite_number_is_rejected(tmp_path: Path) -> None:
+    path = tmp_path / "webqa.json"
+    path.write_text('{"fcp_warn_ms": NaN}', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="fcp_warn_ms must be finite"):
+        load_settings(path)
+
+
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+def test_non_finite_viewport_scale_is_rejected(value: float) -> None:
+    with pytest.raises(ValueError, match="device_scale_factor must be finite"):
+        Viewport(390, 844, device_scale_factor=value)
+
+
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+def test_non_finite_override_parameter_is_rejected(value: float) -> None:
+    with pytest.raises(ValueError, match="min_font_px must be finite"):
+        DimensionOverride(
+            "tiny_fonts",
+            "test",
+            "qa",
+            "2999-12-31",
+            parameters={"min_font_px": value},
+        )
 
 
 @pytest.mark.parametrize(
