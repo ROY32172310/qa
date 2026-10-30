@@ -1,5 +1,7 @@
 [![Indexed on TensorBlock MCP Index](https://mcp-index.tensorblock.co/v1/servers/github-roy32172310-qa-73ad3a11/badge.svg)](https://www.tensorblock.co/mcp/servers/github-roy32172310-qa-73ad3a11)
 
+<a href="https://glama.ai/mcp/servers/ROY32172310/qa"><img src="https://glama.ai/mcp/servers/ROY32172310/qa/badge" alt="Glama MCP server: license A, quality A, maintenance A" width="380"></a>
+
 # ego-webqa
 
 <!-- mcp-name: io.github.ROY32172310/qa -->
