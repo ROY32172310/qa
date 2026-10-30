@@ -52,8 +52,9 @@ A real dogfood finding looks like this:
 ```json
 {
   "dimension_id": "text_scale_layout_break",
-  "selector": "html",
-  "problem": "page is 5px wider than the viewport at 1.5x text scale",
+  "selector": "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+  "text_snippet": "我也要创建 →",
+  "problem": "page is 9px wider than the viewport at 1.5x text scale",
   "trigger": "mobile-360-150-safe0 (360x800); mobile-360-150-safe34 (360x800)",
   "severity": "block"
 }
@@ -64,13 +65,18 @@ were affected, and gives the Agent a command that reproduces the failure.
 
 ## What real pages exposed
 
-The 0.4.1 dogfood pass audited 19 of 20 Ego-owned production or canonical
-generated pages. Stable findings included five text-enlargement layout breaks,
-four bottom safe-area penetrations, and one generated page loading a missing
-service worker. There are no known stable blocking false positives in that
-corpus. This is a small, disclosed corpus rather than a market-wide accuracy
-claim; the full evidence and limitations are in
-[`docs/real-world-dogfood-2026-10-29.md`](docs/real-world-dogfood-2026-10-29.md).
+The v0.8.0 dogfood pass audited all 20 Ego-owned production or canonical
+generated pages with zero runtime errors. Ten pages were clean; the remaining
+findings aggregated to 22 repair items. Stable failures included six
+text-enlargement layout breaks, four bottom safe-area penetrations, five
+clipped-text root causes, four undersized-target groups, and one generated page
+loading a missing service worker. There are no known stable blocking false
+positives in this corpus. This is a small, disclosed corpus rather than a
+market-wide accuracy claim; the full evidence and limitations are in
+[`docs/real-world-dogfood-2026-10-30-v0.8.0.md`](docs/real-world-dogfood-2026-10-30-v0.8.0.md).
+
+Layout failures now identify the deepest unclipped elements that own the
+overflow, so an Agent receives a concrete repair selector instead of `html`.
 
 See how one generated page went from three root causes to zero blocking defects
 in the

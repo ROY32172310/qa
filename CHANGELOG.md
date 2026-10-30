@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Identify the most likely overflowing elements for horizontal and text-scale
+  layout failures, including selectors, boxes, labels, and measured overflow,
+  so Agent reports point at a repair target instead of only `html`.
+- Add the v0.8.0 20-page real-world dogfood report, covering 100% run
+  completion, 22 aggregated repair items, shared generated-page footer
+  failures, and a repeat check that isolated a non-stable paint timing warning.
+
 ## 0.8.0 - 2026-10-30
 
 - Require both PyPI Trusted Publishing and official MCP Registry publication

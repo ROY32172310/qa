@@ -719,6 +719,7 @@ def _probe_config(cfg: Settings, viewport: Viewport) -> dict[str, Any]:
         "minTap": cfg.min_tap_target_px,
         "minFont": cfg.min_font_px,
         "overlayRatio": cfg.overlay_ratio,
+        "overflowTolerance": cfg.overflow_tolerance_px,
         "aspectTolerance": cfg.aspect_tolerance,
         "aspectMinPx": cfg.aspect_min_rendered_px,
         "safeBottom": viewport.safe_area_bottom_px,
@@ -1057,6 +1058,8 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
     if overflow > cfg.overflow_tolerance_px:
         text_scale = float(summary.get("viewport", {}).get("text_scale") or 1.0)
         code = "text_scale_layout_break" if text_scale > 1 else "horizontal_overflow"
+        overflowing_elements = list(data.get("overflowingElements") or [])[:5]
+        primary = overflowing_elements[0] if overflowing_elements else {}
         message = (
             f"page is {overflow}px wider than the viewport at {text_scale:g}x text scale"
             if text_scale > 1
@@ -1069,7 +1072,13 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
                 message,
                 name,
                 "Use max-width, responsive grids, and wrapping instead of fixed widths.",
-                {"overflow_px": overflow, "text_scale": text_scale},
+                {
+                    "overflow_px": overflow,
+                    "text_scale": text_scale,
+                    "selector": str(primary.get("selector") or ""),
+                    "label": str(primary.get("label") or ""),
+                    "elements": overflowing_elements,
+                },
             )
         )
     clipped_text = [

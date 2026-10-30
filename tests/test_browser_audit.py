@@ -216,8 +216,10 @@ body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:24
 <title>Text scale break</title><style>
 body{margin:0;font:16px/1.5 system-ui;background:#fff;color:#111}main{padding:24px}
 .headline{font-size:30px;white-space:nowrap}button{min-height:48px;font-size:16px}
+.rail{overflow-x:auto;white-space:nowrap}.rail button{width:240px}
 </style></head><body><main><h1 class="headline">Quarterly account activity and status</h1>
 <p>Enlarged text must remain inside the viewport.</p><button>Continue</button>
+<div class="rail"><button>Scrolled content is not page overflow</button></div>
 </main></body></html>""",
         encoding="utf-8",
     )
@@ -1259,6 +1261,15 @@ def test_text_scaling_reports_layout_break_with_scale_evidence(
     )
     assert {issue.code for issue in broken.issues} == {"text_scale_layout_break"}
     assert broken.issues[0].evidence["text_scale"] == 1.5
+    assert broken.issues[0].evidence["selector"].endswith("h1"), broken.issues[0].evidence[
+        "elements"
+    ]
+    assert broken.issues[0].evidence["elements"][0]["overflow_px"] > 0
+    assert broken.issues[0].evidence["elements"][0]["box"]["width"] > viewport.width
+    summary = build_agent_summary(broken)
+    failed = summary["failed_items"][0]
+    assert failed["selector"].endswith("h1")
+    assert failed["evidence"]["elements"][0]["selector"].endswith("h1")
     assert broken.viewports[0]["viewport"]["text_scale"] == 1.5
     assert broken.viewports[0]["measurements"]["environment"]["textScale"] == 1.5
 

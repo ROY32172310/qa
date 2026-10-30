@@ -10,6 +10,7 @@ COLLECT_JS = r"""
   const documentRoot = document.documentElement;
   const documentBody = document.body;
   if (!documentRoot || !documentBody) return null;
+  const layoutWidth = documentRoot.clientWidth || window.innerWidth;
   const composedParent = (el) => {
     if (!el) return null;
     if (el.parentElement) return el.parentElement;
@@ -146,6 +147,58 @@ COLLECT_JS = r"""
   ).trim().replace(/\s+/g, " ").slice(0, 80);
   const controlSelector =
     "button,a[href],[role=button],input[type=submit],input[type=button],.btn,.cta";
+  const clippedByAncestor = (el) => {
+    for (let node = composedParent(el); node && node !== documentBody;
+      node = composedParent(node)) {
+      const overflowX = getComputedStyle(node).overflowX;
+      if (["hidden", "clip", "auto", "scroll"].includes(overflowX)) return true;
+    }
+    return false;
+  };
+  const overflowingElements = allElements("*")
+    .filter(el => !el.matches("html,body") && visible(el) && !ignored(el) &&
+      !clippedByAncestor(el))
+    .map(el => {
+      const r = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      let left = r.left;
+      let right = r.right;
+      let top = r.top;
+      let bottom = r.bottom;
+      for (const node of el.childNodes) {
+        if (node.nodeType !== Node.TEXT_NODE || !(node.nodeValue || "").trim()) continue;
+        try {
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          const textRect = range.getBoundingClientRect();
+          left = Math.min(left, textRect.left);
+          right = Math.max(right, textRect.right);
+          top = Math.min(top, textRect.top);
+          bottom = Math.max(bottom, textRect.bottom);
+        } catch (_) {}
+      }
+      const rightOverflow = Math.max(0, right - layoutWidth);
+      const leftOverflow = Math.max(0, -left);
+      return {
+        label: label(el).slice(0, 60),
+        selector: selectorFor(el),
+        box: {
+          x: Math.round(left),
+          y: Math.round(top),
+          width: Math.round(right - left),
+          height: Math.round(bottom - top),
+        },
+        right_overflow_px: Number(rightOverflow.toFixed(1)),
+        left_overflow_px: Number(leftOverflow.toFixed(1)),
+        overflow_px: Number(Math.max(leftOverflow, rightOverflow).toFixed(1)),
+        position: style.position,
+      };
+    })
+    .filter(row => row.overflow_px > cfg.overflowTolerance &&
+      row.position !== "fixed")
+    .sort((a, b) => b.overflow_px - a.overflow_px ||
+      b.selector.length - a.selector.length)
+    .slice(0, 5);
   const controls = allElements(controlSelector)
     .filter(el => visible(el) && !ignored(el) && !el.disabled &&
       el.getAttribute("aria-disabled") !== "true");
@@ -372,6 +425,7 @@ COLLECT_JS = r"""
     smallTargets,
     tinyFonts,
     hugeOverlays,
+    overflowingElements,
     safeAreaPenetrations: safeAreaPenetrations.slice(0, 10),
     clippedText: clippedText.slice(0, 20),
     brokenImages,
