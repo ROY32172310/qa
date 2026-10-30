@@ -1,6 +1,6 @@
 ---
 name: web-delivery-qa-gate
-description: Run a deterministic browser-based delivery check on a live or local web page after an AI agent claims it is ready. Use for quick mobile-layout, runtime-error, broken-resource, and primary-CTA verification; requires ego-webqa, Python, and Playwright.
+description: Use when an AI-generated or changed web page is claimed ready, before delivery, or when asked to check mobile overflow, clipped text, runtime errors, broken resources, unreadable controls, or a primary CTA. Runs the deterministic ego-webqa gate and returns browser evidence.
 ---
 
 # Web Delivery QA Gate
@@ -78,6 +78,10 @@ submission, or destructive state change.
 If a project config exists, pass it with `--config PATH`. Use config for bounded
 smoke flows, authenticated storage state, ignores, or governed threshold
 overrides. Do not generate arbitrary JavaScript assertions.
+
+For MCP inputs, report fields, actionable repair output, or a bounded smoke-flow
+example, read [the report contract](references/report-contract.md) before
+choosing non-default settings.
 
 ## Interpret and repair
 
