@@ -4,5 +4,6 @@ include server.json
 include scripts/dev.py
 recursive-include benchmarks *
 recursive-include docs *.md
+recursive-include integrations *
 global-exclude __pycache__/*
 global-exclude *.py[cod]

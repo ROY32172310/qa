@@ -39,6 +39,12 @@ Every blocking finding includes a selector, the triggering viewport
 combination, a repair direction, and a reproduction command. The agent can fix
 the issue and rerun the same gate.
 
+The 0.8 integration surface includes a four-variant `quick` preset for repair
+loops, bounded named client-side flows, baseline/delta gating for new blocking
+regressions, a runtime `doctor`, privacy-first feedback bundles, and versioned
+`1.0` JSON Schemas for machine integrations. The default full audit remains the
+eight-variant mobile matrix.
+
 ## Why use this skill
 
 An agent can generate code that compiles and still deliver a page that overflows
