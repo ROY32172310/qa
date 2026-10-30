@@ -5,6 +5,8 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from ego_webqa import __version__
+
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "docs" / "demo"
 VARIANTS = (
@@ -76,6 +78,14 @@ def test_demo_llms_txt_declares_the_agent_discovery_contract() -> None:
     assert "https://roy32172310.github.io/qa/" in text
     assert "does not prove business-flow correctness" in normalized
     assert "does not accept arbitrary URLs for server-side auditing" in normalized
+
+
+def test_feedback_template_tracks_the_current_version() -> None:
+    template = (ROOT / ".github" / "ISSUE_TEMPLATE" / "result-feedback.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert f'placeholder: "{__version__}"' in template
 
 
 def test_pages_workflow_publishes_only_the_static_demo() -> None:

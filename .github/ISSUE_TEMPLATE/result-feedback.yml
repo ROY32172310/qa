@@ -32,7 +32,7 @@ body:
     attributes:
       label: ego-webqa version
       description: Run `ego-webqa --version`.
-      placeholder: "0.7.0"
+      placeholder: "0.8.0"
     validations:
       required: true
   - type: dropdown
