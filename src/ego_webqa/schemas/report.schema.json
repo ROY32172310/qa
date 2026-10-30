@@ -18,8 +18,7 @@
     "smoke_runs",
     "screenshots",
     "settings",
-    "runtime",
-    "governance"
+    "runtime"
   ],
   "properties": {
     "schema_version": {
@@ -67,9 +66,7 @@
           "viewport",
           "message",
           "hint",
-          "evidence",
-          "severity_source",
-          "override"
+          "evidence"
         ],
         "properties": {
           "code": {

@@ -89,6 +89,27 @@ def test_schema_rejects_removed_required_field() -> None:
         _validate("report", payload)
 
 
+def test_schema_accepts_optional_fields_added_within_schema_1_0() -> None:
+    report = _report_object()
+    report_payload = report.to_dict()
+    report_payload.pop("governance")
+    report_payload["issues"] = [
+        {
+            "code": "page_error",
+            "severity": "error",
+            "viewport": "mobile",
+            "message": "boom",
+            "hint": "",
+            "evidence": {},
+        }
+    ]
+    summary = build_agent_summary(report)
+    summary.pop("governance")
+
+    _validate("report", report_payload)
+    _validate("agent-summary", summary)
+
+
 @pytest.mark.parametrize("name", SCHEMA_NAMES)
 def test_cli_prints_each_packaged_schema(
     name: str,

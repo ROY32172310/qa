@@ -11,7 +11,6 @@
     "status",
     "failed_items",
     "summary",
-    "governance",
     "scope_statement"
   ],
   "properties": {
@@ -37,8 +36,6 @@
           "detector",
           "default_severity",
           "severity",
-          "severity_source",
-          "override",
           "selector",
           "selectors",
           "text_snippet",
