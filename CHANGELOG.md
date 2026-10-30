@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 - 2026-10-30
 
 - Add the advisory `clipped_text` geometry check for visible text hidden by an
   overflow boundary. Explicit ellipsis, line-clamp, and scroll affordances are

@@ -17,12 +17,12 @@ Do not claim the tool is installed without checking it:
 ego-webqa --version
 ```
 
-The tested release is `0.6.0`. It requires Python 3.10+ and a compatible
+The tested release is `0.7.0`. It requires Python 3.10+ and a compatible
 Playwright browser. If the command is missing, explain the dependency and ask
 before installing anything:
 
 ```bash
-python -m pip install "ego-webqa==0.6.0"
+python -m pip install "ego-webqa==0.7.0"
 python -m playwright install chromium
 ```
 
@@ -90,6 +90,11 @@ Read `agent_summary.json` in the output directory. Fix every blocking finding,
 rerun the same command, and continue until exit `0`. Preserve selectors,
 viewports, screenshots, and reproduction commands as evidence. Review relevant
 warnings, but do not turn unrelated warnings into mandatory work.
+
+The warning-level `clipped_text` finding means visible text is cut off by an
+overflow boundary without a recognized ellipsis, line clamp, or scroll
+affordance. Repair it when it obscures user-relevant content; do not “fix” a
+deliberately hidden secondary label merely to make warnings disappear.
 
 When reporting back, state:
 

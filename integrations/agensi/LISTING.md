@@ -26,7 +26,8 @@ Web Delivery QA Gate tells an AI agent how and when to run the open-source
 The audit opens the rendered page in Playwright, runs a compact mobile viewport
 matrix, and returns structured evidence for:
 
-- horizontal overflow and clipped content;
+- horizontal overflow and advisory detection of text cut off by an overflow
+  boundary without an ellipsis, line clamp, or scroll affordance;
 - blank or nearly blank pages;
 - JavaScript errors and failed resources;
 - unreadably small text and undersized touch targets;
@@ -55,7 +56,7 @@ The software runs locally in the buyer's agent environment. Agensi does not
 host or execute the external MCP server.
 
 ```bash
-python -m pip install "ego-webqa==0.6.0"
+python -m pip install "ego-webqa==0.7.0"
 python -m playwright install chromium
 ego-webqa --version
 ```

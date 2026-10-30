@@ -386,7 +386,7 @@ ego-webqa mcp
 
 `ego-webqa-mcp` remains available as a compatibility alias. An MCP client can
 launch either command over stdio. The registry-compatible one-shot form is
-`uvx ego-webqa@0.6.0 mcp`. The server advertises one tool, `audit_web_page`,
+`uvx ego-webqa@0.7.0 mcp`. The server advertises one tool, `audit_web_page`,
 with structured success and blocking-error results:
 
 ```json
@@ -394,7 +394,7 @@ with structured success and blocking-error results:
   "mcpServers": {
     "ego-webqa": {
       "command": "uvx",
-      "args": ["ego-webqa@0.6.0", "mcp"]
+      "args": ["ego-webqa@0.7.0", "mcp"]
     }
   }
 }
@@ -481,7 +481,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ROY32172310/qa@v0.6.0
+      - uses: ROY32172310/qa@v0.7.0
         with:
           url: ${{ vars.PREVIEW_URL }}
           browser-engine: webkit
@@ -500,7 +500,7 @@ For a local checkout of this repository, use `uses: ./` after checkout. The
 Action's `safe` smoke mode is the default; set `smoke-mode: live` only when the
 click is intentionally allowed to cause real side effects. See
 [`examples/github-action.yml`](examples/github-action.yml) and
-[`action.yml`](action.yml) for the full input set. The `@v0.6.0` tag is created
+[`action.yml`](action.yml) for the full input set. The `@v0.7.0` tag is created
 only after the same commit passes the full cross-platform CI matrix.
 
 ## Python API
@@ -550,10 +550,9 @@ python benchmarks/run.py
 The evaluator reports exact dimension matches, case precision/recall/F1,
 blocking false-positive and false-negative rates, dimension-level TP/FP/FN, and
 complete audit latency. It writes machine-readable evidence plus a Markdown
-summary. The unreleased working tree is 128/128 exact with 0% blocking FP/FN,
-P50 344ms, P95 1151ms, and max 3582ms in serial local Chromium. The published
-0.6.0 baseline is 122/122 exact with P50 340ms, P95 1161ms, and max 3614ms:
-[`docs/benchmark-2026-10-29-v0.6.0.md`](docs/benchmark-2026-10-29-v0.6.0.md).
+summary. The 0.7.0 baseline is 128/128 exact with 0% blocking FP/FN, P50 357ms,
+P95 1147ms, and max 3615ms in serial local Chromium:
+[`docs/benchmark-2026-10-30-v0.7.0.md`](docs/benchmark-2026-10-30-v0.7.0.md).
 
 These results measure curated synthetic fixtures in Chromium, not real-site
 coverage or cross-engine parity. Firefox and WebKit have a separate real-browser

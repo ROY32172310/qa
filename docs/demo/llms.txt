@@ -38,7 +38,7 @@ before claiming that page is ready to deliver.
 - Repair case study:
   https://github.com/ROY32172310/qa/blob/master/docs/case-study-vocabulary-repair-2026-10-29.md
 - Benchmark baseline:
-  https://github.com/ROY32172310/qa/blob/master/docs/benchmark-2026-10-29-v0.6.0.md
+  https://github.com/ROY32172310/qa/blob/master/docs/benchmark-2026-10-30-v0.7.0.md
 
 ## Boundaries
 
