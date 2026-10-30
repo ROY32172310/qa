@@ -50,6 +50,8 @@ def test_composite_action_metadata_and_input_safety() -> None:
     assert action["inputs"]["smoke-require-assertion"]["default"] == "false"
     assert action["inputs"]["browser-engine"]["default"] == "chromium"
     assert action["inputs"]["delta-gate"]["default"] == "new"
+    assert action["inputs"]["viewport-preset"]["default"] == ""
+    assert action["inputs"]["smoke-flow-name"]["default"] == ""
 
     steps = action["runs"]["steps"]
     install = next(step for step in steps if step.get("name") == "Install browser")
@@ -64,8 +66,12 @@ def test_composite_action_metadata_and_input_safety() -> None:
     assert audit["env"]["EGO_WEBQA_HTTP_PASSWORD"] == "${{ inputs.http-password }}"
     assert audit["env"]["WEBQA_BROWSER_ENGINE"] == "${{ inputs.browser-engine }}"
     assert audit["env"]["WEBQA_BASELINE_REPORT"] == "${{ inputs.baseline-report }}"
+    assert audit["env"]["WEBQA_VIEWPORT_PRESET"] == "${{ inputs.viewport-preset }}"
+    assert audit["env"]["WEBQA_SMOKE_FLOW_NAME"] == "${{ inputs.smoke-flow-name }}"
     assert '--baseline-report "$WEBQA_BASELINE_REPORT"' in script
     assert '--gate "$WEBQA_DELTA_GATE"' in script
+    assert '--preset "$WEBQA_VIEWPORT_PRESET"' in script
+    assert '--smoke-flow-name "$WEBQA_SMOKE_FLOW_NAME"' in script
     assert "EGO_WEBQA_HTTP_PASSWORD" not in script
     python_step = next(step for step in steps if step.get("name") == "Set up Python")
     assert python_step["uses"] == "actions/setup-python@v6"
@@ -143,6 +149,7 @@ def test_action_job_summary_renders_only_sanitized_findings(tmp_path: Path) -> N
             **os.environ,
             "WEBQA_OUT": str(output),
             "GITHUB_STEP_SUMMARY": str(github_summary),
+            "PYTHONIOENCODING": "cp1252",
         },
     )
     assert completed.returncode == 0, completed.stderr.decode("utf-8", errors="replace")

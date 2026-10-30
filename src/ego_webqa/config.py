@@ -39,6 +39,8 @@ SMOKE_ASSERTION_ACTIONS = frozenset({"expect_visible", "expect_url", "expect_tex
 SMOKE_STEP_ACTIONS = SMOKE_INTERACTION_ACTIONS | SMOKE_ASSERTION_ACTIONS
 BROWSER_ENGINES = frozenset({"chromium", "firefox", "webkit"})
 OVERRIDE_SEVERITIES = frozenset({"block", "warn"})
+SMOKE_FLOW_NAME_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
+MAX_SMOKE_FLOWS = 16
 OVERRIDABLE_PARAMETER_FIELDS = MappingProxyType(
     {
         "overflow_tolerance_px": "overflow_tolerance_px",
@@ -379,6 +381,22 @@ class SmokeStep:
         return payload
 
 
+def _validate_smoke_flow_steps(steps: tuple[SmokeStep, ...], *, label: str) -> None:
+    if len(steps) > 8:
+        raise ValueError(f"{label} supports at most 8 steps")
+    first_action = next(
+        (index for index, step in enumerate(steps) if step.action in SMOKE_INTERACTION_ACTIONS),
+        None,
+    )
+    if first_action is None:
+        raise ValueError(f"{label} requires at least one click, fill, or press action")
+    if not any(step.action in SMOKE_ASSERTION_ACTIONS for step in steps[first_action + 1 :]):
+        raise ValueError(
+            f"{label} requires an expect_visible, expect_url, or expect_text "
+            "assertion after an action"
+        )
+
+
 DEFAULT_VIEWPORTS = tuple(
     Viewport(
         width,
@@ -392,6 +410,42 @@ DEFAULT_VIEWPORTS = tuple(
     for text_scale in (1.0, 1.5)
     for safe_area_bottom_px in (0, 34)
 )
+QUICK_VIEWPORTS = (
+    Viewport(360, 800, "quick-360-100-safe0", mobile=True, text_scale=1.0),
+    Viewport(
+        360,
+        800,
+        "quick-360-150-safe34",
+        mobile=True,
+        text_scale=1.5,
+        safe_area_bottom_px=34,
+    ),
+    Viewport(390, 844, "quick-390-150-safe0", mobile=True, text_scale=1.5),
+    Viewport(
+        390,
+        844,
+        "quick-390-100-safe34",
+        mobile=True,
+        text_scale=1.0,
+        safe_area_bottom_px=34,
+    ),
+)
+VIEWPORT_PRESET_NAMES = ("quick", "full")
+VIEWPORT_PRESETS = MappingProxyType(
+    {
+        "quick": QUICK_VIEWPORTS,
+        "full": DEFAULT_VIEWPORTS,
+    }
+)
+
+
+def resolve_viewport_preset(name: str) -> tuple[Viewport, ...]:
+    """Return a closed viewport preset by name."""
+
+    if not isinstance(name, str) or name not in VIEWPORT_PRESETS:
+        choices = ", ".join(VIEWPORT_PRESET_NAMES)
+        raise ValueError(f"viewport_preset must be one of: {choices}")
+    return VIEWPORT_PRESETS[name]
 
 
 @dataclass(frozen=True, slots=True)
@@ -432,6 +486,8 @@ class Settings:
     smoke_require_assertion: bool = False
     smoke_mode: str = "safe"
     smoke_flow: tuple[SmokeStep, ...] = ()
+    smoke_flow_name: str = ""
+    smoke_flows: Mapping[str, tuple[SmokeStep, ...]] = field(default_factory=dict)
     ignore_selectors: tuple[str, ...] = ()
     ignore_console_patterns: tuple[str, ...] = ()
     ignore_request_patterns: tuple[str, ...] = ()
@@ -453,6 +509,20 @@ class Settings:
             MappingProxyType(dict(self.extra_http_headers)),
         )
         object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+        object.__setattr__(
+            self,
+            "smoke_flows",
+            MappingProxyType({name: tuple(steps) for name, steps in self.smoke_flows.items()}),
+        )
+        if self.smoke_flows and self.smoke_flow:
+            raise ValueError("smoke_flows cannot be combined with smoke_flow")
+        if self.smoke_flows:
+            if not self.smoke_flow_name:
+                raise ValueError("smoke_flow_name is required when smoke_flows is configured")
+            if self.smoke_flow_name not in self.smoke_flows:
+                raise ValueError(f"unknown smoke_flow_name: {self.smoke_flow_name!r}")
+        elif self.smoke_flow_name:
+            raise ValueError("smoke_flow_name requires smoke_flows")
         if self.profile not in {"baseline", "accessibility"}:
             raise ValueError("profile must be 'baseline' or 'accessibility'")
         if not self.viewports:
@@ -514,39 +584,32 @@ class Settings:
             raise ValueError("overrides may declare each dimension at most once")
         if self.smoke_settle_ms < 0:
             raise ValueError("smoke_settle_ms must be non-negative")
+        if self.smoke_flows and (
+            self.smoke_selector or self.smoke_success_selector or self.smoke_success_url_pattern
+        ):
+            raise ValueError(
+                "smoke_flows cannot be combined with smoke_selector or "
+                "single-step success assertions"
+            )
         if self.smoke_require_assertion and not (
-            self.smoke_success_selector or self.smoke_success_url_pattern or self.smoke_flow
+            self.smoke_success_selector or self.smoke_success_url_pattern or self.active_smoke_flow
         ):
             raise ValueError(
                 "smoke_require_assertion requires smoke_success_selector "
                 "or smoke_success_url_pattern, or smoke_flow"
             )
-        if len(self.smoke_flow) > 8:
-            raise ValueError("smoke_flow supports at most 8 steps")
+        for flow_name, steps in self.smoke_flows.items():
+            _validate_smoke_flow_steps(steps, label=f"smoke_flows[{flow_name!r}]")
         if self.smoke_flow:
             if self.smoke_selector or self.smoke_success_selector or self.smoke_success_url_pattern:
                 raise ValueError(
                     "smoke_flow cannot be combined with smoke_selector or "
                     "single-step success assertions"
                 )
-            first_action = next(
-                (
-                    index
-                    for index, step in enumerate(self.smoke_flow)
-                    if step.action in SMOKE_INTERACTION_ACTIONS
-                ),
-                None,
+            label = (
+                f"smoke_flows[{self.smoke_flow_name!r}]" if self.smoke_flow_name else "smoke_flow"
             )
-            if first_action is None:
-                raise ValueError("smoke_flow requires at least one click, fill, or press action")
-            if not any(
-                step.action in SMOKE_ASSERTION_ACTIONS
-                for step in self.smoke_flow[first_action + 1 :]
-            ):
-                raise ValueError(
-                    "smoke_flow requires an expect_visible, expect_url, or expect_text "
-                    "assertion after an action"
-                )
+            _validate_smoke_flow_steps(self.smoke_flow, label=label)
         if bool(self.http_username) != bool(self.http_password):
             raise ValueError("http_username and http_password must be configured together")
         for header_name, header_value in self.extra_http_headers.items():
@@ -568,6 +631,14 @@ class Settings:
         except re.error as exc:
             raise ValueError(f"invalid configuration regular expression: {exc}") from exc
 
+    @property
+    def active_smoke_flow(self) -> tuple[SmokeStep, ...]:
+        """Return the selected named flow or the inline smoke flow."""
+
+        if self.smoke_flows:
+            return self.smoke_flows[self.smoke_flow_name]
+        return self.smoke_flow
+
     def _validate_types(self) -> None:
         hints = get_type_hints(type(self))
         for name in type(self).__dataclass_fields__:
@@ -577,6 +648,24 @@ class Settings:
                     isinstance(item, Viewport) for item in value
                 ):
                     raise ValueError("viewports must be a tuple of Viewport values")
+            elif name == "smoke_flows":
+                if not isinstance(value, Mapping):
+                    raise ValueError("smoke_flows must be an object of named step lists")
+                if len(value) > MAX_SMOKE_FLOWS:
+                    raise ValueError(f"smoke_flows supports at most {MAX_SMOKE_FLOWS} entries")
+                for flow_name, steps in value.items():
+                    if not isinstance(flow_name, str) or not SMOKE_FLOW_NAME_PATTERN.fullmatch(
+                        flow_name
+                    ):
+                        raise ValueError(
+                            "smoke_flow names must match [A-Za-z0-9][A-Za-z0-9._-]{0,63}"
+                        )
+                    if not isinstance(steps, tuple) or not all(
+                        isinstance(item, SmokeStep) for item in steps
+                    ):
+                        raise ValueError(
+                            f"smoke_flows[{flow_name!r}] must be a tuple of SmokeStep values"
+                        )
             elif name in {
                 "smoke_flow",
                 "ignore_console_patterns",
@@ -606,14 +695,22 @@ class Settings:
         """Build settings from a JSON-compatible mapping."""
 
         current = base or cls()
-        allowed = set(cls.__dataclass_fields__)
+        allowed = set(cls.__dataclass_fields__) | {"viewport_preset"}
         unknown = sorted(set(values) - allowed)
         if unknown:
             raise ValueError(f"unknown config key(s): {', '.join(unknown)}")
+        if "viewport_preset" in values and "viewports" in values:
+            raise ValueError("viewport_preset cannot be combined with viewports")
+        if "smoke_flows" in values and "smoke_flow" in values:
+            raise ValueError("smoke_flows cannot be combined with smoke_flow")
 
         changes: dict[str, Any] = {}
         for key, value in values.items():
-            if key == "viewports":
+            if key == "viewport_preset":
+                if not isinstance(value, str):
+                    raise ValueError("viewport_preset must be a string")
+                changes["viewports"] = resolve_viewport_preset(value)
+            elif key == "viewports":
                 if not isinstance(value, list) or not value:
                     raise ValueError("viewports must be a non-empty list")
                 changes[key] = tuple(
@@ -628,6 +725,23 @@ class Settings:
                 if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
                     raise ValueError(f"{key} must be a list of strings")
                 changes[key] = tuple(value)
+            elif key == "smoke_flows":
+                if not isinstance(value, dict):
+                    raise ValueError("smoke_flows must be an object of named step lists")
+                if len(value) > MAX_SMOKE_FLOWS:
+                    raise ValueError(f"smoke_flows supports at most {MAX_SMOKE_FLOWS} entries")
+                named_flows: dict[str, tuple[SmokeStep, ...]] = {}
+                for flow_name, steps in value.items():
+                    if not isinstance(flow_name, str) or not SMOKE_FLOW_NAME_PATTERN.fullmatch(
+                        flow_name
+                    ):
+                        raise ValueError(
+                            "smoke_flow names must match [A-Za-z0-9][A-Za-z0-9._-]{0,63}"
+                        )
+                    if not isinstance(steps, list):
+                        raise ValueError(f"smoke_flows[{flow_name!r}] must be a list")
+                    named_flows[flow_name] = tuple(SmokeStep.from_mapping(item) for item in steps)
+                changes[key] = named_flows
             elif key == "smoke_flow":
                 if not isinstance(value, list):
                     raise ValueError("smoke_flow must be a list")
@@ -649,6 +763,8 @@ class Settings:
             else:
                 hints = get_type_hints(cls)
                 changes[key] = _coerce_mapping_scalar(key, value, hints[key])
+        if "smoke_flows" in changes or "smoke_flow_name" in changes:
+            changes["smoke_flow"] = ()
         return replace(current, **changes)
 
     def to_dict(self) -> dict[str, Any]:
@@ -685,7 +801,8 @@ class Settings:
             "smoke_settle_ms": self.smoke_settle_ms,
             "smoke_require_assertion": self.smoke_require_assertion,
             "smoke_mode": self.smoke_mode,
-            "smoke_flow": [step.to_dict() for step in self.smoke_flow],
+            "smoke_flow": [step.to_dict() for step in self.active_smoke_flow],
+            "smoke_flow_name": self.smoke_flow_name,
             "ignore_selectors": list(self.ignore_selectors),
             "ignore_console_patterns": list(self.ignore_console_patterns),
             "ignore_request_patterns": list(self.ignore_request_patterns),

@@ -22,6 +22,10 @@ inputs:
     description: Comma-separated WIDTHxHEIGHT[:NAME] list
     required: false
     default: ""
+  viewport-preset:
+    description: Closed viewport matrix (quick or full); cannot be combined with viewports
+    required: false
+    default: ""
   ready-selector:
     description: Wait for this selector before probing
     required: false
@@ -62,6 +66,10 @@ inputs:
     description: Require a selector or URL assertion for CTA success
     required: false
     default: "false"
+  smoke-flow-name:
+    description: Select one named flow from smoke_flows in the JSON config
+    required: false
+    default: ""
   storage-state:
     description: Playwright storage-state JSON file for authenticated previews
     required: false
@@ -168,6 +176,7 @@ runs:
         WEBQA_OUT: ${{ inputs.out }}
         WEBQA_PROFILE: ${{ inputs.profile }}
         WEBQA_VIEWPORTS: ${{ inputs.viewports }}
+        WEBQA_VIEWPORT_PRESET: ${{ inputs.viewport-preset }}
         WEBQA_READY_SELECTOR: ${{ inputs.ready-selector }}
         WEBQA_WAIT_NETWORK_IDLE: ${{ inputs.wait-for-network-idle }}
         WEBQA_SMOKE_MODE: ${{ inputs.smoke-mode }}
@@ -178,6 +187,7 @@ runs:
         WEBQA_SMOKE_SCOPE: ${{ inputs.smoke-scope }}
         WEBQA_SMOKE_SETTLE_MS: ${{ inputs.smoke-settle-ms }}
         WEBQA_SMOKE_REQUIRE_ASSERTION: ${{ inputs.smoke-require-assertion }}
+        WEBQA_SMOKE_FLOW_NAME: ${{ inputs.smoke-flow-name }}
         WEBQA_STORAGE_STATE: ${{ inputs.storage-state }}
         WEBQA_FAIL_ON_WARN: ${{ inputs.fail-on-warn }}
         WEBQA_BASELINE_REPORT: ${{ inputs.baseline-report }}
@@ -203,6 +213,9 @@ runs:
         if [[ -n "$WEBQA_VIEWPORTS" ]]; then
           args+=(--viewports "$WEBQA_VIEWPORTS")
         fi
+        if [[ -n "$WEBQA_VIEWPORT_PRESET" ]]; then
+          args+=(--preset "$WEBQA_VIEWPORT_PRESET")
+        fi
         if [[ -n "$WEBQA_READY_SELECTOR" ]]; then
           args+=(--ready-selector "$WEBQA_READY_SELECTOR")
         fi
@@ -225,6 +238,9 @@ runs:
         args+=(--smoke-settle-ms "$WEBQA_SMOKE_SETTLE_MS")
         if [[ "$WEBQA_SMOKE_REQUIRE_ASSERTION" == "true" ]]; then
           args+=(--smoke-require-assertion)
+        fi
+        if [[ -n "$WEBQA_SMOKE_FLOW_NAME" ]]; then
+          args+=(--smoke-flow-name "$WEBQA_SMOKE_FLOW_NAME")
         fi
         if [[ -n "$WEBQA_STORAGE_STATE" ]]; then
           args+=(--storage-state "$WEBQA_STORAGE_STATE")
@@ -271,6 +287,7 @@ runs:
         import pathlib
         import sys
 
+        sys.stdout.reconfigure(encoding="utf-8")
         out = pathlib.Path(sys.argv[1])
         summary_path = out / "feedback_bundle.json"
         print("## ego-webqa delivery QA")

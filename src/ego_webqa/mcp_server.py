@@ -53,6 +53,7 @@ def audit_web_page(
     config: str = "",
     profile: str = "baseline",
     viewports: list[str] | None = None,
+    viewport_preset: str = "",
     timeout_ms: int | None = None,
     ready_selector: str = "",
     wait_for_network_idle: bool = False,
@@ -63,6 +64,7 @@ def audit_web_page(
     smoke_success_selector: str = "",
     smoke_success_url_pattern: str = "",
     smoke_require_assertion: bool = False,
+    smoke_flow_name: str = "",
     browser_engine: str = "",
 ) -> types.CallToolResult:
     """Audit a generated page in a real browser and return deterministic evidence.
@@ -76,6 +78,8 @@ def audit_web_page(
 
     if bool(url) == bool(directory):
         return _error_result("provide exactly one of url or directory")
+    if viewports and viewport_preset:
+        return _error_result("provide either viewports or viewport_preset, not both")
     try:
         cfg = load_settings(config) if config else Settings()
         updates: dict[str, Any] = {
@@ -88,6 +92,10 @@ def audit_web_page(
             "smoke_success_url_pattern": smoke_success_url_pattern,
             "smoke_require_assertion": smoke_require_assertion,
         }
+        if smoke_flow_name:
+            updates["smoke_flow_name"] = smoke_flow_name
+        if viewport_preset:
+            updates["viewport_preset"] = viewport_preset
         if viewports:
             updates["viewports"] = [Viewport.parse(item) for item in viewports]
         if timeout_ms is not None:

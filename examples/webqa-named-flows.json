@@ -1,0 +1,33 @@
+{
+  "viewport_preset": "quick",
+  "smoke_mode": "safe",
+  "smoke_flow_name": "continue",
+  "smoke_flows": {
+    "continue": [
+      {
+        "action": "click",
+        "selector": "#continue"
+      },
+      {
+        "action": "expect_visible",
+        "selector": "#success"
+      }
+    ],
+    "email": [
+      {
+        "action": "fill",
+        "selector": "#email",
+        "value": "qa@example.com"
+      },
+      {
+        "action": "click",
+        "selector": "#continue"
+      },
+      {
+        "action": "expect_text",
+        "selector": "#success",
+        "pattern": "^complete$"
+      }
+    ]
+  }
+}

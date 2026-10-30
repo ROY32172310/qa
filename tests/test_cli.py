@@ -76,6 +76,54 @@ def test_cli_live_smoke_override() -> None:
     assert _settings(args).smoke_mode == "live"
 
 
+def test_cli_quick_preset_overrides_config_matrix_and_rejects_ambiguity() -> None:
+    args = build_parser().parse_args(["https://example.com", "--preset", "quick"])
+    cfg = _settings(args)
+    assert len(cfg.viewports) == 4
+    assert {viewport.width for viewport in cfg.viewports} == {360, 390}
+
+    conflicting = build_parser().parse_args(
+        ["https://example.com", "--preset", "quick", "--viewports", "390x844:phone"]
+    )
+    with pytest.raises(ValueError, match="cannot be combined"):
+        _settings(conflicting)
+
+
+def test_cli_selects_named_bounded_flow_from_config(tmp_path) -> None:
+    config_path = tmp_path / "flows.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "smoke_flows": {
+                    "login": [
+                        {"action": "click", "selector": "#login"},
+                        {"action": "expect_visible", "selector": "#welcome"},
+                    ],
+                    "search": [
+                        {"action": "fill", "selector": "#query", "value": "delivery"},
+                        {"action": "click", "selector": "#search"},
+                        {"action": "expect_visible", "selector": "#results"},
+                    ],
+                },
+                "smoke_flow_name": "login",
+            }
+        ),
+        encoding="utf-8",
+    )
+    args = build_parser().parse_args(
+        [
+            "https://example.com",
+            "--config",
+            str(config_path),
+            "--smoke-flow-name",
+            "search",
+        ]
+    )
+    cfg = _settings(args)
+    assert cfg.smoke_flow_name == "search"
+    assert [step.action for step in cfg.active_smoke_flow] == ["fill", "click", "expect_visible"]
+
+
 def test_cli_browser_engine_override() -> None:
     args = build_parser().parse_args(["https://example.com", "--browser-engine", "webkit"])
     cfg = _settings(args)

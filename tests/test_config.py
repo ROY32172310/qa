@@ -9,12 +9,14 @@ import pytest
 
 from ego_webqa.config import (
     BROWSER_ENGINES,
+    VIEWPORT_PRESETS,
     DimensionOverride,
     Settings,
     SmokeStep,
     Viewport,
     load_settings,
     resolve_overrides,
+    resolve_viewport_preset,
 )
 
 
@@ -39,6 +41,31 @@ def test_default_viewport_matrix_is_narrow_text_scaled_and_safe_area_aware() -> 
     assert {viewport.text_scale for viewport in viewports} == {1.0, 1.5}
     assert {viewport.safe_area_bottom_px for viewport in viewports} == {0, 34}
     assert len({viewport.name for viewport in viewports}) == 8
+
+
+def test_quick_viewport_preset_is_closed_and_pairwise_balanced() -> None:
+    quick = resolve_viewport_preset("quick")
+    assert quick == VIEWPORT_PRESETS["quick"]
+    assert len(quick) == 4
+    assert len({viewport.width for viewport in quick}) == 2
+    assert len({viewport.text_scale for viewport in quick}) == 2
+    assert len({viewport.safe_area_bottom_px for viewport in quick}) == 2
+    for width in {viewport.width for viewport in quick}:
+        width_variants = [viewport for viewport in quick if viewport.width == width]
+        assert {viewport.text_scale for viewport in width_variants} == {1.0, 1.5}
+        assert {viewport.safe_area_bottom_px for viewport in width_variants} == {0, 34}
+    assert Settings.from_mapping({"viewport_preset": "quick"}).viewports == quick
+    assert Settings.from_mapping({"viewport_preset": "full"}).viewports == Settings().viewports
+
+    with pytest.raises(ValueError, match="viewport_preset must be one of"):
+        Settings.from_mapping({"viewport_preset": "tiny"})
+    with pytest.raises(ValueError, match="cannot be combined"):
+        Settings.from_mapping(
+            {
+                "viewport_preset": "quick",
+                "viewports": ["390x844:phone"],
+            }
+        )
 
 
 def test_browser_engine_defaults_to_chromium_and_accepts_preview_engines() -> None:
@@ -168,6 +195,110 @@ def test_mapping_accepts_bounded_smoke_flow_and_redacts_fill_values() -> None:
     assert "secret@example.com" not in json.dumps(payload)
 
 
+def test_named_bounded_flows_select_one_flow_and_keep_all_definitions_closed() -> None:
+    settings = Settings.from_mapping(
+        {
+            "smoke_flows": {
+                "login": [
+                    {"action": "fill", "selector": "#email", "value": "qa@example.com"},
+                    {"action": "click", "selector": "#continue"},
+                    {"action": "expect_visible", "selector": "#welcome"},
+                ],
+                "checkout.v2": [
+                    {"action": "click", "selector": "#buy"},
+                    {"action": "expect_text", "selector": "#status", "pattern": "^paid$"},
+                ],
+            },
+            "smoke_flow_name": "checkout.v2",
+        }
+    )
+
+    assert list(settings.smoke_flows) == ["login", "checkout.v2"]
+    assert [step.action for step in settings.active_smoke_flow] == ["click", "expect_text"]
+    payload = settings.to_dict()
+    assert payload["smoke_flow_name"] == "checkout.v2"
+    assert payload["smoke_flow"][0]["selector"] == "#buy"
+    assert "smoke_flows" not in payload
+
+
+@pytest.mark.parametrize(
+    ("values", "message"),
+    [
+        (
+            {
+                "smoke_flows": {
+                    "login": [
+                        {"action": "click", "selector": "#continue"},
+                        {"action": "expect_visible", "selector": "#welcome"},
+                    ]
+                }
+            },
+            "smoke_flow_name is required",
+        ),
+        (
+            {
+                "smoke_flows": {
+                    "login": [
+                        {"action": "click", "selector": "#continue"},
+                        {"action": "expect_visible", "selector": "#welcome"},
+                    ]
+                },
+                "smoke_flow_name": "checkout",
+            },
+            "unknown smoke_flow_name",
+        ),
+        ({"smoke_flow_name": "login"}, "requires smoke_flows"),
+        (
+            {
+                "smoke_flow": [
+                    {"action": "click", "selector": "#continue"},
+                    {"action": "expect_visible", "selector": "#welcome"},
+                ],
+                "smoke_flows": {
+                    "login": [
+                        {"action": "click", "selector": "#continue"},
+                        {"action": "expect_visible", "selector": "#welcome"},
+                    ]
+                },
+                "smoke_flow_name": "login",
+            },
+            "cannot be combined",
+        ),
+        (
+            {
+                "smoke_flows": {
+                    "private flow": [
+                        {"action": "click", "selector": "#continue"},
+                        {"action": "expect_visible", "selector": "#welcome"},
+                    ]
+                },
+                "smoke_flow_name": "private flow",
+            },
+            "names must match",
+        ),
+        (
+            {
+                "smoke_flows": {
+                    "login": [
+                        {"action": "click", "selector": "#continue"},
+                        {"action": "expect_visible", "selector": "#welcome"},
+                    ],
+                    "broken": [{"action": "click", "selector": "#continue"}],
+                },
+                "smoke_flow_name": "login",
+            },
+            "requires an expect_visible",
+        ),
+    ],
+)
+def test_named_bounded_flows_reject_ambiguous_or_invalid_definitions(
+    values: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        Settings.from_mapping(values)
+
+
 @pytest.mark.parametrize(
     ("steps", "message"),
     [
@@ -256,6 +387,15 @@ def test_example_flow_config_loads() -> None:
         "expect_visible",
         "expect_url",
     ]
+
+
+def test_example_named_flow_config_loads() -> None:
+    path = Path(__file__).resolve().parents[1] / "examples" / "webqa-named-flows.json"
+    settings = load_settings(path)
+    assert len(settings.viewports) == 4
+    assert set(settings.smoke_flows) == {"continue", "email"}
+    assert settings.smoke_flow_name == "continue"
+    assert [step.action for step in settings.active_smoke_flow] == ["click", "expect_visible"]
 
 
 def test_authenticated_settings_are_immutable_and_redacted() -> None:

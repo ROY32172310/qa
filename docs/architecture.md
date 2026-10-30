@@ -22,6 +22,14 @@ specification is
 cartesian product of 360/390px widths, 1.0x/1.5x text scaling, and 0/34px
 simulated bottom safe areas. Explicit viewports replace that matrix.
 
+The closed `quick` preset reduces this to four pairwise-balanced variants. Each
+width retains both text scales and both safe-area states, while the crossed
+scale/safe-area combinations alternate by width. This gives fast Agent loops
+coverage of every matrix axis without pretending that four variants prove the
+same breadth as the full eight-variant default. `full` names the unchanged
+default matrix. Presets and explicit viewport lists are mutually exclusive so
+the selected configuration remains unambiguous.
+
 Text scaling is applied through Playwright after initial rendering and before
 layout facts are collected. A resulting width overflow is attributed to
 `text_scale_layout_break`; an ordinary width overflow remains
@@ -80,6 +88,12 @@ values and observed assertion text are never copied into evidence; text
 assertions retain only their configured regular expression, source type, and
 observed length. The feature does not expose arbitrary JavaScript, custom
 detectors, or a general-purpose E2E DSL.
+
+A project can declare up to 16 closed, identifier-named flows and select one
+with `smoke_flow_name`. Every definition is parsed and bounded before an audit;
+only the selected flow is copied into effective settings and report evidence.
+The named and inline forms are mutually exclusive, so there is no implicit
+merge or hidden second execution.
 
 ## CI adapter
 

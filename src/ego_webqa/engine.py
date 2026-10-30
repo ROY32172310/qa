@@ -1416,7 +1416,7 @@ def _run_smoke(
         page.context.route("**/*", block_request)
         page.context.set_offline(True)
     try:
-        if cfg.smoke_flow:
+        if cfg.active_smoke_flow:
             result = _run_bounded_flow(page, cfg)
         else:
             assertion_config = {
@@ -1474,7 +1474,7 @@ def _run_smoke(
         error for error in new_page_errors if error not in suppressed_network_errors
     ]
     new_page_count = max(0, len(page.context.pages) - pages_before)
-    if cfg.smoke_flow:
+    if cfg.active_smoke_flow:
         assertion_configured = True
         observed_effect = any(
             step.get("status") == "passed" and step.get("action") in SMOKE_INTERACTION_ACTIONS
@@ -1493,10 +1493,11 @@ def _run_smoke(
             "mode": cfg.smoke_mode,
             "offline": safe,
             "viewport": viewport_name,
+            "flow_name": cfg.smoke_flow_name,
             "new_page_count": new_page_count,
             "observed_effect": observed_effect,
             "assertion_configured": assertion_configured,
-            "assertion_required": bool(cfg.smoke_require_assertion or cfg.smoke_flow),
+            "assertion_required": bool(cfg.smoke_require_assertion or cfg.active_smoke_flow),
             "success": success,
             "page_error_count": len(actionable_page_errors),
             "page_errors": actionable_page_errors[:10],
@@ -1513,7 +1514,7 @@ def _run_bounded_flow(page: Any, cfg: Settings) -> dict[str, Any]:
 
     steps: list[dict[str, Any]] = []
     failed_step: dict[str, Any] | None = None
-    for index, step in enumerate(cfg.smoke_flow, start=1):
+    for index, step in enumerate(cfg.active_smoke_flow, start=1):
         record: dict[str, Any] = {
             "index": index,
             "action": step.action,

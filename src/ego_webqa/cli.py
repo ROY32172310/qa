@@ -11,6 +11,7 @@ from typing import Any
 
 from . import __version__
 from .config import (
+    VIEWPORT_PRESET_NAMES,
     Settings,
     Viewport,
     apply_auth_environment,
@@ -55,6 +56,11 @@ def build_parser() -> argparse.ArgumentParser:
             "comma-separated WIDTHxHEIGHT[:NAME][@TEXT_SCALE][~SAFE_BOTTOM_PX] list "
             "(default: 360/390 mobile x 1.0/1.5 text scale x 0/34px bottom safe area)"
         ),
+    )
+    parser.add_argument(
+        "--preset",
+        choices=VIEWPORT_PRESET_NAMES,
+        help="closed viewport matrix preset: quick (4 variants) or full (8 variants)",
     )
     parser.add_argument("--out", default="webqa-report", help="artifact directory")
     parser.add_argument("--timeout-ms", type=int, help="navigation/action timeout")
@@ -105,6 +111,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--smoke-require-assertion",
         action="store_true",
         help="require a selector or URL assertion for CTA success",
+    )
+    parser.add_argument(
+        "--smoke-flow-name",
+        help="select one named flow from the smoke_flows config object",
     )
     parser.add_argument(
         "--storage-state",
@@ -163,6 +173,10 @@ def _settings(args: argparse.Namespace) -> Settings:
     updates: dict[str, object] = {}
     if args.profile is not None:
         updates["profile"] = args.profile
+    if args.preset and args.viewports:
+        raise ValueError("--preset and --viewports cannot be combined")
+    if args.preset:
+        updates["viewport_preset"] = args.preset
     if args.viewports:
         updates["viewports"] = [Viewport.parse(item) for item in args.viewports.split(",")]
     if args.timeout_ms is not None:
@@ -195,6 +209,8 @@ def _settings(args: argparse.Namespace) -> Settings:
         updates["smoke_settle_ms"] = args.smoke_settle_ms
     if args.smoke_require_assertion:
         updates["smoke_require_assertion"] = True
+    if args.smoke_flow_name is not None:
+        updates["smoke_flow_name"] = args.smoke_flow_name
     if args.storage_state is not None:
         updates["storage_state"] = args.storage_state
     if args.browser_engine is not None:

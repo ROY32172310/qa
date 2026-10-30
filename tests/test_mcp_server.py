@@ -71,6 +71,8 @@ def test_mcp_server_exposes_one_scoped_tool() -> None:
     assert "url" in schema["properties"]
     assert "directory" in schema["properties"]
     assert "browser_engine" in schema["properties"]
+    assert "viewport_preset" in schema["properties"]
+    assert "smoke_flow_name" in schema["properties"]
 
 
 def test_mcp_tool_returns_blocking_evidence(
@@ -108,6 +110,32 @@ def test_mcp_tool_returns_blocking_evidence(
     assert broken.structured_content["status"] == "fail"
     assert broken.structured_content["agent_summary"]["failed_items"][0]["dimension_id"]
     assert "horizontal_overflow" in {issue["code"] for issue in broken.structured_content["issues"]}
+
+
+def test_mcp_tool_applies_quick_preset_and_rejects_ambiguous_matrix(
+    site: tuple[LocalServer, Path],
+    tmp_path: Path,
+) -> None:
+    server, _ = site
+    result = audit_web_page(
+        url=server.url("index.html"),
+        out_dir=str(tmp_path / "quick"),
+        viewport_preset="quick",
+        smoke=False,
+    )
+    assert result.is_error is False
+    payload = result.structured_content
+    assert len(payload["viewports"]) == 4
+    assert {row["viewport"]["width"] for row in payload["viewports"]} == {360, 390}
+
+    conflicting = audit_web_page(
+        url=server.url("index.html"),
+        out_dir=str(tmp_path / "conflict"),
+        viewport_preset="quick",
+        viewports=["390x844:mobile"],
+    )
+    assert conflicting.is_error is True
+    assert "not both" in conflicting.content[0].text
 
 
 def test_mcp_tool_validates_target_and_accepts_local_directory(
@@ -226,6 +254,48 @@ def test_mcp_tool_consumes_bounded_flow_from_config(
     assert result.structured_content["smoke"]["kind"] == "flow"
     assert result.structured_content["smoke"]["success"] is True
     assert result.structured_content["smoke"]["assertions"][0]["type"] == "text"
+
+
+def test_mcp_tool_selects_named_flow_from_config(
+    site: tuple[LocalServer, Path],
+    tmp_path: Path,
+) -> None:
+    _, root = site
+    config_path = tmp_path / "named-flows.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "smoke_flows": {
+                    "default": [
+                        {"action": "click", "selector": "#continue"},
+                        {
+                            "action": "expect_text",
+                            "selector": "#success",
+                            "pattern": "^complete$",
+                        },
+                    ],
+                    "visible-only": [
+                        {"action": "click", "selector": "#continue"},
+                        {"action": "expect_visible", "selector": "#success"},
+                    ],
+                },
+                "smoke_flow_name": "default",
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = audit_web_page(
+        directory=str(root),
+        file="flow.html",
+        config=str(config_path),
+        out_dir=str(tmp_path / "named-flow"),
+        viewports=["390x844:mobile"],
+        smoke=True,
+        smoke_flow_name="visible-only",
+    )
+    assert result.is_error is False
+    assert result.structured_content["smoke"]["flow_name"] == "visible-only"
+    assert result.structured_content["smoke"]["success"] is True
 
 
 def test_mcp_stdio_round_trip(site: tuple[LocalServer, Path], tmp_path: Path) -> None:

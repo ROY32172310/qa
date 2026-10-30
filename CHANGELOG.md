@@ -16,6 +16,14 @@
 - Add `--baseline-report ... --gate new` to the audit CLI and composite Action.
   Unchanged blocking debt remains visible without failing every rerun; new or
   expanding blocking roots fail the gate.
+- Add the closed `quick` viewport preset with four pairwise mobile variants for
+  fast Agent loops while preserving the eight-variant `full` default matrix.
+  The preset is available through CLI and JSON configuration, MCP, and the
+  GitHub Action.
+- Add bounded named smoke flows: a config can retain up to 16 closed flow
+  definitions and select one for a run through CLI, MCP, or the GitHub Action.
+  Every definition is validated; only the selected flow executes and reports
+  retain the selected name without exposing unselected flow contents.
 
 ## 0.7.0 - 2026-10-30
 

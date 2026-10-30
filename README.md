@@ -139,6 +139,7 @@ delivery decision requires it.
 ```bash
 ego-webqa https://example.com
 ego-webqa --dir ./dist --file index.html
+ego-webqa https://example.com --preset quick
 ego-webqa http://127.0.0.1:8000 --viewports 390x844:mobile@1.5~34,1280x800:desktop
 ego-webqa https://example.com --browser-engine firefox
 ego-webqa https://example.com --ready-selector "#app-ready" --wait-for-network-idle
@@ -158,6 +159,12 @@ Exit codes:
 `--viewports` accepts `WIDTHxHEIGHT[:NAME][@TEXT_SCALE][~SAFE_BOTTOM_PX]`.
 Explicit viewports replace the default matrix. Text scale must be between 1.0
 and 2.0; the simulated bottom safe area must be between 0 and 100px.
+
+`--preset quick` selects four pairwise-balanced mobile variants for fast Agent
+loops: each width covers both text scales and both safe-area states, while the
+crossed scale/safe-area combinations alternate by width. `--preset full`
+explicitly selects the default eight-variant matrix. A preset cannot be combined
+with `--viewports`.
 
 Every run writes self-contained evidence. Screenshot references in JSON are
 relative to the report directory, so agents and CI can move the complete
@@ -303,7 +310,7 @@ ego-webqa https://example.com --config examples/webqa.json
 ```json
 {
   "profile": "accessibility",
-  "viewports": ["390x844:mobile@1.5~34", "1280x800:desktop"],
+  "viewport_preset": "full",
   "min_tap_target_px": 44,
   "min_font_px": 12,
   "ready_selector": "#app-ready",
@@ -319,6 +326,10 @@ ego-webqa https://example.com --config examples/webqa.json
   "ignore_request_patterns": ["/analytics/"]
 }
 ```
+
+Use `"viewport_preset": "quick"` for the four-variant first gate, or replace it
+with an explicit `"viewports"` list for a project-specific matrix. The preset
+and explicit list are mutually exclusive.
 
 Use `--smoke-selector "#checkout"` when the primary action's text is not matched
 by the default CTA vocabulary. Safe smoke aborts HTTP requests and switches the
@@ -377,6 +388,33 @@ typed into a page.
 When a flow fails, `report.json` includes each completed step, the failed step,
 and its error. The Agent summary names the exact action instead of reporting a
 generic dead button.
+
+Projects can keep several closed flows in one config and select one by name:
+
+```json
+{
+  "smoke_flow_name": "checkout",
+  "smoke_flows": {
+    "login": [
+      {"action": "fill", "selector": "#email", "value": "qa@example.com"},
+      {"action": "click", "selector": "#continue"},
+      {"action": "expect_visible", "selector": "#welcome"}
+    ],
+    "checkout": [
+      {"action": "click", "selector": "#buy"},
+      {"action": "expect_text", "selector": "#status", "pattern": "^paid$"}
+    ]
+  }
+}
+```
+
+Flow names are closed identifiers matching `[A-Za-z0-9][A-Za-z0-9._-]{0,63}`;
+at most 16 definitions are accepted. Every definition is validated, but only
+the selected flow runs. `smoke_flows` and the single inline `smoke_flow` are
+mutually exclusive, as are named flows and the single-step `smoke_selector` /
+success assertions, because every named flow must carry its own interaction and
+assertion. Override the configured default with `--smoke-flow-name checkout`;
+reports retain the selected name and redact fill values as before.
 
 Use `ready_selector` for SPA content that appears after the load event. Known
 third-party console and request noise can be excluded with regex patterns
@@ -460,10 +498,9 @@ Typical tool arguments are:
   "config": "/workspace/webqa-flow.json",
   "profile": "accessibility",
   "browser_engine": "webkit",
-  "viewports": ["390x844:mobile", "1280x800:desktop"],
-  "smoke_scope": "all",
-  "smoke_require_assertion": true,
-  "smoke_success_selector": "#thank-you"
+  "viewport_preset": "quick",
+  "smoke_flow_name": "checkout",
+  "smoke_scope": "all"
 }
 ```
 
@@ -538,10 +575,10 @@ jobs:
           url: ${{ vars.PREVIEW_URL }}
           browser-engine: webkit
           profile: accessibility
+          viewport-preset: quick
+          smoke-flow-name: checkout
           fail-on-warn: "true"
           smoke-scope: all
-          smoke-require-assertion: "true"
-          smoke-success-selector: "#thank-you"
           baseline-report: .qa/known-good/report.json
           delta-gate: new
           http-username: ${{ secrets.PREVIEW_USERNAME }}
