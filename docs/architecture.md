@@ -256,4 +256,6 @@ the deterministic core.
 
 The JSON report uses `schema_version`. New optional fields may be added inside
 the same major schema. Removing or changing existing field semantics requires a
-new schema version.
+new schema version. Draft 2020-12 schemas for report, Agent summary, dimensions,
+feedback, delta, and doctor are packaged with the distribution and exposed by
+`ego-webqa --print-schema`; see [`json-contracts.md`](json-contracts.md).

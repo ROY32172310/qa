@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/ROY32172310/qa/master/src/ego_webqa/schemas/feedback-bundle.schema.json",
+  "title": "ego-webqa feedback bundle",
+  "description": "Privacy-first external feedback projection of a report.",
+  "type": "object",
+  "required": [
+    "bundle_schema_version",
+    "tool",
+    "tool_version",
+    "report_schema_version",
+    "status",
+    "duration_ms",
+    "target_kind",
+    "counts",
+    "settings",
+    "runtime",
+    "viewports",
+    "findings",
+    "privacy"
+  ],
+  "properties": {
+    "bundle_schema_version": {
+      "const": "1.0"
+    },
+    "tool": {
+      "const": "ego-webqa"
+    },
+    "tool_version": {
+      "type": "string"
+    },
+    "report_schema_version": {
+      "enum": ["1.0", "unknown"]
+    },
+    "status": {
+      "enum": ["pass", "warn", "fail", "unknown"]
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "target_kind": {
+      "enum": ["local", "remote", "unknown"]
+    },
+    "target": {
+      "type": "string"
+    },
+    "counts": {
+      "type": "object",
+      "required": ["error", "warning", "root_causes"],
+      "properties": {
+        "error": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warning": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "root_causes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "settings": {
+      "type": "object"
+    },
+    "runtime": {
+      "type": "object"
+    },
+    "viewports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "index",
+          "width",
+          "height",
+          "text_scale",
+          "safe_area_bottom_px",
+          "has_touch"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "text_scale": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "safe_area_bottom_px": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "has_touch": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "dimension_id",
+          "dimension_version",
+          "detector",
+          "default_severity",
+          "block_count",
+          "warning_count",
+          "occurrences",
+          "viewport_indexes"
+        ],
+        "properties": {
+          "dimension_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "dimension_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "detector": {
+            "type": "string"
+          },
+          "default_severity": {
+            "enum": ["block", "warn"]
+          },
+          "block_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "warning_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "occurrences": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "viewport_indexes": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "selectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "text_snippets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "required": [
+        "target_included",
+        "selectors_included",
+        "messages_included",
+        "excluded_by_default"
+      ],
+      "properties": {
+        "target_included": {
+          "type": "boolean"
+        },
+        "selectors_included": {
+          "type": "boolean"
+        },
+        "messages_included": {
+          "type": "boolean"
+        },
+        "excluded_by_default": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

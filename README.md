@@ -459,6 +459,11 @@ ego-webqa "$PREVIEW_URL" --out "webqa/$AGENT_ID" --json \
 same in-memory issue list. Agents should treat exit code `0` as pass/warn, `1`
 as blocking findings, and `2` as an invocation or browser failure.
 
+The six public JSON payloads have packaged Draft 2020-12 schemas. Print one with
+`ego-webqa --print-schema report`; see
+[`docs/json-contracts.md`](docs/json-contracts.md) for names and the
+compatibility policy.
+
 Within one audit, up to three viewports render in isolated browsers
 concurrently. This bounds slow-site wall time without sharing cookies, network
 state, screenshots, or mutable evidence between viewports.

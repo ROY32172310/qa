@@ -127,6 +127,7 @@ jobs:
       - run: python scripts/dev.py package
       - run: python -m pip install --force-reinstall dist/*.whl
       - run: ego-webqa --version
+      - run: ego-webqa --print-schema report > /dev/null
       - run: >-
           python -c "from importlib.metadata import version; import ego_webqa;
           assert version('ego-webqa') == ego_webqa.__version__"

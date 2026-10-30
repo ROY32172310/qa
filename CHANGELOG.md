@@ -28,6 +28,9 @@
   observation. Benchmark results now mark serial latency as a regression
   signal; dogfood marks latency as observational and reports public URL and
   local artifact completion/runtime metrics separately.
+- Publish Draft 2020-12 JSON Schemas for report, Agent summary, dimensions,
+  feedback, delta, and doctor payloads. Add `ego-webqa --print-schema NAME` and
+  define the `1.0` optional-addition and deprecation policy for integrations.
 
 ## 0.7.0 - 2026-10-30
 

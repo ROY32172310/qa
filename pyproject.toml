@@ -37,6 +37,7 @@ dev = [
   "black>=24",
   "build>=1.2",
   "mypy>=1.11",
+  "jsonschema>=4.23",
   "PyYAML>=6",
   "pytest>=8",
   "pytest-cov>=5",
@@ -52,7 +53,7 @@ ego-webqa-mcp = "ego_webqa.mcp_server:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-ego_webqa = ["py.typed"]
+ego_webqa = ["py.typed", "schemas/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

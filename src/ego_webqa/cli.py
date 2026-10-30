@@ -17,6 +17,7 @@ from .config import (
     apply_auth_environment,
     load_settings,
 )
+from .contracts import SCHEMA_NAMES, load_schema
 from .delta import (
     DeltaCompatibilityError,
     compare_reports,
@@ -163,6 +164,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--list-dimensions",
         action="store_true",
         help="print the closed dimension registry as JSON and exit",
+    )
+    parser.add_argument(
+        "--print-schema",
+        choices=SCHEMA_NAMES,
+        help="print one packaged Draft 2020-12 JSON Schema and exit",
     )
     parser.add_argument("--version", action="version", version=f"ego-webqa {__version__}")
     return parser
@@ -408,6 +414,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     args = build_parser().parse_args(arguments)
+    if args.print_schema:
+        print(_json_text(load_schema(args.print_schema), sys.stdout.encoding or "utf-8"))
+        return 0
     if args.list_dimensions:
         print(_json_text(registry_payload(), sys.stdout.encoding or "utf-8"))
         return 0

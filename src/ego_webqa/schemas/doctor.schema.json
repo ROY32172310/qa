@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/ROY32172310/qa/master/src/ego_webqa/schemas/doctor.schema.json",
+  "title": "ego-webqa doctor report",
+  "description": "Installation and selected-browser readiness diagnostics.",
+  "type": "object",
+  "required": ["schema_version", "tool", "status", "runtime", "checks"],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "tool": {
+      "const": "ego-webqa"
+    },
+    "status": {
+      "enum": ["ok", "fail"]
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "message", "hint"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": ["ok", "fail"]
+          },
+          "message": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

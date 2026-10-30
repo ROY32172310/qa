@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/ROY32172310/qa/master/src/ego_webqa/schemas/report.schema.json",
+  "title": "ego-webqa report",
+  "description": "Stable machine-readable result of one deterministic browser audit.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "tool",
+    "target",
+    "status",
+    "counts",
+    "started_at",
+    "duration_ms",
+    "issues",
+    "viewports",
+    "smoke",
+    "smoke_runs",
+    "screenshots",
+    "settings",
+    "runtime",
+    "governance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "tool": {
+      "const": "ego-webqa"
+    },
+    "target": {
+      "type": "string"
+    },
+    "status": {
+      "enum": ["pass", "warn", "fail"]
+    },
+    "counts": {
+      "type": "object",
+      "required": ["error", "warning"],
+      "properties": {
+        "error": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warning": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "started_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "viewport",
+          "message",
+          "hint",
+          "evidence",
+          "severity_source",
+          "override"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "enum": ["error", "warning"]
+          },
+          "viewport": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "object"
+          },
+          "severity_source": {
+            "enum": ["default", "override"]
+          },
+          "override": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "viewports": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "smoke": {
+      "type": "object"
+    },
+    "smoke_runs": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "screenshots": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "settings": {
+      "type": "object"
+    },
+    "runtime": {
+      "type": "object"
+    },
+    "governance": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}
