@@ -1,3 +1,5 @@
+[![Indexed on TensorBlock MCP Index](https://mcp-index.tensorblock.co/v1/servers/github-roy32172310-qa-73ad3a11/badge.svg)](https://www.tensorblock.co/mcp/servers/github-roy32172310-qa-73ad3a11)
+
 # ego-webqa
 
 <!-- mcp-name: io.github.ROY32172310/qa -->
