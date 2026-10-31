@@ -31,6 +31,7 @@ The shared-shell and PWA regression set passed:
 
 ```text
 132 passed in 13.68s
+45 passed in 0.92s (shell fingerprint and single-source layout contracts)
 Black: passed
 Ruff: passed
 ```
