@@ -129,6 +129,11 @@ def test_invalid_threshold_is_rejected() -> None:
         Settings(profile="wcag")
 
 
+@pytest.mark.parametrize("profile", ["baseline", "performance", "accessibility", "full"])
+def test_each_closed_profile_is_accepted(profile: str) -> None:
+    assert Settings(profile=profile).profile == profile
+
+
 @pytest.mark.parametrize(
     "field,value",
     [

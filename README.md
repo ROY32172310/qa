@@ -72,15 +72,17 @@ were affected, and gives the Agent a command that reproduces the failure.
 
 ## What real pages exposed
 
-The v0.8.0 dogfood pass audited all 20 Ego-owned production or canonical
-generated pages with zero runtime errors. Ten pages were clean; the remaining
-findings aggregated to 22 repair items. Stable failures included six
+The v0.8.2 dogfood pass audited all 20 Ego-owned production or canonical
+generated pages with zero runtime errors. After separating network-sensitive
+performance observations from deterministic delivery findings, ten pages were
+clean and ten had actionable structural findings. Stable failures included six
 text-enlargement layout breaks, four bottom safe-area penetrations, five
 clipped-text root causes, four undersized-target groups, and one generated page
 loading a missing service worker. There are no known stable blocking false
 positives in this corpus. This is a small, disclosed corpus rather than a
-market-wide accuracy claim; the full evidence and limitations are in
-[`docs/real-world-dogfood-2026-10-30-v0.8.0.md`](docs/real-world-dogfood-2026-10-30-v0.8.0.md).
+market-wide accuracy claim; the full evidence, raw mixed-profile counts, and
+limitations are in
+[`docs/real-world-dogfood-2026-10-31-v0.8.2.md`](docs/real-world-dogfood-2026-10-31-v0.8.2.md).
 
 Layout failures now identify the deepest unclipped elements that own the
 overflow, so an Agent receives a concrete repair selector instead of `html`.
@@ -207,6 +209,8 @@ ego-webqa https://example.com --smoke-scope all --smoke-require-assertion \
   --smoke-success-selector "#thank-you"
 ego-webqa --dir examples/demo --config examples/webqa-demo-flow.json
 ego-webqa https://example.com --profile accessibility
+ego-webqa https://example.com --profile performance
+ego-webqa https://example.com --profile full
 ```
 
 Exit codes:
@@ -345,7 +349,14 @@ ego-webqa --list-dimensions
 ### Profiles
 
 `baseline` is the default delivery profile. It checks whether the page renders,
-responds, fits the viewport, and lets the primary action work.
+responds, fits the viewport, and lets the primary action work. It deliberately
+keeps network-sensitive observations out of the delivery gate: first paint,
+load-event deadline, network-idle timeout, and transfer/request budgets do not
+produce findings in `baseline`.
+
+`performance` keeps every baseline check and adds those four network-sensitive
+observations. Use it when the audit runs from a controlled network or when the
+caller explicitly wants an observational performance gate.
 
 `accessibility` keeps every baseline check and adds deterministic checks for:
 
@@ -359,6 +370,10 @@ responds, fits the viewport, and lets the primary action work.
 This profile catches common machine-detectable defects. It is not a WCAG
 conformance audit or a replacement for keyboard and assistive-technology
 testing.
+
+`full` enables the baseline, performance, and accessibility families together.
+Raw timing measurements remain in `report.json` for every profile; the selected
+profile controls which registered dimensions can produce findings.
 
 ## Configuration
 

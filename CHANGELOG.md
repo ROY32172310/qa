@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- Split the default delivery gate from network-sensitive performance checks.
+  `baseline` now covers deterministic rendering, runtime, resource, geometry,
+  and interaction findings; the opt-in `performance` profile adds first-paint,
+  load-event, network-idle, and transfer-budget dimensions. `accessibility`
+  remains baseline plus accessibility checks, and `full` combines all families.
+  Raw timing evidence remains available in every report.
+- Route the benchmark's four performance fixtures through the new
+  `performance` profile instead of treating profiled findings as baseline
+  false negatives.
+- Add the v0.8.2 20-page dogfood report. The raw mixed-profile run completed
+  every page with zero runtime errors; after separating performance
+  observations, ten pages were clean and ten retained actionable structural
+  findings.
+
 ## 0.8.2 - 2026-10-30
 
 - Reject NaN and infinite numbers in numeric settings, viewport scale factors,

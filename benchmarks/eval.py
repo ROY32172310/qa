@@ -11,7 +11,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
-from ego_webqa.dimensions import DIMENSIONS
+from ego_webqa.dimensions import (
+    DIMENSIONS,
+    PROFILE_NAMES,
+    profile_includes_dimension,
+)
 
 SUITE_SCHEMA_VERSION = "1.0"
 Severity = Literal["error", "warning"]
@@ -163,15 +167,15 @@ def load_suite(path: str | Path, fixture_root: str | Path | None = None) -> Benc
             )
 
         profile = item.get("profile", defaults.get("profile", "baseline"))
-        if profile not in {"baseline", "accessibility"}:
+        if profile not in PROFILE_NAMES:
             raise BenchmarkConfigError(
-                f"case {base_id!r} profile must be baseline or accessibility"
+                f"case {base_id!r} profile must be one of: {', '.join(PROFILE_NAMES)}"
             )
         for code in expected:
-            required_profile = DIMENSIONS[code].profile
-            if required_profile == "accessibility" and profile != "accessibility":
+            if not profile_includes_dimension(profile, code):
                 raise BenchmarkConfigError(
-                    f"case {base_id!r} expects {code!r}, which requires the accessibility profile"
+                    f"case {base_id!r} expects {code!r}, which is not enabled by "
+                    f"the {profile!r} profile"
                 )
 
         expected_severities = _expected_severities(item.get("expected_severities", {}), expected)

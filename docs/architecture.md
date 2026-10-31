@@ -68,10 +68,15 @@ one engine per report and can compare stable report fields externally.
 
 ## Profiles
 
-`baseline` covers delivery behavior across the configured viewport matrix.
-`accessibility` adds deterministic document and interaction checks while
-reusing the same browser facts, threshold model, issue model, and reporters.
-Profile selection changes the issue rules, not the report schema.
+`baseline` covers deterministic delivery behavior across the configured
+viewport matrix. Network-sensitive timing and transfer findings belong to the
+additive `performance` family so uncontrolled public-network variance cannot
+change the default delivery verdict. `accessibility` adds deterministic
+document and interaction checks. `full` combines all three families.
+
+All profiles reuse the same browser facts, threshold model, issue model, and
+reporters. Profile selection changes the active issue dimensions, not the
+report schema or the raw measurements retained for diagnosis.
 
 ## Bounded smoke flows
 

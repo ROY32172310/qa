@@ -26,7 +26,7 @@ from .delta import (
     load_report,
     write_delta,
 )
-from .dimensions import registry_payload
+from .dimensions import PROFILE_NAMES, registry_payload
 from .doctor import collect_doctor_report
 from .engine import AuditRuntimeError, audit
 from .feedback import build_feedback_bundle
@@ -51,8 +51,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", help="JSON configuration file")
     parser.add_argument(
         "--profile",
-        choices=("baseline", "accessibility"),
-        help="check profile (baseline or baseline plus accessibility checks)",
+        choices=PROFILE_NAMES,
+        help="closed check profile; performance and accessibility include baseline",
     )
     parser.add_argument(
         "--viewports",

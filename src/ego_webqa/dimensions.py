@@ -75,7 +75,9 @@ _DIMENSIONS = {
         "The page rendered but its load event exceeded the bounded deadline.",
         "navigation",
         severity="warn",
+        version="1.1.0",
         introduced="0.2.2",
+        profile="performance",
     ),
     "ready_selector_not_found": _dimension(
         "ready_selector_not_found",
@@ -190,6 +192,8 @@ _DIMENSIONS = {
         "First contentful paint exceeded the advisory budget.",
         "timing",
         severity="warn",
+        version="1.1.0",
+        profile="performance",
         parameters=("fcp_warn_ms",),
     ),
     "layout_shift": _dimension(
@@ -204,6 +208,8 @@ _DIMENSIONS = {
         "The page did not reach network idle within the bounded deadline.",
         "network",
         severity="warn",
+        version="1.1.0",
+        profile="performance",
         parameters=("wait_for_network_idle", "timeout_ms"),
     ),
     "transfer_budget": _dimension(
@@ -211,6 +217,8 @@ _DIMENSIONS = {
         "Initial requests exceed the configured request or transfer budget.",
         "network",
         severity="block",
+        version="1.1.0",
+        profile="performance",
         parameters=(
             "request_warn_count",
             "request_error_count",
@@ -343,6 +351,33 @@ _DIMENSIONS = {
 }
 
 DIMENSIONS = MappingProxyType(_DIMENSIONS)
+DIMENSION_PROFILE_NAMES = ("baseline", "performance", "accessibility")
+PROFILE_FAMILIES = MappingProxyType(
+    {
+        "baseline": ("baseline",),
+        "performance": ("baseline", "performance"),
+        "accessibility": ("baseline", "accessibility"),
+        "full": DIMENSION_PROFILE_NAMES,
+    }
+)
+PROFILE_NAMES = tuple(PROFILE_FAMILIES)
+
+
+def profile_includes_family(profile: str, family: str) -> bool:
+    """Return whether a public profile enables one dimension family."""
+
+    try:
+        families = PROFILE_FAMILIES[profile]
+    except KeyError as exc:
+        choices = ", ".join(PROFILE_NAMES)
+        raise ValueError(f"profile must be one of: {choices}") from exc
+    return family in families
+
+
+def profile_includes_dimension(profile: str, code: str) -> bool:
+    """Return whether the registered dimension is active in a profile."""
+
+    return profile_includes_family(profile, dimension_for(code).profile)
 
 
 def dimension_for(code: str) -> Dimension:

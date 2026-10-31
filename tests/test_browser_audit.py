@@ -954,6 +954,28 @@ def test_accessibility_profile_accepts_clean_page(
     } & {issue.code for issue in report.issues}
 
 
+def test_full_profile_collects_accessibility_and_performance_families(
+    served: LocalServer,
+    tmp_path: Path,
+) -> None:
+    report = audit(
+        served.url("inaccessible.html"),
+        settings=Settings(
+            viewports=(Viewport(390, 844, "mobile", mobile=True),),
+            settle_ms=0,
+            transfer_warn_bytes=0,
+            request_warn_count=0,
+            profile="full",
+        ),
+        output_dir=tmp_path,
+        smoke=False,
+    )
+    codes = {issue.code for issue in report.issues}
+    assert "transfer_budget" in codes
+    assert "missing_html_lang" in codes
+    assert report.viewports[0]["measurements"]["accessibility"]
+
+
 def test_smoke_runs_in_every_configured_viewport(
     served: LocalServer,
     tmp_path: Path,
@@ -1029,6 +1051,7 @@ def test_network_idle_timeout_is_recorded_without_hiding_page_results(
         settings=Settings(
             viewports=(Viewport(390, 844, "mobile", mobile=True),),
             settle_ms=0,
+            profile="performance",
             timeout_ms=1_200,
             wait_for_network_idle=True,
         ),
@@ -1088,6 +1111,7 @@ body{margin:0;font:16px/1.5 system-ui}main{padding:32px}img{width:80px;height:80
             settings=Settings(
                 viewports=(Viewport(390, 844, "mobile", mobile=True),),
                 settle_ms=0,
+                profile="performance",
                 timeout_ms=500,
             ),
             output_dir=tmp_path,

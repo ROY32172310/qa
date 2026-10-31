@@ -60,6 +60,13 @@ def test_suite_expands_variants_and_covers_all_registered_dimensions() -> None:
     assert {case.viewport for case in suite.cases} >= {"narrow", "mobile", "tablet", "desktop"}
     expected = {code for case in suite.cases for code in case.expected_issue_codes}
     assert expected == set(DIMENSIONS)
+    performance_cases = {case.id for case in suite.cases if case.profile == "performance"}
+    assert performance_cases == {
+        "network-never-idle--mobile",
+        "slow-first-paint--mobile",
+        "slow-load-event--mobile",
+        "transfer-budget--mobile",
+    }
 
 
 def test_suite_validation_rejects_missing_fixture(tmp_path: Path) -> None:

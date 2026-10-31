@@ -67,7 +67,7 @@ whether it is a clean control, and the exact expected issue codes:
 Rules enforced by the loader:
 
 - every expected/forbidden code must exist in the closed dimension registry;
-- an accessibility-only dimension requires the accessibility profile;
+- an expected dimension must be enabled by the case's closed profile;
 - clean controls cannot also declare issue codes;
 - every fixture must exist;
 - case IDs, expanded IDs, and variants must be unique;

@@ -17,7 +17,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, get_type_hints
 
-from .dimensions import dimension_for
+from .dimensions import PROFILE_NAMES, dimension_for
 
 DEFAULT_CTA_PATTERN = (
     r"开始|立即|马上|提交|预约|预订|下单|购买|报名|领取|生成|创建|保存|发送|"
@@ -530,8 +530,9 @@ class Settings:
                 raise ValueError(f"unknown smoke_flow_name: {self.smoke_flow_name!r}")
         elif self.smoke_flow_name:
             raise ValueError("smoke_flow_name requires smoke_flows")
-        if self.profile not in {"baseline", "accessibility"}:
-            raise ValueError("profile must be 'baseline' or 'accessibility'")
+        if self.profile not in PROFILE_NAMES:
+            choices = ", ".join(repr(name) for name in PROFILE_NAMES)
+            raise ValueError(f"profile must be one of: {choices}")
         if not self.viewports:
             raise ValueError("at least one viewport is required")
         if len(self.viewports) > 12:

@@ -201,6 +201,7 @@
       "expected_issue_codes": ["transfer_budget"],
       "expected_clean": false,
       "expected_severities": {"transfer_budget": "error"},
+      "profile": "performance",
       "settings": {"transfer_warn_bytes": 100, "transfer_error_bytes": 100},
       "tags": ["network", "blocking"],
       "rationale": "The normal document exceeds a deliberately tiny test-only byte budget."
@@ -212,6 +213,7 @@
       "expected_issue_codes": ["network_idle_timeout"],
       "expected_clean": false,
       "expected_severities": {"network_idle_timeout": "warning"},
+      "profile": "performance",
       "settings": {"wait_for_network_idle": true, "timeout_ms": 1200},
       "tags": ["network", "warning"],
       "rationale": "Successful polling continues beyond the bounded network-idle deadline."
@@ -223,6 +225,7 @@
       "expected_issue_codes": ["slow_first_paint"],
       "expected_clean": false,
       "expected_severities": {"slow_first_paint": "warning"},
+      "profile": "performance",
       "settings": {"timeout_ms": 7000, "settle_ms": 50},
       "tags": ["timing", "warning"],
       "rationale": "Synchronous work delays first contentful paint beyond three seconds."
@@ -234,6 +237,7 @@
       "expected_issue_codes": ["slow_load_event"],
       "expected_clean": false,
       "expected_severities": {"slow_load_event": "warning"},
+      "profile": "performance",
       "settings": {"timeout_ms": 1200, "settle_ms": 10},
       "tags": ["timing", "warning"],
       "rationale": "The DOM is usable while a slow image misses the bounded load deadline."

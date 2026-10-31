@@ -107,7 +107,7 @@ def test_viewport_rule_buckets_and_thresholds() -> None:
             "distortedMedia": [{"label": "canvas", "deviation": 0.3}],
         },
     )
-    issues = _issues_for_viewport(summary, Settings())
+    issues = _issues_for_viewport(summary, Settings(profile="performance"))
     codes = _codes(issues)
     assert {
         "console_error",
@@ -449,7 +449,7 @@ def test_transfer_budget_bands(bytes_used: int, requests: int, severity: str) ->
                 "request_count": requests,
             }
         ),
-        Settings(),
+        Settings(profile="performance"),
     )
     assert [(issue.code, issue.severity) for issue in issues] == [("transfer_budget", severity)]
 
@@ -740,7 +740,10 @@ def test_request_failure_evidence_is_structured_deduplicated_and_attributed() ->
 
 def test_network_idle_timeout_is_visible_as_warning() -> None:
     summary = _summary(readiness={"network_idle_timed_out": True})
-    issues = _issues_for_viewport(summary, Settings(timeout_ms=5_000))
+    issues = _issues_for_viewport(
+        summary,
+        Settings(profile="performance", timeout_ms=5_000),
+    )
     assert [(issue.code, issue.severity) for issue in issues] == [
         ("network_idle_timeout", "warning")
     ]
@@ -754,8 +757,40 @@ def test_slow_load_event_is_advisory_when_dom_rendered() -> None:
             "load_event_timeout_ms": 3_000,
         }
     )
-    issues = _issues_for_viewport(summary, Settings())
+    issues = _issues_for_viewport(summary, Settings(profile="performance"))
     assert [(issue.code, issue.severity) for issue in issues] == [("slow_load_event", "warning")]
+
+
+def test_baseline_excludes_network_sensitive_performance_findings() -> None:
+    summary = _summary(
+        readiness={
+            "dom_content_loaded": True,
+            "load_event_timed_out": True,
+            "load_event_timeout_ms": 3_000,
+            "network_idle_timed_out": True,
+        },
+        network={
+            "failures": [],
+            "failure_count": 0,
+            "transfer_bytes": 500_000,
+            "request_count": 31,
+        },
+        timing={"firstContentfulPaintMs": 4_000},
+    )
+    assert _issues_for_viewport(summary, Settings()) == []
+    performance_codes = {
+        issue.code
+        for issue in _issues_for_viewport(
+            summary,
+            Settings(profile="performance"),
+        )
+    }
+    assert {
+        "slow_first_paint",
+        "slow_load_event",
+        "network_idle_timeout",
+        "transfer_budget",
+    } <= performance_codes
 
 
 def test_smoke_scope_controls_viewport_runs() -> None:

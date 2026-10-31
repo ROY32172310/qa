@@ -3,7 +3,11 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from ego_webqa.dimensions import DIMENSIONS
+from ego_webqa.dimensions import (
+    DIMENSIONS,
+    PROFILE_NAMES,
+    profile_includes_dimension,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 ENGINE = ROOT / "src" / "ego_webqa" / "engine.py"
@@ -46,4 +50,16 @@ def test_registered_dimensions_have_complete_metadata() -> None:
         assert dimension.detector
         assert dimension.default_severity in {"block", "warn", "info"}
         assert dimension.introduced_in
-        assert dimension.profile in {"baseline", "accessibility"}
+        assert dimension.profile in {"baseline", "performance", "accessibility"}
+
+
+def test_profiles_are_closed_and_additive() -> None:
+    assert PROFILE_NAMES == ("baseline", "performance", "accessibility", "full")
+    assert profile_includes_dimension("baseline", "horizontal_overflow")
+    assert not profile_includes_dimension("baseline", "slow_load_event")
+    assert profile_includes_dimension("performance", "slow_load_event")
+    assert not profile_includes_dimension("performance", "missing_html_lang")
+    assert profile_includes_dimension("accessibility", "missing_html_lang")
+    assert not profile_includes_dimension("accessibility", "slow_load_event")
+    assert profile_includes_dimension("full", "slow_load_event")
+    assert profile_includes_dimension("full", "missing_html_lang")

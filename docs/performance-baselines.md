@@ -3,6 +3,12 @@
 `ego-webqa` has two performance evidence classes. They answer different
 questions and must not be merged into one release threshold.
 
+The audit `performance` profile is a separate, opt-in issue family for
+network-sensitive findings such as slow first paint, load-event deadlines,
+network-idle timeouts, and transfer budgets. It is not a substitute for either
+of the two controlled evidence classes below, and its findings must not be
+interpreted as a stable benchmark without controlled execution conditions.
+
 ## Controlled local regression baseline
 
 Runner: `benchmarks/run.py`
@@ -16,12 +22,12 @@ source of comparable tool-latency regression evidence.
 | Cases | 128 / 128 exact |
 | Registered dimensions covered | 38 / 38 |
 | Blocking FP / FN | 0% / 0% |
-| Complete audit P50 | 342 ms |
-| Complete audit P95 | 1154 ms |
-| Complete audit max | 3610 ms |
+| Complete audit P50 | 334 ms |
+| Complete audit P95 | 1131 ms |
+| Complete audit max | 3590 ms |
 
 Evidence:
-`benchmark-results/20261030T1127Z-release-0.8.0/result.json`.
+`benchmark-results/20261031T090400Z/result.json`.
 
 Rules:
 

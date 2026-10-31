@@ -49,7 +49,7 @@
             "minLength": 1
           },
           "profile": {
-            "enum": ["baseline", "accessibility"]
+            "enum": ["baseline", "performance", "accessibility"]
           },
           "parameters": {
             "type": "array",

@@ -6,7 +6,7 @@ from collections import defaultdict
 from typing import Any
 
 from . import __version__
-from .dimensions import dimension_for
+from .dimensions import PROFILE_NAMES, dimension_for
 
 
 def build_feedback_bundle(
@@ -134,7 +134,7 @@ def _safe_settings(value: Any) -> dict[str, Any]:
     browser_engine = settings.get("browser_engine")
     smoke_mode = settings.get("smoke_mode")
     return {
-        "profile": _closed_choice(profile, {"baseline", "accessibility"}),
+        "profile": _closed_choice(profile, set(PROFILE_NAMES)),
         "browser_engine": _closed_choice(
             browser_engine,
             {"chromium", "firefox", "webkit"},

@@ -25,6 +25,7 @@ from .config import (
     Viewport,
     resolve_overrides,
 )
+from .dimensions import profile_includes_dimension, profile_includes_family
 from .models import AuditReport, Issue, Severity, derive_status
 from .probes import (
     ACCESSIBILITY_JS,
@@ -498,7 +499,7 @@ def _audit_viewport(
         _trace_stage(viewport.name, "collect_complete", viewport_started)
         snapshot["environment"]["textScale"] = viewport.text_scale
         snapshot["environment"]["safeAreaBottomPx"] = viewport.safe_area_bottom_px
-        if cfg.profile == "accessibility":
+        if profile_includes_family(cfg.profile, "accessibility"):
             snapshot["accessibility"] = page.evaluate(ACCESSIBILITY_JS)
         timing = page.evaluate(READ_TIMING_JS) or {}
         _trace_stage(viewport.name, "timing_complete", viewport_started)
@@ -1000,7 +1001,7 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
                 name,
             )
         )
-        return issues
+        return _filter_issues_for_profile(issues, cfg.profile)
     if summary.get("page_errors"):
         issues.append(
             Issue(
@@ -1299,7 +1300,13 @@ def _issues_for_viewport(summary: dict[str, Any], cfg: Settings) -> list[Issue]:
             )
         )
     issues.extend(_issues_for_accessibility(data, name))
-    return issues
+    return _filter_issues_for_profile(issues, cfg.profile)
+
+
+def _filter_issues_for_profile(issues: Sequence[Issue], profile: str) -> list[Issue]:
+    """Keep only dimensions enabled by the selected closed profile."""
+
+    return [issue for issue in issues if profile_includes_dimension(profile, issue.code)]
 
 
 def _issues_for_accessibility(data: dict[str, Any], viewport: str) -> list[Issue]:

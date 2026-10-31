@@ -15,7 +15,7 @@ inputs:
     required: false
     default: webqa-report
   profile:
-    description: Check profile
+    description: Check profile (baseline, performance, accessibility, or full)
     required: false
     default: baseline
   viewports:
