@@ -104,12 +104,56 @@ and the dimension registry remains the single source of truth.
 This change must be validated as a later release candidate. It is not being
 published as `0.8.3` solely to run the release pipeline.
 
+## Profile-Split Validation
+
+The unreleased candidate was rerun against the same manifest and public CLI
+with an explicit profile override. This changes only which registered dimension
+families are emitted; the raw browser measurements remain in `report.json`.
+
+### Baseline
+
+- Evidence: `dogfood-results/20261031-profile-baseline/result.json`.
+- 20/20 audits completed with zero runtime errors.
+- Status: 10 fail / 10 pass.
+- Raw occurrences: 86.
+- P50/P95: 14,683/21,593 ms.
+- Public URL P50/P95: 15,235/23,347 ms.
+- Local artifact P50/P95: 2,768/2,818 ms.
+- Performance-family findings: zero.
+
+The baseline occurrences match the v0.8.2 split exactly:
+`text_scale_layout_break` 14, `clipped_text` 28,
+`bottom_safe_area_penetration` 16, `small_tap_targets` 20, and
+`console_error` 8. These 86 occurrences still represent the same 20 repair
+items across ten pages.
+
+### Performance
+
+- Evidence: `dogfood-results/20261031-profile-performance/result.json`.
+- 20/20 audits completed with zero runtime errors.
+- Raw occurrences: 130.
+- P50/P95: 15,436/22,847 ms.
+- Structural findings: the same 86 baseline occurrences.
+- Performance additions: 13 `slow_load_event` roots (29 occurrences), three
+  `slow_first_paint` roots (four occurrences), and one `transfer_budget`
+  observation (eight occurrences).
+
+One public page, `ego-user-workbench`, received HTTP 503 on two viewports in
+the performance batch, producing `http_error` and `blank_page` evidence. That
+page passed the full baseline batch. A dedicated baseline repeat then passed
+with zero findings, while a dedicated performance repeat reached the page
+successfully and reported only one `slow_load_event` warning. The 503 is
+therefore an upstream transient, not a profile-dependent structural result:
+
+- `dogfood-results/20261031-profile-baseline-workbench-repeat/result.json`;
+- `dogfood-results/20261031-profile-performance-workbench-repeat/result.json`.
+
+The split is functionally validated. It remains unreleased until external
+AI-generated pages provide independent evidence.
+
 ## Next Evidence
 
-The next real-world batch should:
-
-1. rerun the same corpus under the new `baseline` and `performance` profiles
-   and confirm the deterministic findings are unchanged;
-2. record controlled-network performance observations separately;
-3. recruit 5-10 external AI-generated pages before deciding whether the profile
-   split and any new detector deserve a release.
+The next real-world pass should recruit 5-10 external AI-generated pages,
+capture the exact page-generation context, and record one classified finding
+per participating user where possible. Controlled-network performance runs
+should remain separate from the default delivery verdict.

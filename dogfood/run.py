@@ -26,6 +26,7 @@ if str(ROOT / "src") not in sys.path:
 
 from ego_webqa import __version__  # noqa: E402
 from ego_webqa.config import Settings, SmokeStep  # noqa: E402
+from ego_webqa.dimensions import PROFILE_NAMES  # noqa: E402
 
 MANIFEST_SCHEMA_VERSION = "1.0"
 DOGFOOD_CONFIG_NAME = "smoke-config.json"
@@ -116,9 +117,17 @@ def _expand_path(value: str, variables: Mapping[str, Path], label: str) -> Path:
     return Path(expanded).expanduser().resolve()
 
 
-def load_manifest(path: str | Path, variables: Mapping[str, Path]) -> DogfoodManifest:
+def load_manifest(
+    path: str | Path,
+    variables: Mapping[str, Path],
+    *,
+    profile_override: str | None = None,
+) -> DogfoodManifest:
     """Load a manifest and resolve local paths without touching target pages."""
 
+    if profile_override is not None and profile_override not in PROFILE_NAMES:
+        choices = ", ".join(PROFILE_NAMES)
+        raise DogfoodConfigError(f"profile override must be one of: {choices}")
     manifest_path = Path(path).resolve()
     try:
         raw_bytes = manifest_path.read_bytes()
@@ -156,8 +165,11 @@ def load_manifest(path: str | Path, variables: Mapping[str, Path]) -> DogfoodMan
         profile = _optional_string(
             item, "profile", _optional_string(defaults, "profile", "baseline")
         )
-        if profile not in {"baseline", "accessibility"}:
-            raise DogfoodConfigError(f"case {case_id!r} profile must be baseline or accessibility")
+        if profile not in PROFILE_NAMES:
+            choices = ", ".join(PROFILE_NAMES)
+            raise DogfoodConfigError(f"case {case_id!r} profile must be one of: {choices}")
+        if profile_override is not None:
+            profile = profile_override
         smoke = item.get("smoke", defaults.get("smoke", False))
         if type(smoke) is not bool:
             raise DogfoodConfigError(f"case {case_id!r} smoke must be a boolean")
@@ -370,6 +382,7 @@ def _run_case(
             "kind": case.kind,
             "source": case.source(),
             "notes": case.notes,
+            "profile": case.profile,
             **smoke_metadata,
             "command": command,
             "exit_code": None,
@@ -391,6 +404,7 @@ def _run_case(
             "kind": case.kind,
             "source": case.source(),
             "notes": case.notes,
+            "profile": case.profile,
             **smoke_metadata,
             "command": command,
             "exit_code": None,
@@ -416,6 +430,7 @@ def _run_case(
         "kind": case.kind,
         "source": case.source(),
         "notes": case.notes,
+        "profile": case.profile,
         **smoke_metadata,
         "command": command,
         "exit_code": returncode,
@@ -537,6 +552,9 @@ def _write_smoke_config(case: DogfoodCase, case_dir: Path) -> None:
 def _render_markdown(manifest: DogfoodManifest, results: Sequence[Mapping[str, Any]]) -> str:
     metrics = _metrics(results)
     runtime = metrics["runtime_ms"]
+    profiles = sorted(
+        {str(item["profile"]) for item in results if isinstance(item.get("profile"), str)}
+    )
     lines = [
         f"# Dogfood run: {manifest.name}",
         "",
@@ -545,6 +563,7 @@ def _render_markdown(manifest: DogfoodManifest, results: Sequence[Mapping[str, A
         f"- Runtime errors: {metrics['runtime_errors']}",
         f"- Completion rate: {metrics['completion_rate']:.2%}",
         "- Execution profile: `real-world-mixed`",
+        f"- QA profile(s): {', '.join(f'`{profile}`' for profile in profiles) or '-'}",
         "- Latency role: `observational`",
         f"- Statuses: {json.dumps(metrics['statuses'], ensure_ascii=False)}",
         f"- Total issues: {metrics['total_issues']}",
@@ -566,8 +585,8 @@ def _render_markdown(manifest: DogfoodManifest, results: Sequence[Mapping[str, A
     lines.extend(
         [
             "",
-            "| Case | Smoke | Categories | Result | Issues | Wall time | Finding codes |",
-            "|---|---|---|---:|---:|---:|---|",
+            "| Case | Profile | Smoke | Categories | Result | Issues | Wall time | Finding codes |",
+            "|---|---|---|---|---:|---:|---:|---|",
         ]
     )
     for item in results:
@@ -577,7 +596,8 @@ def _render_markdown(manifest: DogfoodManifest, results: Sequence[Mapping[str, A
         if item.get("smoke_flow_steps"):
             smoke = f"{smoke} ({item['smoke_flow_steps']} steps)"
         lines.append(
-            f"| `{item['id']}` | {smoke} | {', '.join(item.get('categories', []))} | {result} | "
+            f"| `{item['id']}` | `{item.get('profile', '-')}` | {smoke} | "
+            f"{', '.join(item.get('categories', []))} | {result} | "
             f"{item.get('issue_count', '-')} | {item.get('wall_duration_ms', '-')} ms | {codes} |"
         )
     lines.extend(
@@ -594,6 +614,7 @@ def _render_markdown(manifest: DogfoodManifest, results: Sequence[Mapping[str, A
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", default="dogfood/cases.json")
+    parser.add_argument("--profile", choices=PROFILE_NAMES)
     parser.add_argument("--ego-root", default=os.environ.get("EGO_ROOT", ""))
     parser.add_argument(
         "--project-space",
@@ -622,7 +643,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "EGO_PROJECT_SPACE": Path(args.project_space),
     }
     try:
-        manifest = load_manifest(args.manifest, variables)
+        manifest = load_manifest(args.manifest, variables, profile_override=args.profile)
     except DogfoodConfigError as exc:
         print(f"dogfood: {exc}", file=sys.stderr)
         return 2
@@ -679,6 +700,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "sha256": manifest.sha256,
             "name": manifest.name,
             "selected_cases": len(cases),
+            "qa_profiles": sorted({case.profile for case in cases}),
         },
         "metrics": _metrics(results),
         "cases": results,

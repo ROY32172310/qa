@@ -25,6 +25,10 @@ export EGO_PROJECT_SPACE=/data/projects/ego/workspace
 python dogfood/run.py
 ```
 
+Use `--profile baseline|performance|accessibility|full` to rerun the same
+manifest under one registered QA profile without editing case files. Each case
+records the effective profile in `result.json`.
+
 The runner invokes the public `ego_webqa` CLI, records wall time, exit code,
 report status, issue counts, finding IDs, and the exact non-secret command. By
 default, every case disables CTA smoke so this pass measures rendering and

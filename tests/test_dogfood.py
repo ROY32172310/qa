@@ -79,6 +79,53 @@ def test_manifest_expands_local_placeholders(tmp_path: Path) -> None:
     assert manifest.cases[0].source().endswith("pages/index.html")
 
 
+@pytest.mark.parametrize("profile", ["performance", "accessibility", "full"])
+def test_manifest_accepts_every_registered_profile(tmp_path: Path, profile: str) -> None:
+    manifest_path = tmp_path / "cases.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "name": "test",
+                "defaults": {"profile": profile},
+                "cases": [
+                    {
+                        "id": "local",
+                        "kind": "local",
+                        "directory": "${EGO_ROOT}/pages",
+                        "file": "index.html",
+                        "categories": ["landing"],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    manifest = run.load_manifest(manifest_path, {"EGO_ROOT": tmp_path})
+
+    assert manifest.cases[0].profile == profile
+
+
+def test_profile_override_applies_to_every_case(tmp_path: Path) -> None:
+    manifest = run.load_manifest(
+        MANIFEST,
+        VARIABLES,
+        profile_override="performance",
+    )
+
+    assert {case.profile for case in manifest.cases} == {"performance"}
+
+
+def test_manifest_rejects_unknown_profile_override(tmp_path: Path) -> None:
+    with pytest.raises(run.DogfoodConfigError, match="profile override must be one of"):
+        run.load_manifest(
+            MANIFEST,
+            VARIABLES,
+            profile_override="wcag",
+        )
+
+
 @pytest.mark.parametrize(
     ("mutate", "message"),
     [
@@ -177,6 +224,24 @@ def test_audit_command_uses_case_config_for_bounded_flow(tmp_path: Path) -> None
     assert command[-4:] == ["--dir", "/tmp/site", "--file", "index.html"]
 
 
+def test_audit_command_carries_profile_override(tmp_path: Path) -> None:
+    case = run.DogfoodCase(
+        "page",
+        "local",
+        ("landing",),
+        "",
+        "performance",
+        False,
+        directory="/tmp/site",
+        file="index.html",
+    )
+
+    command = run.audit_command("python", case, tmp_path)
+
+    profile_index = command.index("--profile")
+    assert command[profile_index + 1] == "performance"
+
+
 def test_run_case_writes_flow_config_and_uses_it(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -213,6 +278,7 @@ def test_run_case_writes_flow_config_and_uses_it(
     assert "--no-smoke" not in result["command"]
     assert result["smoke_mode"] == "bounded_flow"
     assert result["smoke_flow_steps"] == 2
+    assert result["profile"] == "baseline"
     assert Path("cases") / "page" / run.DOGFOOD_CONFIG_NAME in {
         Path(item) for item in result["artifacts"]
     }
@@ -281,6 +347,7 @@ def test_markdown_keeps_public_and_local_runtime_groups_separate() -> None:
             "wall_duration_ms": 900,
             "issue_count": 0,
             "finding_codes": [],
+            "profile": "baseline",
             "smoke_mode": "disabled",
             "categories": ["landing"],
         },
@@ -291,6 +358,7 @@ def test_markdown_keeps_public_and_local_runtime_groups_separate() -> None:
             "wall_duration_ms": 200,
             "issue_count": 1,
             "finding_codes": ["tiny_fonts"],
+            "profile": "baseline",
             "smoke_mode": "disabled",
             "categories": ["tool"],
         },
@@ -299,9 +367,11 @@ def test_markdown_keeps_public_and_local_runtime_groups_separate() -> None:
     markdown = run._render_markdown(manifest, results)
 
     assert "Execution profile: `real-world-mixed`" in markdown
+    assert "QA profile(s): `baseline`" in markdown
     assert "Latency role: `observational`" in markdown
     assert "| public URL | 1 | 1 | 0 | 100.00% | 900/900/900 ms |" in markdown
     assert "| local artifact | 1 | 1 | 0 | 100.00% | 200/200/200 ms |" in markdown
+    assert "| `public` | `baseline` | disabled |" in markdown
 
 
 def test_case_timeout_is_recorded_without_killing_the_batch(
