@@ -121,7 +121,15 @@ python -m pip install .
 ego-webqa setup
 ```
 
-For development, use `python -m pip install -e '.[dev]'`.
+For development, use the committed lockfile:
+
+```bash
+uv lock --check
+uv sync --locked --all-extras
+uv run --locked ego-webqa setup
+```
+
+Without `uv`, `python -m pip install -e '.[dev]'` remains supported.
 
 If `uv` is available and you do not want a persistent Python package install,
 use the same commands through an isolated, version-pinned `uvx` environment:
@@ -719,24 +727,24 @@ measurement contract and the two evidence classes.
 ## Development
 
 ```bash
-python -m pip install -e '.[dev]'
-ego-webqa setup
-python scripts/dev.py test
-python scripts/dev.py coverage
-python scripts/dev.py lint
-python scripts/dev.py format-check
-python scripts/dev.py typecheck
-python scripts/dev.py benchmark
-python scripts/dev.py package
-python scripts/dev.py check   # lint + format + MyPy + covered tests
-python scripts/dev.py full    # check + controlled local Chromium benchmark
+uv sync --locked --all-extras
+uv run --locked ego-webqa setup
+uv run --locked python scripts/dev.py test
+uv run --locked python scripts/dev.py coverage
+uv run --locked python scripts/dev.py lint
+uv run --locked python scripts/dev.py format-check
+uv run --locked python scripts/dev.py typecheck
+uv run --locked python scripts/dev.py benchmark
+uv run --locked python scripts/dev.py package
+uv run --locked python scripts/dev.py check   # lint + format + MyPy + coverage
+uv run --locked python scripts/dev.py full    # check + Chromium benchmark
 ```
 
-The same `scripts/dev.py` entry point is used by GitHub Actions on Linux,
-macOS, and Windows, preventing local and CI commands from drifting. Coverage
-enforces a 90% line/branch floor. See [CONTRIBUTING.md](CONTRIBUTING.md) before
-adding a rule. Every rule needs a positive control and an observed failure
-mode.
+The same `scripts/dev.py` entry point and lockfile are used by GitHub Actions
+on Linux, macOS, and Windows, preventing local and CI dependency or command
+drift. Coverage enforces a 90% line/branch floor. See
+[CONTRIBUTING.md](CONTRIBUTING.md) before adding a rule. Every rule needs a
+positive control and an observed failure mode.
 
 ## License
 

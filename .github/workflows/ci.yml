@@ -21,20 +21,23 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-          cache-dependency-path: pyproject.toml
-      - name: Install package and development tools
+      - uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.12.13"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install locked development environment
         timeout-minutes: 10
-        run: python -m pip install -e ".[dev]"
+        run: uv sync --locked --all-extras
       - name: Set up Chromium
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            ego-webqa setup --with-deps
+            uv run --locked ego-webqa setup --with-deps
           else
-            ego-webqa setup
+            uv run --locked ego-webqa setup
           fi
-      - run: python scripts/dev.py coverage
+      - run: uv run --locked python scripts/dev.py coverage
       - name: Summarize pytest failures
         if: ${{ failure() }}
         shell: python
@@ -76,8 +79,8 @@ jobs:
 
           percent = float(json.loads(coverage.read_text(encoding="utf-8"))["totals"]["percent_covered"])
           print(f"::error title=coverage::line/branch coverage failed at {percent:.2f}%")
-      - run: python scripts/dev.py lint
-      - run: python scripts/dev.py format-check
+      - run: uv run --locked python scripts/dev.py lint
+      - run: uv run --locked python scripts/dev.py format-check
       - name: Type check with annotations
         shell: python
         run: |
@@ -85,7 +88,7 @@ jobs:
           import sys
 
           completed = subprocess.run(
-              [sys.executable, "scripts/dev.py", "typecheck"],
+              ["uv", "run", "--locked", "python", "scripts/dev.py", "typecheck"],
               text=True,
               encoding="utf-8",
               errors="replace",
@@ -119,25 +122,33 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: pyproject.toml
-      - name: Install package and development tools
+      - uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.12.13"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install locked development environment
         timeout-minutes: 10
-        run: python -m pip install ".[dev]"
-      - run: python scripts/dev.py package
-      - run: python scripts/dev.py agensi-package
-      - run: python -m pip install --force-reinstall dist/*.whl
-      - run: ego-webqa --version
+        run: uv sync --locked --all-extras
+      - run: uv run --locked python scripts/dev.py package
+      - run: uv run --locked python scripts/dev.py agensi-package
+      - name: Verify the built wheel in an isolated environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv --seed /tmp/ego-webqa-wheel
+          uv pip install --python /tmp/ego-webqa-wheel/bin/python dist/*.whl
+          /tmp/ego-webqa-wheel/bin/ego-webqa --version
       - name: Verify all schemas are present in the installed wheel
         shell: bash
         run: |
           for schema in report agent-summary dimensions feedback-bundle delta doctor browser-install setup; do
-            ego-webqa --print-schema "$schema" > /dev/null
+            /tmp/ego-webqa-wheel/bin/ego-webqa --print-schema "$schema" > /dev/null
           done
       - run: >-
-          python -c "from importlib.metadata import version; import ego_webqa;
+          /tmp/ego-webqa-wheel/bin/python -c "from importlib.metadata import version; import ego_webqa;
           assert version('ego-webqa') == ego_webqa.__version__"
-      - run: python -m pip check
+      - run: uv pip check --python /tmp/ego-webqa-wheel/bin/python
       - uses: actions/upload-artifact@v5
         with:
           name: python-package
@@ -152,13 +163,16 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: pyproject.toml
-      - name: Install package and development tools
+      - uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.12.13"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install locked development environment
         timeout-minutes: 10
-        run: python -m pip install -e ".[dev]"
-      - run: ego-webqa setup --with-deps
-      - run: python scripts/dev.py benchmark --out benchmark-results
+        run: uv sync --locked --all-extras
+      - run: uv run --locked ego-webqa setup --with-deps
+      - run: uv run --locked python scripts/dev.py benchmark --out benchmark-results
       - uses: actions/upload-artifact@v5
         if: ${{ always() }}
         with:
@@ -175,18 +189,21 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: pyproject.toml
-      - name: Install package and development tools
+      - uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.12.13"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install locked development environment
         timeout-minutes: 10
-        run: python -m pip install -e ".[dev]"
+        run: uv sync --locked --all-extras
       - name: Install Firefox and WebKit
         timeout-minutes: 10
-        run: python -m playwright install --with-deps firefox webkit
+        run: uv run --locked python -m playwright install --with-deps firefox webkit
       - name: Run opt-in cross-browser audit
         env:
           EGO_WEBQA_CROSS_BROWSER: "1"
-        run: python -m pytest -m cross_browser tests/test_cross_browser_audit.py -q
+        run: uv run --locked python -m pytest -m cross_browser tests/test_cross_browser_audit.py -q
 
   action-smoke:
     needs: test

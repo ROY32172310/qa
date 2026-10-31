@@ -24,15 +24,18 @@ service, user identity, or application framework.
 ## Development
 
 ```bash
-python -m pip install -e '.[dev]'
-ego-webqa install-browser
-python scripts/dev.py test
-python scripts/dev.py check
-python scripts/dev.py full
+uv lock --check
+uv sync --locked --all-extras
+uv run --locked ego-webqa setup
+uv run --locked python scripts/dev.py test
+uv run --locked python scripts/dev.py check
+uv run --locked python scripts/dev.py full
 ```
 
 Browser tests use a temporary local HTTP server. Do not depend on public sites
-in the test suite.
+in the test suite. `uv.lock` is committed; update it with `uv lock` whenever
+project or development dependencies change. The pip installation remains
+supported for environments without `uv`.
 
 `check` runs Ruff, Black's format check, MyPy for the package, scripts,
 benchmarks, and dogfood runner, and pytest with branch coverage and a 90%

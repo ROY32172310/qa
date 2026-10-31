@@ -45,8 +45,8 @@ The Agensi ZIP includes the local MCP configuration template and is pinned to
 the package version. Its reproducible build can be checked locally:
 
 ```bash
-python scripts/dev.py agensi-package
-python scripts/dev.py agensi-package --check
+uv run --locked python scripts/dev.py agensi-package
+uv run --locked python scripts/dev.py agensi-package --check
 sha256sum dist/agensi/web-delivery-qa-gate.zip
 ```
 
@@ -75,7 +75,7 @@ uvx --from ego-webqa==0.8.2 ego-webqa --version
 Run the independent public-distribution verifier after a release:
 
 ```bash
-python scripts/dev.py distribution-check --online
+uv run --locked python scripts/dev.py distribution-check --online
 ```
 
 It writes `distribution-results/distribution.json` and
@@ -89,7 +89,7 @@ those directories update asynchronously. Use
 `--require-directories` only for an explicit strict audit:
 
 ```bash
-python scripts/dev.py distribution-check --online --require-directories
+uv run --locked python scripts/dev.py distribution-check --online --require-directories
 ```
 
 The `distribution` GitHub Actions workflow runs this verifier after a
