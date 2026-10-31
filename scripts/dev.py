@@ -134,6 +134,10 @@ def agensi_package(*arguments: str) -> int:
     return _script("scripts/package_agensi.py", *arguments)
 
 
+def distribution_check(*arguments: str) -> int:
+    return _script("scripts/verify_distribution.py", *arguments)
+
+
 def check() -> int:
     for task in (lint, format_check, typecheck, coverage):
         result = task()
@@ -159,6 +163,7 @@ TASKS = {
     "dogfood": dogfood,
     "package": package,
     "agensi-package": agensi_package,
+    "distribution-check": distribution_check,
     "check": check,
     "full": full,
 }

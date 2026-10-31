@@ -71,3 +71,29 @@ The package itself can be verified from a clean `uvx` environment:
 ```bash
 uvx --from ego-webqa==0.8.2 ego-webqa --version
 ```
+
+Run the independent public-distribution verifier after a release:
+
+```bash
+python scripts/dev.py distribution-check --online
+```
+
+It writes `distribution-results/distribution.json` and
+`distribution-results/summary.md`. The command hard-fails when the
+version-specific PyPI record, the official MCP Registry record, or the GitHub
+Release assets do not match `pyproject.toml`. PyPI's unpinned latest-version
+record gets a 30-minute cache grace after upload; after that point a stale
+latest version also fails. Glama version synchronization, Glama/TensorBlock
+profile availability, and badge content types are observed as warnings because
+those directories update asynchronously. Use
+`--require-directories` only for an explicit strict audit:
+
+```bash
+python scripts/dev.py distribution-check --online --require-directories
+```
+
+The `distribution` GitHub Actions workflow runs this verifier after a
+successful `release` workflow, every Monday, and on manual dispatch. It uploads
+both evidence files even when verification fails. Directory reachability is
+distribution evidence, not evidence of installs, retention, or
+product-market fit.

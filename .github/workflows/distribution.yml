@@ -1,0 +1,62 @@
+name: distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_version:
+        description: Expected release version; defaults to pyproject.toml
+        required: false
+        type: string
+      require_directories:
+        description: Fail on directory or badge synchronization problems
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: "17 2 * * 1"
+  workflow_run:
+    workflows: ["release"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: distribution-verification
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      EXPECTED_VERSION_INPUT: ${{ inputs.expected_version }}
+      REQUIRE_DIRECTORIES_INPUT: ${{ inputs.require_directories }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Verify published release and discovery channels
+        shell: bash
+        run: |
+          set -euo pipefail
+          arguments=(--online --out distribution-results)
+          if [[ -n "$EXPECTED_VERSION_INPUT" ]]; then
+            arguments+=(--version "$EXPECTED_VERSION_INPUT")
+          fi
+          if [[ "$REQUIRE_DIRECTORIES_INPUT" == "true" ]]; then
+            arguments+=(--require-directories)
+          fi
+          python scripts/verify_distribution.py "${arguments[@]}"
+      - name: Upload distribution evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: distribution-results
+          path: distribution-results/
+          if-no-files-found: warn
