@@ -1,0 +1,1367 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-10-31T09:40:39.918119+00:00",
+  "environment": {
+    "python": "3.11.16",
+    "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+    "ego_webqa_version": "0.8.2",
+    "browser_channel": "chrome",
+    "execution_profile": "real-world-mixed",
+    "latency_role": "observational",
+    "latency_comparable": false
+  },
+  "manifest": {
+    "path": "/srv/projects/ego_webqa/dogfood/cases.json",
+    "sha256": "6c944bdff481981e621379118df567ac7d26898a5e42bfd6f78106e6e1f964e9",
+    "name": "ego-real-pages-2026-10-29",
+    "selected_cases": 20,
+    "qa_profiles": [
+      "baseline"
+    ]
+  },
+  "metrics": {
+    "cases": 20,
+    "successful_audits": 20,
+    "runtime_errors": 0,
+    "completion_rate": 1.0,
+    "runtime_ms": {
+      "count": 20,
+      "p50": 15636,
+      "p95": 22698,
+      "max": 24199
+    },
+    "statuses": {
+      "fail": 6,
+      "pass": 13,
+      "warn": 1
+    },
+    "total_issues": 60,
+    "finding_codes": {
+      "bottom_safe_area_penetration": 4,
+      "clipped_text": 2,
+      "console_error": 1,
+      "small_tap_targets": 4,
+      "text_scale_layout_break": 2
+    },
+    "by_source": {
+      "url": {
+        "cases": 14,
+        "successful_audits": 14,
+        "runtime_errors": 0,
+        "completion_rate": 1.0,
+        "runtime_ms": {
+          "count": 14,
+          "p50": 16637,
+          "p95": 24199,
+          "max": 24199
+        }
+      },
+      "local": {
+        "cases": 6,
+        "successful_audits": 6,
+        "runtime_errors": 0,
+        "completion_rate": 1.0,
+        "runtime_ms": {
+          "count": 6,
+          "p50": 3170,
+          "p95": 3220,
+          "max": 3220
+        }
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "egohub-discover",
+      "categories": [
+        "landing",
+        "spa"
+      ],
+      "kind": "url",
+      "source": "https://egohub.tech/discover",
+      "notes": "Production discovery experience.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/egohub-discover",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://egohub.tech/discover"
+      ],
+      "exit_code": 1,
+      "wall_duration_ms": 15236,
+      "report": "cases/egohub-discover/report.json",
+      "agent_summary": "cases/egohub-discover/agent_summary.json",
+      "artifacts": [
+        "cases/egohub-discover/agent_summary.json",
+        "cases/egohub-discover/feedback_bundle.json",
+        "cases/egohub-discover/junit.xml",
+        "cases/egohub-discover/report.json",
+        "cases/egohub-discover/report.sarif",
+        "cases/egohub-discover/screenshots",
+        "cases/egohub-discover/stderr.log",
+        "cases/egohub-discover/stdout.log"
+      ],
+      "stdout_tail": "[FAIL] https://egohub.tech/discover\n8 viewport(s), 4 error(s), 4 warning(s), 15168ms\n  WARNING [mobile-360-100-safe0] small_tap_targets: 6 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  WARNING [mobile-360-100-safe34] small_tap_targets: 6 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  ERROR   [mobile-360-150-safe0] text_scale_layout_break: page is 30px wider than the viewport at 1.5x text scale\n          hint: Use max-width, responsive grids, and wrapping instead of fixed widths.\n  WARNING [mobile-360-150-safe0] small_tap_targets: 7 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  ERROR   [mobile-360-150-safe34] text_scale_layout_break: page is 30px wider than the viewport at 1.5x text scale\n          hint: Use max-width, responsive grids, and wrapping instead of fixed widths.\n  WARNING [mobile-360-150-safe34] small_tap_targets: 7 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  ERROR   [mobile-390-150-safe0] text_scale_layout_break: page is 44px wider than the viewport at 1.5x text scale\n          hint: Use max-width, responsive grids, and wrapping instead of fixed widths.\n  ERROR   [mobile-390-150-safe34] text_scale_layout_break: page is 44px wider than the viewport at 1.5x text scale\n          hint: Use max-width, responsive grids, and wrapping instead of fixed widths.\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/egohub-discover/report.json\n",
+      "stderr_tail": "",
+      "status": "fail",
+      "report_duration_ms": 15168,
+      "issue_count": 8,
+      "failed_item_count": 2,
+      "counts": {
+        "error": 4,
+        "warning": 4
+      },
+      "finding_codes": [
+        "small_tap_targets",
+        "text_scale_layout_break"
+      ],
+      "agent_summary_counts": {
+        "total_block": 4,
+        "total_warn": 4,
+        "unique_root_causes": 2,
+        "affected_viewports": 6,
+        "duration_ms": 15168,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "egohub-privacy",
+      "categories": [
+        "legal",
+        "content"
+      ],
+      "kind": "url",
+      "source": "https://egohub.tech/privacy",
+      "notes": "Production privacy page.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/egohub-privacy",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://egohub.tech/privacy"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 16937,
+      "report": "cases/egohub-privacy/report.json",
+      "agent_summary": "cases/egohub-privacy/agent_summary.json",
+      "artifacts": [
+        "cases/egohub-privacy/agent_summary.json",
+        "cases/egohub-privacy/feedback_bundle.json",
+        "cases/egohub-privacy/junit.xml",
+        "cases/egohub-privacy/report.json",
+        "cases/egohub-privacy/report.sarif",
+        "cases/egohub-privacy/screenshots",
+        "cases/egohub-privacy/stderr.log",
+        "cases/egohub-privacy/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://egohub.tech/privacy\n8 viewport(s), 0 error(s), 0 warning(s), 16867ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/egohub-privacy/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 16867,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 16867,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "egohub-terms",
+      "categories": [
+        "legal",
+        "content"
+      ],
+      "kind": "url",
+      "source": "https://egohub.tech/terms",
+      "notes": "Production terms page.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/egohub-terms",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://egohub.tech/terms"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 14935,
+      "report": "cases/egohub-terms/report.json",
+      "agent_summary": "cases/egohub-terms/agent_summary.json",
+      "artifacts": [
+        "cases/egohub-terms/agent_summary.json",
+        "cases/egohub-terms/feedback_bundle.json",
+        "cases/egohub-terms/junit.xml",
+        "cases/egohub-terms/report.json",
+        "cases/egohub-terms/report.sarif",
+        "cases/egohub-terms/screenshots",
+        "cases/egohub-terms/stderr.log",
+        "cases/egohub-terms/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://egohub.tech/terms\n8 viewport(s), 0 error(s), 0 warning(s), 14835ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/egohub-terms/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 14835,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 14835,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "egohub-work-tetris",
+      "categories": [
+        "game",
+        "generated",
+        "mobile"
+      ],
+      "kind": "url",
+      "source": "https://works.egohub.tech/share/7ce6e45e.html",
+      "notes": "Public generated game.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/egohub-work-tetris",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://works.egohub.tech/share/7ce6e45e.html"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 20242,
+      "report": "cases/egohub-work-tetris/report.json",
+      "agent_summary": "cases/egohub-work-tetris/agent_summary.json",
+      "artifacts": [
+        "cases/egohub-work-tetris/agent_summary.json",
+        "cases/egohub-work-tetris/feedback_bundle.json",
+        "cases/egohub-work-tetris/junit.xml",
+        "cases/egohub-work-tetris/report.json",
+        "cases/egohub-work-tetris/report.sarif",
+        "cases/egohub-work-tetris/screenshots",
+        "cases/egohub-work-tetris/stderr.log",
+        "cases/egohub-work-tetris/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://works.egohub.tech/share/7ce6e45e.html\n8 viewport(s), 0 error(s), 0 warning(s), 20134ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/egohub-work-tetris/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 20134,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 20134,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "egohub-work-word-quiz",
+      "categories": [
+        "game",
+        "learning",
+        "generated",
+        "mobile"
+      ],
+      "kind": "url",
+      "source": "https://works.egohub.tech/share/9a3061bc.html",
+      "notes": "Public generated word game.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/egohub-work-word-quiz",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://works.egohub.tech/share/9a3061bc.html"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 18043,
+      "report": "cases/egohub-work-word-quiz/report.json",
+      "agent_summary": "cases/egohub-work-word-quiz/agent_summary.json",
+      "artifacts": [
+        "cases/egohub-work-word-quiz/agent_summary.json",
+        "cases/egohub-work-word-quiz/feedback_bundle.json",
+        "cases/egohub-work-word-quiz/junit.xml",
+        "cases/egohub-work-word-quiz/report.json",
+        "cases/egohub-work-word-quiz/report.sarif",
+        "cases/egohub-work-word-quiz/screenshots",
+        "cases/egohub-work-word-quiz/stderr.log",
+        "cases/egohub-work-word-quiz/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://works.egohub.tech/share/9a3061bc.html\n8 viewport(s), 0 error(s), 0 warning(s), 17941ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/egohub-work-word-quiz/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 17941,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 17941,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "egohub-work-vocabulary",
+      "categories": [
+        "learning",
+        "generated",
+        "mobile"
+      ],
+      "kind": "url",
+      "source": "https://works.egohub.tech/share/24a290d0.html",
+      "notes": "Public generated vocabulary experience.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/egohub-work-vocabulary",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://works.egohub.tech/share/24a290d0.html"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 22698,
+      "report": "cases/egohub-work-vocabulary/report.json",
+      "agent_summary": "cases/egohub-work-vocabulary/agent_summary.json",
+      "artifacts": [
+        "cases/egohub-work-vocabulary/agent_summary.json",
+        "cases/egohub-work-vocabulary/feedback_bundle.json",
+        "cases/egohub-work-vocabulary/junit.xml",
+        "cases/egohub-work-vocabulary/report.json",
+        "cases/egohub-work-vocabulary/report.sarif",
+        "cases/egohub-work-vocabulary/screenshots",
+        "cases/egohub-work-vocabulary/stderr.log",
+        "cases/egohub-work-vocabulary/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://works.egohub.tech/share/24a290d0.html\n8 viewport(s), 0 error(s), 0 warning(s), 22593ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/egohub-work-vocabulary/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 22593,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 22593,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-user-app",
+      "categories": [
+        "landing",
+        "spa",
+        "mobile"
+      ],
+      "kind": "url",
+      "source": "https://egohub.tech/app.html",
+      "notes": "Production user application shell.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-app",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://egohub.tech/app.html"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 21495,
+      "report": "cases/ego-user-app/report.json",
+      "agent_summary": "cases/ego-user-app/agent_summary.json",
+      "artifacts": [
+        "cases/ego-user-app/agent_summary.json",
+        "cases/ego-user-app/feedback_bundle.json",
+        "cases/ego-user-app/junit.xml",
+        "cases/ego-user-app/report.json",
+        "cases/ego-user-app/report.sarif",
+        "cases/ego-user-app/screenshots",
+        "cases/ego-user-app/stderr.log",
+        "cases/ego-user-app/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://egohub.tech/app.html\n8 viewport(s), 0 error(s), 0 warning(s), 21417ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-app/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 21417,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 21417,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-user-login",
+      "categories": [
+        "form",
+        "authentication",
+        "mobile"
+      ],
+      "kind": "url",
+      "source": "https://egohub.tech/login.html",
+      "notes": "Production authentication form.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-login",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://egohub.tech/login.html"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 15636,
+      "report": "cases/ego-user-login/report.json",
+      "agent_summary": "cases/ego-user-login/agent_summary.json",
+      "artifacts": [
+        "cases/ego-user-login/agent_summary.json",
+        "cases/ego-user-login/feedback_bundle.json",
+        "cases/ego-user-login/junit.xml",
+        "cases/ego-user-login/report.json",
+        "cases/ego-user-login/report.sarif",
+        "cases/ego-user-login/screenshots",
+        "cases/ego-user-login/stderr.log",
+        "cases/ego-user-login/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://egohub.tech/login.html\n8 viewport(s), 0 error(s), 0 warning(s), 15530ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-login/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 15530,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 15530,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-user-workbench",
+      "categories": [
+        "dashboard",
+        "gallery",
+        "mobile"
+      ],
+      "kind": "url",
+      "source": "https://egohub.tech/workbench.html",
+      "notes": "Production user workbench.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-workbench",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://egohub.tech/workbench.html"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 15187,
+      "report": "cases/ego-user-workbench/report.json",
+      "agent_summary": "cases/ego-user-workbench/agent_summary.json",
+      "artifacts": [
+        "cases/ego-user-workbench/agent_summary.json",
+        "cases/ego-user-workbench/feedback_bundle.json",
+        "cases/ego-user-workbench/junit.xml",
+        "cases/ego-user-workbench/report.json",
+        "cases/ego-user-workbench/report.sarif",
+        "cases/ego-user-workbench/screenshots",
+        "cases/ego-user-workbench/stderr.log",
+        "cases/ego-user-workbench/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://egohub.tech/workbench.html\n8 viewport(s), 0 error(s), 0 warning(s), 15072ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-workbench/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 15072,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 15072,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-user-status",
+      "categories": [
+        "dashboard",
+        "spa",
+        "mobile"
+      ],
+      "kind": "url",
+      "source": "https://egohub.tech/status.html",
+      "notes": "Production runtime status view.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-status",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://egohub.tech/status.html"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 24199,
+      "report": "cases/ego-user-status/report.json",
+      "agent_summary": "cases/ego-user-status/agent_summary.json",
+      "artifacts": [
+        "cases/ego-user-status/agent_summary.json",
+        "cases/ego-user-status/feedback_bundle.json",
+        "cases/ego-user-status/junit.xml",
+        "cases/ego-user-status/report.json",
+        "cases/ego-user-status/report.sarif",
+        "cases/ego-user-status/screenshots",
+        "cases/ego-user-status/stderr.log",
+        "cases/ego-user-status/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://egohub.tech/status.html\n8 viewport(s), 0 error(s), 0 warning(s), 24093ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-status/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 24093,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 24093,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-user-ops-rum",
+      "categories": [
+        "dashboard",
+        "analytics",
+        "mobile"
+      ],
+      "kind": "url",
+      "source": "https://egohub.tech/ops/rum",
+      "notes": "Production operations and RUM dashboard.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-ops-rum",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://egohub.tech/ops/rum"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 16537,
+      "report": "cases/ego-user-ops-rum/report.json",
+      "agent_summary": "cases/ego-user-ops-rum/agent_summary.json",
+      "artifacts": [
+        "cases/ego-user-ops-rum/agent_summary.json",
+        "cases/ego-user-ops-rum/feedback_bundle.json",
+        "cases/ego-user-ops-rum/junit.xml",
+        "cases/ego-user-ops-rum/report.json",
+        "cases/ego-user-ops-rum/report.sarif",
+        "cases/ego-user-ops-rum/screenshots",
+        "cases/ego-user-ops-rum/stderr.log",
+        "cases/ego-user-ops-rum/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://egohub.tech/ops/rum\n8 viewport(s), 0 error(s), 0 warning(s), 16458ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-ops-rum/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 16458,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 16458,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-user-gallery",
+      "categories": [
+        "gallery",
+        "spa",
+        "mobile"
+      ],
+      "kind": "url",
+      "source": "https://egohub.tech/gallery.html",
+      "notes": "Production public gallery.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-gallery",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://egohub.tech/gallery.html"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 21795,
+      "report": "cases/ego-user-gallery/report.json",
+      "agent_summary": "cases/ego-user-gallery/agent_summary.json",
+      "artifacts": [
+        "cases/ego-user-gallery/agent_summary.json",
+        "cases/ego-user-gallery/feedback_bundle.json",
+        "cases/ego-user-gallery/junit.xml",
+        "cases/ego-user-gallery/report.json",
+        "cases/ego-user-gallery/report.sarif",
+        "cases/ego-user-gallery/screenshots",
+        "cases/ego-user-gallery/stderr.log",
+        "cases/ego-user-gallery/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://egohub.tech/gallery.html\n8 viewport(s), 0 error(s), 0 warning(s), 21699ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-gallery/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 21699,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 21699,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-user-chat",
+      "categories": [
+        "chat",
+        "tool",
+        "spa",
+        "mobile"
+      ],
+      "kind": "url",
+      "source": "https://egohub.tech/chat.html",
+      "notes": "Production conversation experience; unauthenticated UI is expected.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-chat",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://egohub.tech/chat.html"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 16289,
+      "report": "cases/ego-user-chat/report.json",
+      "agent_summary": "cases/ego-user-chat/agent_summary.json",
+      "artifacts": [
+        "cases/ego-user-chat/agent_summary.json",
+        "cases/ego-user-chat/feedback_bundle.json",
+        "cases/ego-user-chat/junit.xml",
+        "cases/ego-user-chat/report.json",
+        "cases/ego-user-chat/report.sarif",
+        "cases/ego-user-chat/screenshots",
+        "cases/ego-user-chat/stderr.log",
+        "cases/ego-user-chat/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://egohub.tech/chat.html\n8 viewport(s), 0 error(s), 0 warning(s), 16199ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-chat/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 16199,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 16199,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-user-me",
+      "categories": [
+        "profile",
+        "form",
+        "mobile"
+      ],
+      "kind": "url",
+      "source": "https://egohub.tech/me.html",
+      "notes": "Production account/profile surface.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-me",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "https://egohub.tech/me.html"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 16637,
+      "report": "cases/ego-user-me/report.json",
+      "agent_summary": "cases/ego-user-me/agent_summary.json",
+      "artifacts": [
+        "cases/ego-user-me/agent_summary.json",
+        "cases/ego-user-me/feedback_bundle.json",
+        "cases/ego-user-me/junit.xml",
+        "cases/ego-user-me/report.json",
+        "cases/ego-user-me/report.sarif",
+        "cases/ego-user-me/screenshots",
+        "cases/ego-user-me/stderr.log",
+        "cases/ego-user-me/stdout.log"
+      ],
+      "stdout_tail": "[PASS] https://egohub.tech/me.html\n8 viewport(s), 0 error(s), 0 warning(s), 16561ms\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-user-me/report.json\n",
+      "stderr_tail": "",
+      "status": "pass",
+      "report_duration_ms": 16561,
+      "issue_count": 0,
+      "failed_item_count": 0,
+      "counts": {
+        "error": 0,
+        "warning": 0
+      },
+      "finding_codes": [],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 0,
+        "unique_root_causes": 0,
+        "affected_viewports": 0,
+        "duration_ms": 16561,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-generated-accounting",
+      "categories": [
+        "dashboard",
+        "form",
+        "pwa",
+        "mobile"
+      ],
+      "kind": "local",
+      "source": "/data/projects/ego/workspace/users/roy/works/t_b6fd3868cdb9/src/index.html",
+      "notes": "Current canonical accounting PWA.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-accounting",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "--dir",
+        "/data/projects/ego/workspace/users/roy/works/t_b6fd3868cdb9/src",
+        "--file",
+        "index.html"
+      ],
+      "exit_code": 0,
+      "wall_duration_ms": 3169,
+      "report": "cases/ego-generated-accounting/report.json",
+      "agent_summary": "cases/ego-generated-accounting/agent_summary.json",
+      "artifacts": [
+        "cases/ego-generated-accounting/agent_summary.json",
+        "cases/ego-generated-accounting/feedback_bundle.json",
+        "cases/ego-generated-accounting/junit.xml",
+        "cases/ego-generated-accounting/report.json",
+        "cases/ego-generated-accounting/report.sarif",
+        "cases/ego-generated-accounting/screenshots",
+        "cases/ego-generated-accounting/stderr.log",
+        "cases/ego-generated-accounting/stdout.log"
+      ],
+      "stdout_tail": "[WARN] http://127.0.0.1:45227/index.html\n8 viewport(s), 0 error(s), 4 warning(s), 2693ms\n  WARNING [mobile-360-150-safe0] clipped_text: 1 visible text node(s) are clipped by up to 33.7px\n          hint: Remove the fixed overflow boundary, allow the text to wrap, or use an explicit ellipsis or scroll affordance.\n  WARNING [mobile-360-150-safe34] clipped_text: 1 visible text node(s) are clipped by up to 33.7px\n          hint: Remove the fixed overflow boundary, allow the text to wrap, or use an explicit ellipsis or scroll affordance.\n  WARNING [mobile-390-150-safe0] clipped_text: 3 visible text node(s) are clipped by up to 119.6px\n          hint: Remove the fixed overflow boundary, allow the text to wrap, or use an explicit ellipsis or scroll affordance.\n  WARNING [mobile-390-150-safe34] clipped_text: 3 visible text node(s) are clipped by up to 119.5px\n          hint: Remove the fixed overflow boundary, allow the text to wrap, or use an explicit ellipsis or scroll affordance.\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-accounting/report.json\n",
+      "stderr_tail": "",
+      "status": "warn",
+      "report_duration_ms": 2693,
+      "issue_count": 4,
+      "failed_item_count": 1,
+      "counts": {
+        "error": 0,
+        "warning": 4
+      },
+      "finding_codes": [
+        "clipped_text"
+      ],
+      "agent_summary_counts": {
+        "total_block": 0,
+        "total_warn": 4,
+        "unique_root_causes": 1,
+        "affected_viewports": 4,
+        "duration_ms": 2693,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-generated-vocabulary",
+      "categories": [
+        "learning",
+        "pwa",
+        "mobile"
+      ],
+      "kind": "local",
+      "source": "/data/projects/ego/workspace/users/roy/works/t_f708c1f162cd/src/index.html",
+      "notes": "Current canonical vocabulary PWA.",
+      "profile": "baseline",
+      "smoke_mode": "disabled",
+      "smoke_flow_steps": 0,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-vocabulary",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--no-smoke",
+        "--dir",
+        "/data/projects/ego/workspace/users/roy/works/t_f708c1f162cd/src",
+        "--file",
+        "index.html"
+      ],
+      "exit_code": 1,
+      "wall_duration_ms": 3219,
+      "report": "cases/ego-generated-vocabulary/report.json",
+      "agent_summary": "cases/ego-generated-vocabulary/agent_summary.json",
+      "artifacts": [
+        "cases/ego-generated-vocabulary/agent_summary.json",
+        "cases/ego-generated-vocabulary/feedback_bundle.json",
+        "cases/ego-generated-vocabulary/junit.xml",
+        "cases/ego-generated-vocabulary/report.json",
+        "cases/ego-generated-vocabulary/report.sarif",
+        "cases/ego-generated-vocabulary/screenshots",
+        "cases/ego-generated-vocabulary/stderr.log",
+        "cases/ego-generated-vocabulary/stdout.log"
+      ],
+      "stdout_tail": "[FAIL] http://127.0.0.1:32849/index.html\n8 viewport(s), 10 error(s), 6 warning(s), 2702ms\n  ERROR   [mobile-360-100-safe0] console_error: console.error was emitted: A bad HTTP response code (404) was received when fetching the script.\n          hint: Remove error logging from production paths and fix the underlying failure.\n  ERROR   [mobile-360-100-safe34] console_error: console.error was emitted: A bad HTTP response code (404) was received when fetching the script.\n          hint: Remove error logging from production paths and fix the underlying failure.\n  ERROR   [mobile-360-150-safe0] console_error: console.error was emitted: A bad HTTP response code (404) was received when fetching the script.\n          hint: Remove error logging from production paths and fix the underlying failure.\n  ERROR   [mobile-360-150-safe0] text_scale_layout_break: page is 5px wider than the viewport at 1.5x text scale\n          hint: Use max-width, responsive grids, and wrapping instead of fixed widths.\n  WARNING [mobile-360-150-safe0] clipped_text: 1 visible text node(s) are clipped by up to 3.1px\n          hint: Remove the fixed overflow boundary, allow the text to wrap, or use an explicit ellipsis or scroll affordance.\n  ERROR   [mobile-360-150-safe34] console_error: console.error was emitted: A bad HTTP response code (404) was received when fetching the script.\n          hint: Remove error logging from production paths and fix the underlying failure.\n  ERROR   [mobile-360-150-safe34] text_scale_layout_break: page is 5px wider than the viewport at 1.5x text scale\n          hint: Use max-width, responsive grids, and wrapping instead of fixed widths.\n  WARNING [mobile-360-150-safe34] clipped_text: 1 visible text node(s) are clipped by up to 3.1px\n          hint: Remove the fixed overflow boundary, allow the text to wrap, or use an explicit ellipsis or scroll affordance.\n  ERROR   [mobile-390-100-safe0] console_error: console.error was emitted: A bad HTTP response code (404) was received when fetching the script.\n          hint: Remove error logging from production paths and fix the underlying failure.\n  WARNING [mobile-390-100-safe0] clipped_text: 1 visible text node(s) are clipped by up to 37.7px\n          hint: Remove the fixed overflow boundary, allow the text to wrap, or use an explicit ellipsis or scroll affordance.\n  ERROR   [mobile-390-100-safe34] console_error: console.error was emitted: A bad HTTP response code (404) was received when fetching the script.\n          hint: Remove error logging from production paths and fix the underlying failure.\n  WARNING [mobile-390-100-safe34] clipped_text: 1 visible text node(s) are clipped by up to 37.7px\n          hint: Remove the fixed overflow boundary, allow the text to wrap, or use an explicit ellipsis or scroll affordance.\n  ERROR   [mobile-390-150-safe0] console_error: console.error was emitted: A bad HTTP response code (404) was received when fetching the script.\n          hint: Remove error logging from production paths and fix the underlying failure.\n  WARNING [mobile-390-150-safe0] clipped_text: 2 visible text node(s) are clipped by up to 161.5px\n          hint: Remove the fixed overflow boundary, allow the text to wrap, or use an explicit ellipsis or scroll affordance.\n  ERROR   [mobile-390-150-safe34] console_error: console.error was emitted: A bad HTTP response code (404) was received when fetching the script.\n          hint: Remove error logging from production paths and fix the underlying failure.\n  WARNING [mobile-390-150-safe34] clipped_text: 2 visible text node(s) are clipped by up to 161.5px\n          hint: Remove the fixed overflow boundary, allow the text to wrap, or use an explicit ellipsis or scroll affordance.\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-vocabulary/report.json\n",
+      "stderr_tail": "",
+      "status": "fail",
+      "report_duration_ms": 2702,
+      "issue_count": 16,
+      "failed_item_count": 3,
+      "counts": {
+        "error": 10,
+        "warning": 6
+      },
+      "finding_codes": [
+        "clipped_text",
+        "console_error",
+        "text_scale_layout_break"
+      ],
+      "agent_summary_counts": {
+        "total_block": 10,
+        "total_warn": 6,
+        "unique_root_causes": 3,
+        "affected_viewports": 8,
+        "duration_ms": 2702,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-public-math-practice",
+      "categories": [
+        "learning",
+        "tool",
+        "mobile",
+        "generated"
+      ],
+      "kind": "local",
+      "source": "/srv/projects/ego/public/52664e2e.html",
+      "notes": "Shipped generated arithmetic practice artifact.",
+      "profile": "baseline",
+      "smoke_mode": "bounded_flow",
+      "smoke_flow_steps": 2,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-public-math-practice",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--config",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-public-math-practice/smoke-config.json",
+        "--dir",
+        "/srv/projects/ego/public",
+        "--file",
+        "52664e2e.html"
+      ],
+      "exit_code": 1,
+      "wall_duration_ms": 3169,
+      "report": "cases/ego-public-math-practice/report.json",
+      "agent_summary": "cases/ego-public-math-practice/agent_summary.json",
+      "artifacts": [
+        "cases/ego-public-math-practice/agent_summary.json",
+        "cases/ego-public-math-practice/feedback_bundle.json",
+        "cases/ego-public-math-practice/junit.xml",
+        "cases/ego-public-math-practice/report.json",
+        "cases/ego-public-math-practice/report.sarif",
+        "cases/ego-public-math-practice/screenshots",
+        "cases/ego-public-math-practice/smoke-config.json",
+        "cases/ego-public-math-practice/stderr.log",
+        "cases/ego-public-math-practice/stdout.log"
+      ],
+      "stdout_tail": "[FAIL] http://127.0.0.1:44967/52664e2e.html\n8 viewport(s), 4 error(s), 4 warning(s), 2707ms\n  WARNING [mobile-360-100-safe0] small_tap_targets: 34 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  WARNING [mobile-360-100-safe34] small_tap_targets: 34 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  ERROR   [mobile-360-100-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\n  ERROR   [mobile-360-150-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\n  WARNING [mobile-390-100-safe0] small_tap_targets: 34 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  WARNING [mobile-390-100-safe34] small_tap_targets: 34 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  ERROR   [mobile-390-100-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\n  ERROR   [mobile-390-150-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-public-math-practice/report.json\n",
+      "stderr_tail": "",
+      "status": "fail",
+      "report_duration_ms": 2707,
+      "issue_count": 8,
+      "failed_item_count": 2,
+      "counts": {
+        "error": 4,
+        "warning": 4
+      },
+      "finding_codes": [
+        "bottom_safe_area_penetration",
+        "small_tap_targets"
+      ],
+      "agent_summary_counts": {
+        "total_block": 4,
+        "total_warn": 4,
+        "unique_root_causes": 2,
+        "affected_viewports": 6,
+        "duration_ms": 2707,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-generated-noodle-shop",
+      "categories": [
+        "commerce",
+        "form",
+        "landing",
+        "mobile",
+        "generated"
+      ],
+      "kind": "local",
+      "source": "/srv/projects/ego/ego_work/gbench/beef-noodle-v2-20260824/src/index.html",
+      "notes": "Benchmark generated restaurant ordering experience.",
+      "profile": "baseline",
+      "smoke_mode": "bounded_flow",
+      "smoke_flow_steps": 2,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-noodle-shop",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--config",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-noodle-shop/smoke-config.json",
+        "--dir",
+        "/srv/projects/ego/ego_work/gbench/beef-noodle-v2-20260824/src",
+        "--file",
+        "index.html"
+      ],
+      "exit_code": 1,
+      "wall_duration_ms": 3220,
+      "report": "cases/ego-generated-noodle-shop/report.json",
+      "agent_summary": "cases/ego-generated-noodle-shop/agent_summary.json",
+      "artifacts": [
+        "cases/ego-generated-noodle-shop/agent_summary.json",
+        "cases/ego-generated-noodle-shop/feedback_bundle.json",
+        "cases/ego-generated-noodle-shop/junit.xml",
+        "cases/ego-generated-noodle-shop/report.json",
+        "cases/ego-generated-noodle-shop/report.sarif",
+        "cases/ego-generated-noodle-shop/screenshots",
+        "cases/ego-generated-noodle-shop/smoke-config.json",
+        "cases/ego-generated-noodle-shop/stderr.log",
+        "cases/ego-generated-noodle-shop/stdout.log"
+      ],
+      "stdout_tail": "[FAIL] http://127.0.0.1:40761/index.html\n8 viewport(s), 4 error(s), 8 warning(s), 2782ms\n  WARNING [mobile-360-100-safe0] small_tap_targets: 7 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  WARNING [mobile-360-100-safe34] small_tap_targets: 7 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  ERROR   [mobile-360-100-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\n  WARNING [mobile-360-150-safe0] small_tap_targets: 6 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  WARNING [mobile-360-150-safe34] small_tap_targets: 6 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  ERROR   [mobile-360-150-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\n  WARNING [mobile-390-100-safe0] small_tap_targets: 7 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  WARNING [mobile-390-100-safe34] small_tap_targets: 7 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  ERROR   [mobile-390-100-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\n  WARNING [mobile-390-150-safe0] small_tap_targets: 6 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  WARNING [mobile-390-150-safe34] small_tap_targets: 6 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  ERROR   [mobile-390-150-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-noodle-shop/report.json\n",
+      "stderr_tail": "",
+      "status": "fail",
+      "report_duration_ms": 2782,
+      "issue_count": 12,
+      "failed_item_count": 2,
+      "counts": {
+        "error": 4,
+        "warning": 8
+      },
+      "finding_codes": [
+        "bottom_safe_area_penetration",
+        "small_tap_targets"
+      ],
+      "agent_summary_counts": {
+        "total_block": 4,
+        "total_warn": 8,
+        "unique_root_causes": 2,
+        "affected_viewports": 8,
+        "duration_ms": 2782,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-generated-click-counter",
+      "categories": [
+        "tool",
+        "interactive",
+        "mobile",
+        "generated"
+      ],
+      "kind": "local",
+      "source": "/srv/projects/ego/ego_work/gbench/click-counter-20260825/src/index.html",
+      "notes": "Benchmark generated interactive counter.",
+      "profile": "baseline",
+      "smoke_mode": "bounded_flow",
+      "smoke_flow_steps": 2,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-click-counter",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--config",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-click-counter/smoke-config.json",
+        "--dir",
+        "/srv/projects/ego/ego_work/gbench/click-counter-20260825/src",
+        "--file",
+        "index.html"
+      ],
+      "exit_code": 1,
+      "wall_duration_ms": 3170,
+      "report": "cases/ego-generated-click-counter/report.json",
+      "agent_summary": "cases/ego-generated-click-counter/agent_summary.json",
+      "artifacts": [
+        "cases/ego-generated-click-counter/agent_summary.json",
+        "cases/ego-generated-click-counter/feedback_bundle.json",
+        "cases/ego-generated-click-counter/junit.xml",
+        "cases/ego-generated-click-counter/report.json",
+        "cases/ego-generated-click-counter/report.sarif",
+        "cases/ego-generated-click-counter/screenshots",
+        "cases/ego-generated-click-counter/smoke-config.json",
+        "cases/ego-generated-click-counter/stderr.log",
+        "cases/ego-generated-click-counter/stdout.log"
+      ],
+      "stdout_tail": "[FAIL] http://127.0.0.1:43083/index.html\n8 viewport(s), 4 error(s), 0 warning(s), 2704ms\n  ERROR   [mobile-360-100-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\n  ERROR   [mobile-360-150-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\n  ERROR   [mobile-390-100-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\n  ERROR   [mobile-390-150-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-click-counter/report.json\n",
+      "stderr_tail": "",
+      "status": "fail",
+      "report_duration_ms": 2704,
+      "issue_count": 4,
+      "failed_item_count": 1,
+      "counts": {
+        "error": 4,
+        "warning": 0
+      },
+      "finding_codes": [
+        "bottom_safe_area_penetration"
+      ],
+      "agent_summary_counts": {
+        "total_block": 4,
+        "total_warn": 0,
+        "unique_root_causes": 1,
+        "affected_viewports": 4,
+        "duration_ms": 2704,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    },
+    {
+      "id": "ego-generated-games-gallery",
+      "categories": [
+        "gallery",
+        "game",
+        "interactive",
+        "mobile",
+        "generated"
+      ],
+      "kind": "local",
+      "source": "/srv/projects/ego/ego_work/gbench/games-gallery-20260825/src/index.html",
+      "notes": "Benchmark generated game gallery.",
+      "profile": "baseline",
+      "smoke_mode": "bounded_flow",
+      "smoke_flow_steps": 2,
+      "command": [
+        "/srv/projects/ego_webqa/.venv/bin/python3",
+        "-m",
+        "ego_webqa",
+        "--out",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-games-gallery",
+        "--profile",
+        "baseline",
+        "--browser-channel",
+        "chrome",
+        "--config",
+        "/srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-games-gallery/smoke-config.json",
+        "--dir",
+        "/srv/projects/ego/ego_work/gbench/games-gallery-20260825/src",
+        "--file",
+        "index.html"
+      ],
+      "exit_code": 1,
+      "wall_duration_ms": 3218,
+      "report": "cases/ego-generated-games-gallery/report.json",
+      "agent_summary": "cases/ego-generated-games-gallery/agent_summary.json",
+      "artifacts": [
+        "cases/ego-generated-games-gallery/agent_summary.json",
+        "cases/ego-generated-games-gallery/feedback_bundle.json",
+        "cases/ego-generated-games-gallery/junit.xml",
+        "cases/ego-generated-games-gallery/report.json",
+        "cases/ego-generated-games-gallery/report.sarif",
+        "cases/ego-generated-games-gallery/screenshots",
+        "cases/ego-generated-games-gallery/smoke-config.json",
+        "cases/ego-generated-games-gallery/stderr.log",
+        "cases/ego-generated-games-gallery/stdout.log"
+      ],
+      "stdout_tail": "[FAIL] http://127.0.0.1:45255/index.html\n8 viewport(s), 4 error(s), 4 warning(s), 2802ms\n  WARNING [mobile-360-100-safe0] small_tap_targets: 7 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  WARNING [mobile-360-100-safe34] small_tap_targets: 7 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  ERROR   [mobile-360-100-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\n  ERROR   [mobile-360-150-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\n  WARNING [mobile-390-100-safe0] small_tap_targets: 7 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  WARNING [mobile-390-100-safe34] small_tap_targets: 7 interactive target(s) are smaller than 44px\n          hint: Keep the visual icon small if needed, but expand the hit area to 44x44px.\n  ERROR   [mobile-390-100-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\n  ERROR   [mobile-390-150-safe34] bottom_safe_area_penetration: 1 bottom-anchored element(s) enter the 34px safe-area band\n          hint: Reserve max(34px, env(safe-area-inset-bottom)) around bottom controls.\nartifacts: /srv/projects/ego_webqa/dogfood-results/20261031-post-footer-repair/cases/ego-generated-games-gallery/report.json\n",
+      "stderr_tail": "",
+      "status": "fail",
+      "report_duration_ms": 2802,
+      "issue_count": 8,
+      "failed_item_count": 2,
+      "counts": {
+        "error": 4,
+        "warning": 4
+      },
+      "finding_codes": [
+        "bottom_safe_area_penetration",
+        "small_tap_targets"
+      ],
+      "agent_summary_counts": {
+        "total_block": 4,
+        "total_warn": 4,
+        "unique_root_causes": 2,
+        "affected_viewports": 6,
+        "duration_ms": 2802,
+        "overridden_dimensions": 0,
+        "downgraded_blocks": 0,
+        "expired_overrides": 0
+      }
+    }
+  ]
+}

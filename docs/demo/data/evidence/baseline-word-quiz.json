@@ -1,0 +1,432 @@
+{
+  "schema_version": "1.0",
+  "tool": "ego-webqa",
+  "target": "https://works.egohub.tech/share/9a3061bc.html",
+  "status": "fail",
+  "failed_items": [
+    {
+      "dimension_id": "text_scale_layout_break",
+      "dimension_version": "1.0.0",
+      "detector": "geometry",
+      "default_severity": "block",
+      "severity": "block",
+      "severity_source": "default",
+      "override": {},
+      "selector": "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+      "selectors": [
+        "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+        "body > div:nth-of-type(2) > div:nth-of-type(2)"
+      ],
+      "text_snippet": "我也要创建 →",
+      "trigger": "mobile-360-150-safe0 (360x800); mobile-360-150-safe34 (360x800)",
+      "triggers": [
+        "mobile-360-150-safe0 (360x800)",
+        "mobile-360-150-safe34 (360x800)"
+      ],
+      "problem": "page is 9px wider than the viewport at 1.5x text scale (+1 related finding(s))",
+      "problems": [
+        "page is 9px wider than the viewport at 1.5x text scale",
+        "page is 25px wider than the viewport at 1.5x text scale"
+      ],
+      "suggestion": "Use max-width, responsive grids, and wrapping instead of fixed widths.",
+      "reproduce": "ego-webqa https://works.egohub.tech/share/9a3061bc.html --viewports '360x800:mobile-360-150-safe0@1.5,360x800:mobile-360-150-safe34@1.5~34' --no-smoke --json",
+      "occurrences": 2,
+      "evidence": {
+        "overflow_px": 9,
+        "text_scale": 1.5,
+        "selector": "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+        "label": "我也要创建 →",
+        "elements": [
+          {
+            "label": "我也要创建 →",
+            "selector": "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+            "box": {
+              "x": 252,
+              "y": 722,
+              "width": 117,
+              "height": 44
+            },
+            "right_overflow_px": 9,
+            "left_overflow_px": 0,
+            "overflow_px": 9,
+            "position": "static"
+          },
+          {
+            "label": "✎ 改这里 反馈 复制链接 我也要创建 →",
+            "selector": "body > div:nth-of-type(2) > div:nth-of-type(2)",
+            "box": {
+              "x": 24,
+              "y": 722,
+              "width": 345,
+              "height": 44
+            },
+            "right_overflow_px": 9,
+            "left_overflow_px": 0,
+            "overflow_px": 9,
+            "position": "static"
+          }
+        ]
+      },
+      "evidence_by_viewport": {
+        "mobile-360-150-safe0": [
+          {
+            "overflow_px": 9,
+            "text_scale": 1.5,
+            "selector": "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+            "label": "我也要创建 →",
+            "elements": [
+              {
+                "label": "我也要创建 →",
+                "selector": "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+                "box": {
+                  "x": 252,
+                  "y": 722,
+                  "width": 117,
+                  "height": 44
+                },
+                "right_overflow_px": 9,
+                "left_overflow_px": 0,
+                "overflow_px": 9,
+                "position": "static"
+              },
+              {
+                "label": "✎ 改这里 反馈 复制链接 我也要创建 →",
+                "selector": "body > div:nth-of-type(2) > div:nth-of-type(2)",
+                "box": {
+                  "x": 24,
+                  "y": 722,
+                  "width": 345,
+                  "height": 44
+                },
+                "right_overflow_px": 9,
+                "left_overflow_px": 0,
+                "overflow_px": 9,
+                "position": "static"
+              }
+            ]
+          }
+        ],
+        "mobile-360-150-safe34": [
+          {
+            "overflow_px": 25,
+            "text_scale": 1.5,
+            "selector": "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+            "label": "我也要创建 →",
+            "elements": [
+              {
+                "label": "我也要创建 →",
+                "selector": "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+                "box": {
+                  "x": 268,
+                  "y": 722,
+                  "width": 117,
+                  "height": 44
+                },
+                "right_overflow_px": 25.3,
+                "left_overflow_px": 0,
+                "overflow_px": 25.3,
+                "position": "static"
+              },
+              {
+                "label": "✎ 改这里 反馈 分享 / 安装 我也要创建 →",
+                "selector": "body > div:nth-of-type(2) > div:nth-of-type(2)",
+                "box": {
+                  "x": 24,
+                  "y": 722,
+                  "width": 361,
+                  "height": 44
+                },
+                "right_overflow_px": 25.3,
+                "left_overflow_px": 0,
+                "overflow_px": 25.3,
+                "position": "static"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "dimension_id": "clipped_text",
+      "dimension_version": "1.0.0",
+      "detector": "text_clipping",
+      "default_severity": "warn",
+      "severity": "warn",
+      "severity_source": "default",
+      "override": {},
+      "selector": "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+      "selectors": [
+        "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+        "body > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2)",
+        "body > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2) > strong"
+      ],
+      "text_snippet": "我也要创建 →",
+      "trigger": "mobile-360-150-safe0 (360x800); mobile-360-150-safe34 (360x800); mobile-390-100-safe0 (390x844); mobile-390-100-safe34 (390x844); mobile-390-150-safe0 (390x844); mobile-390-150-safe34 (390x844)",
+      "triggers": [
+        "mobile-360-150-safe0 (360x800)",
+        "mobile-360-150-safe34 (360x800)",
+        "mobile-390-100-safe0 (390x844)",
+        "mobile-390-100-safe34 (390x844)",
+        "mobile-390-150-safe0 (390x844)",
+        "mobile-390-150-safe34 (390x844)"
+      ],
+      "problem": "1 visible text node(s) are clipped by up to 7px (+4 related finding(s))",
+      "problems": [
+        "1 visible text node(s) are clipped by up to 7px",
+        "1 visible text node(s) are clipped by up to 23.3px",
+        "1 visible text node(s) are clipped by up to 34.3px",
+        "1 visible text node(s) are clipped by up to 23.4px",
+        "2 visible text node(s) are clipped by up to 150.4px"
+      ],
+      "suggestion": "Remove the fixed overflow boundary, allow the text to wrap, or use an explicit ellipsis or scroll affordance.",
+      "reproduce": "ego-webqa https://works.egohub.tech/share/9a3061bc.html --viewports '360x800:mobile-360-150-safe0@1.5,360x800:mobile-360-150-safe34@1.5~34,390x844:mobile-390-100-safe0,390x844:mobile-390-100-safe34~34,390x844:mobile-390-150-safe0@1.5,390x844:mobile-390-150-safe34@1.5~34' --no-smoke --json",
+      "occurrences": 6,
+      "evidence": {
+        "tolerance_px": 1.5,
+        "samples": [
+          {
+            "label": "我也要创建 →",
+            "selector": "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+            "clipped_by": "body",
+            "box": {
+              "x": 252,
+              "y": 722,
+              "width": 117,
+              "height": 44
+            },
+            "text_box": {
+              "x": 254,
+              "y": 736,
+              "width": 113,
+              "height": 20
+            },
+            "horizontal_clip_px": 7,
+            "vertical_clip_px": 0,
+            "clip_px": 7
+          }
+        ]
+      },
+      "evidence_by_viewport": {
+        "mobile-360-150-safe0": [
+          {
+            "tolerance_px": 1.5,
+            "samples": [
+              {
+                "label": "我也要创建 →",
+                "selector": "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+                "clipped_by": "body",
+                "box": {
+                  "x": 252,
+                  "y": 722,
+                  "width": 117,
+                  "height": 44
+                },
+                "text_box": {
+                  "x": 254,
+                  "y": 736,
+                  "width": 113,
+                  "height": 20
+                },
+                "horizontal_clip_px": 7,
+                "vertical_clip_px": 0,
+                "clip_px": 7
+              }
+            ]
+          }
+        ],
+        "mobile-360-150-safe34": [
+          {
+            "tolerance_px": 1.5,
+            "samples": [
+              {
+                "label": "我也要创建 →",
+                "selector": "body > div:nth-of-type(2) > div:nth-of-type(2) > a",
+                "clipped_by": "body",
+                "box": {
+                  "x": 268,
+                  "y": 722,
+                  "width": 117,
+                  "height": 44
+                },
+                "text_box": {
+                  "x": 270,
+                  "y": 736,
+                  "width": 113,
+                  "height": 20
+                },
+                "horizontal_clip_px": 23.3,
+                "vertical_clip_px": 0,
+                "clip_px": 23.3
+              }
+            ]
+          }
+        ],
+        "mobile-390-100-safe0": [
+          {
+            "tolerance_px": 1.5,
+            "samples": [
+              {
+                "label": "创建",
+                "selector": "body > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2)",
+                "clipped_by": "body > div:nth-of-type(2) > div:nth-of-type(1)",
+                "box": {
+                  "x": 40,
+                  "y": 778,
+                  "width": 84,
+                  "height": 21
+                },
+                "text_box": {
+                  "x": 89,
+                  "y": 781,
+                  "width": 35,
+                  "height": 17
+                },
+                "horizontal_clip_px": 34.3,
+                "vertical_clip_px": 0,
+                "clip_px": 34.3
+              }
+            ]
+          }
+        ],
+        "mobile-390-100-safe34": [
+          {
+            "tolerance_px": 1.5,
+            "samples": [
+              {
+                "label": "创建",
+                "selector": "body > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2)",
+                "clipped_by": "body > div:nth-of-type(2) > div:nth-of-type(1)",
+                "box": {
+                  "x": 40,
+                  "y": 778,
+                  "width": 84,
+                  "height": 21
+                },
+                "text_box": {
+                  "x": 89,
+                  "y": 781,
+                  "width": 35,
+                  "height": 17
+                },
+                "horizontal_clip_px": 23.4,
+                "vertical_clip_px": 0,
+                "clip_px": 23.4
+              }
+            ]
+          }
+        ],
+        "mobile-390-150-safe0": [
+          {
+            "tolerance_px": 1.5,
+            "samples": [
+              {
+                "label": "创建",
+                "selector": "body > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2)",
+                "clipped_by": "body > div:nth-of-type(2) > div:nth-of-type(1)",
+                "box": {
+                  "x": 40,
+                  "y": 772,
+                  "width": 126,
+                  "height": 32
+                },
+                "text_box": {
+                  "x": 113,
+                  "y": 778,
+                  "width": 53,
+                  "height": 25
+                },
+                "horizontal_clip_px": 150.4,
+                "vertical_clip_px": 0,
+                "clip_px": 150.4
+              },
+              {
+                "label": "Ego",
+                "selector": "body > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2) > strong",
+                "clipped_by": "body > div:nth-of-type(2) > div:nth-of-type(1)",
+                "box": {
+                  "x": 70,
+                  "y": 778,
+                  "width": 43,
+                  "height": 25
+                },
+                "text_box": {
+                  "x": 70,
+                  "y": 778,
+                  "width": 43,
+                  "height": 25
+                },
+                "horizontal_clip_px": 97.3,
+                "vertical_clip_px": 0,
+                "clip_px": 97.3
+              }
+            ]
+          }
+        ],
+        "mobile-390-150-safe34": [
+          {
+            "tolerance_px": 1.5,
+            "samples": [
+              {
+                "label": "创建",
+                "selector": "body > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2)",
+                "clipped_by": "body > div:nth-of-type(2) > div:nth-of-type(1)",
+                "box": {
+                  "x": 40,
+                  "y": 772,
+                  "width": 126,
+                  "height": 32
+                },
+                "text_box": {
+                  "x": 113,
+                  "y": 778,
+                  "width": 53,
+                  "height": 25
+                },
+                "horizontal_clip_px": 150.4,
+                "vertical_clip_px": 0,
+                "clip_px": 150.4
+              },
+              {
+                "label": "Ego",
+                "selector": "body > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2) > strong",
+                "clipped_by": "body > div:nth-of-type(2) > div:nth-of-type(1)",
+                "box": {
+                  "x": 70,
+                  "y": 778,
+                  "width": 43,
+                  "height": 25
+                },
+                "text_box": {
+                  "x": 70,
+                  "y": 778,
+                  "width": 43,
+                  "height": 25
+                },
+                "horizontal_clip_px": 97.3,
+                "vertical_clip_px": 0,
+                "clip_px": 97.3
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "total_block": 2,
+    "total_warn": 6,
+    "unique_root_causes": 2,
+    "affected_viewports": 6,
+    "duration_ms": 15051,
+    "overridden_dimensions": 0,
+    "downgraded_blocks": 0,
+    "expired_overrides": 0
+  },
+  "governance": {
+    "as_of": "2026-10-31",
+    "active_overrides": [],
+    "expired_overrides": [],
+    "effective_parameters": {}
+  },
+  "scope_statement": "本报告仅覆盖多终端几何与基础体验的确定性粗检；业务主路径、跨浏览器兼容、安全合规需另行验证。"
+}

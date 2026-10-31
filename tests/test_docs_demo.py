@@ -11,7 +11,7 @@ from ego_webqa import __version__
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "docs" / "demo"
 LEDGER = DEMO / "data" / "repair-ledger.json"
-DOGFOOD = ROOT / "dogfood-results"
+EVIDENCE = DEMO / "data" / "evidence"
 
 
 class LocalReferences(HTMLParser):
@@ -57,13 +57,8 @@ def test_repair_ledger_matches_the_recorded_baseline_before_and_after() -> None:
     assert len(ledger["cases"]) == 3
 
     for case in ledger["cases"]:
-        case_id = f"egohub-work-{case['id']}"
-        before = load_agent_summary(
-            DOGFOOD / "20261031-profile-baseline" / "cases" / case_id / "agent_summary.json"
-        )
-        after = load_agent_summary(
-            DOGFOOD / "20261031-post-footer-repair" / "cases" / case_id / "agent_summary.json"
-        )
+        before = load_agent_summary(EVIDENCE / f"baseline-{case['id']}.json")
+        after = load_agent_summary(EVIDENCE / f"post-repair-{case['id']}.json")
         before_root = before["failed_items"][0]
         match = re.search(r"page is (\d+)px wider", before_root["problem"])
 
@@ -92,13 +87,7 @@ def test_negative_controls_are_clean_pages_not_invented_claims() -> None:
     ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
 
     for control in ledger["controls"]:
-        source = load_agent_summary(
-            DOGFOOD
-            / "20261031-post-footer-repair"
-            / "cases"
-            / f"egohub-{control['id']}"
-            / "agent_summary.json"
-        )
+        source = load_agent_summary(EVIDENCE / f"post-repair-{control['id']}.json")
         assert control["status"] == source["status"] == "pass"
         assert control["blocks"] == source["summary"]["total_block"] == 0
         assert control["warnings"] == source["summary"]["total_warn"] == 0
@@ -107,9 +96,7 @@ def test_negative_controls_are_clean_pages_not_invented_claims() -> None:
 
 def test_corpus_summary_comes_from_the_post_repair_result() -> None:
     ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
-    result = json.loads(
-        (DOGFOOD / "20261031-post-footer-repair" / "result.json").read_text(encoding="utf-8")
-    )
+    result = json.loads((EVIDENCE / "post-repair-corpus.json").read_text(encoding="utf-8"))
     metrics = result["metrics"]
 
     assert ledger["corpus"]["cases"] == metrics["cases"]

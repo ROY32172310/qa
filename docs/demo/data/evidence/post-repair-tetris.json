@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "tool": "ego-webqa",
+  "target": "https://works.egohub.tech/share/7ce6e45e.html",
+  "status": "pass",
+  "failed_items": [],
+  "summary": {
+    "total_block": 0,
+    "total_warn": 0,
+    "unique_root_causes": 0,
+    "affected_viewports": 0,
+    "duration_ms": 20134,
+    "overridden_dimensions": 0,
+    "downgraded_blocks": 0,
+    "expired_overrides": 0
+  },
+  "governance": {
+    "as_of": "2026-10-31",
+    "active_overrides": [],
+    "expired_overrides": [],
+    "effective_parameters": {}
+  },
+  "scope_statement": "本报告仅覆盖多终端几何与基础体验的确定性粗检；业务主路径、跨浏览器兼容、安全合规需另行验证。"
+}
