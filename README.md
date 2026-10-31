@@ -203,7 +203,8 @@ ego-webqa --dir ./dist --file index.html
 ego-webqa https://example.com --preset quick
 ego-webqa http://127.0.0.1:8000 --viewports 390x844:mobile@1.5~34,1280x800:desktop
 ego-webqa https://example.com --browser-engine firefox
-ego-webqa https://example.com --ready-selector "#app-ready" --wait-for-network-idle
+ego-webqa https://example.com --profile performance \
+  --ready-selector "#app-ready" --wait-for-network-idle
 ego-webqa https://example.com --smoke-success-selector "#thank-you"
 ego-webqa https://example.com --smoke-scope all --smoke-require-assertion \
   --smoke-success-selector "#thank-you"
@@ -383,7 +384,7 @@ ego-webqa https://example.com --config examples/webqa.json
 
 ```json
 {
-  "profile": "accessibility",
+  "profile": "full",
   "viewport_preset": "full",
   "min_tap_target_px": 44,
   "min_font_px": 12,
