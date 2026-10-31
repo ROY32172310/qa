@@ -6,11 +6,12 @@ This record closes the deployment and black-box verification loop for the
 generated-page footer repair documented in
 `docs/upstream-footer-repair-2026-10-31.md`.
 
-It separates three kinds of evidence:
+It separates four kinds of evidence:
 
 1. newly regenerated and publicly deployed Ego works;
 2. unchanged historical file snapshots in the fixed dogfood corpus;
-3. an unrelated public discovery-page defect.
+3. an unrelated public discovery-page defect and its local repair;
+4. residual production infrastructure failures observed after the layout repair.
 
 The Ego change remains local to the private ecosystem. No Ego remote
 publication is part of this rollout.
@@ -125,7 +126,7 @@ Seven pages still produce at least a warning:
 
 | Page | Status | Occurrences | Classification |
 |---|---|---:|---|
-| `egohub-discover` | fail | 8 | Independent discovery-page tagline overflow and compact-control findings |
+| `egohub-discover` | fail | 8 | Historical corpus result; the independent layout/tap-target defect was repaired locally after this run |
 | `ego-generated-accounting` | warn | 4 | Historical file snapshot; only `clipped_text` remains |
 | `ego-generated-vocabulary` | fail | 16 | Historical file snapshot with the old service worker and footer |
 | `ego-public-math-practice` | fail | 8 | Historical file-backed public snapshot with safe-area and tap-target findings |
@@ -140,15 +141,62 @@ is also a historical snapshot; the reduced warning demonstrates that its
 remaining text-clipping finding must be triaged separately rather than folded
 into the deployed-footer claim.
 
+## Discovery-page repair
+
+The independent `egohub-discover` findings were repaired in the local Ego
+ecosystem:
+
+```text
+e5a4b50 fix(discover): preserve mobile tap targets and text scaling
+2f2f424 fix(discover): invalidate stale mobile shell cache
+```
+
+The change allows the English tagline to wrap, guarantees a 104px minimum cover
+height so the title link remains at least 44px high at 360px, prevents the
+compact install control from shrinking below 44px, and advances the service
+worker cache generation from `v4` to `v6` when the shell changes.
+
+Local verification:
+
+```text
+7 focused Playwright/contract tests passed
+Black: passed
+Ruff: passed
+ego-webqa local eight-viewport baseline: pass, 0 errors, 0 warnings, 2,794 ms
+```
+
+The local Ego repositories retain these commits and mirror them only to their
+configured local bare repositories. No GitHub push is involved.
+
+Production HTML contains the repaired CSS and registration query. A final
+production black-box run no longer reported the tagline overflow or the
+sub-44px card/install targets. It still failed the delivery gate because seven
+request events were infrastructure errors across some viewports:
+
+```text
+HTTP 502 while fetching a script (console.error)
+HTTP 503 POST https://egohub.tech/api/entry-event
+```
+
+An intermediate repeat loaded the previous `ego-discover-v4` shell before the
+cache generation was advanced and reproduced the old layout finding. This
+identified stale service-worker shell caching as a separate deployment defect;
+the local `v6` repair and consistency test address it. The remaining production
+502/503 findings are service-side availability evidence, not layout failures,
+and must be resolved before claiming a production pass.
+
 ## CI and boundary
 
 QA commit `5f290b5` passed GitHub Actions run
 `https://github.com/ROY32172310/qa/actions/runs/41189429601` across all ten
 jobs: six OS/Python test jobs, benchmark, cross-browser, Action smoke, and
-package.
+package. Documentation commit `b415af5` passed the same ten-job gate in run
+`https://github.com/ROY32172310/qa/actions/runs/41190077892`.
 
 This evidence proves that three newly regenerated public works deploy the
 repaired shell and pass the same black-box QA rules. It does not prove that all
 historical artifacts are repaired, and it does not replace external
 AI-generated page samples. The profile-split candidate remains without a
-package release until that external evidence exists.
+package release until that external evidence exists. The discovery-page layout
+repair is validated locally, but its production gate remains blocked by the
+observed 502/503 infrastructure failures.
