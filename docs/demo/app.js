@@ -1,109 +1,103 @@
 (() => {
   "use strict";
 
-  const variants = {
-    "mobile-360-100-safe0": {
-      label: "360 × 800 · 1.0× text · 0px safe area",
-      before:
-        "The page fits this viewport, but the missing service worker still logs a blocking console error.",
-      after:
-        "The console is clean and the page fits. Only the 710KB transfer warning remains.",
-    },
-    "mobile-360-100-safe34": {
-      label: "360 × 800 · 1.0× text · 34px safe area",
-      before:
-        "The page fits this viewport, but the missing service worker still logs a blocking console error.",
-      after:
-        "The console is clean and the bottom controls respect the simulated safe area.",
-    },
-    "mobile-360-150-safe0": {
-      label: "360 × 800 · 1.5× text · 0px safe area",
-      before:
-        "At 1.5× text, the page is 5px wider than the viewport. The service worker also fails.",
-      after:
-        "The bottom controls wrap inside 360px, and the service worker error is gone.",
-    },
-    "mobile-360-150-safe34": {
-      label: "360 × 800 · 1.5× text · 34px safe area",
-      before:
-        "1.5× text makes the page 5px wider than a 360px viewport. The service worker fails in all eight variants.",
-      after:
-        "The bottom controls wrap inside the viewport. The service worker error is gone. Only the 710KB transfer warning remains.",
-    },
-    "mobile-390-100-safe0": {
-      label: "390 × 844 · 1.0× text · 0px safe area",
-      before:
-        "The page fits this viewport, but the missing service worker still logs a blocking console error.",
-      after:
-        "The console is clean and the page fits. Only the 710KB transfer warning remains.",
-    },
-    "mobile-390-100-safe34": {
-      label: "390 × 844 · 1.0× text · 34px safe area",
-      before:
-        "The page fits this viewport, but the missing service worker still logs a blocking console error.",
-      after:
-        "The console is clean and the bottom controls respect the simulated safe area.",
-    },
-    "mobile-390-150-safe0": {
-      label: "390 × 844 · 1.5× text · 0px safe area",
-      before:
-        "Text enlarges without horizontal overflow here, but the missing service worker remains a blocking console error.",
-      after:
-        "The console is clean, the enlarged text fits, and only the transfer warning remains.",
-    },
-    "mobile-390-150-safe34": {
-      label: "390 × 844 · 1.5× text · 34px safe area",
-      before:
-        "Text enlarges without horizontal overflow here, but the missing service worker remains a blocking console error.",
-      after:
-        "The console is clean, enlarged text fits, and the bottom controls respect the simulated safe area.",
-    },
+  const controls = Array.from(document.querySelectorAll("[data-case]"));
+  const caseLink = document.querySelector("#case-link");
+  const caseTitle = document.querySelector("#case-title");
+  const beforeVerdict = document.querySelector("#before-verdict");
+  const afterVerdict = document.querySelector("#after-verdict");
+  const heroBeforeStatus = document.querySelector("#hero-before-status");
+  const heroAfterStatus = document.querySelector("#hero-after-status");
+  const findingDimension = document.querySelector("#finding-dimension");
+  const findingMeasure = document.querySelector("#finding-measure");
+  const findingSelector = document.querySelector("#finding-selector");
+  const findingTrigger = document.querySelector("#finding-trigger");
+  const beforeCaption = document.querySelector("#before-caption");
+  const afterCaption = document.querySelector("#after-caption");
+  const reproduceCommand = document.querySelector("#reproduce-command");
+
+  const images = {
+    heroBefore: document.querySelector("#hero-before-image"),
+    heroAfter: document.querySelector("#hero-after-image"),
+    caseBefore: document.querySelector("#case-before-image"),
+    caseAfter: document.querySelector("#case-after-image"),
   };
 
-  const controls = Array.from(
-    document.querySelectorAll("[data-variant]"),
-  );
-  const beforeImage = document.querySelector("#before-image");
-  const afterImage = document.querySelector("#after-image");
-  const beforeDetail = document.querySelector("#before-detail");
-  const afterDetail = document.querySelector("#after-detail");
-  const selectedVariant = document.querySelector("#selected-variant");
-  const showFailure = document.querySelector("#show-failure");
-  const evidence = document.querySelector("#evidence");
+  function displayCase(item) {
+    const scenario = `${item.finding.trigger.replaceAll(" · ", ", ")}`;
+    const beforeSummary =
+      `${item.before.blocks} blocking · ${item.before.warnings} warnings`;
+    const afterSummary =
+      `${item.after.blocks} blocking · ${item.after.warnings} warnings`;
+    const imageStem = item.id;
 
-  function selectVariant(name) {
-    const variant = variants[name];
-    if (!variant) {
-      return;
+    caseTitle.textContent = item.title;
+    caseLink.href = item.url;
+    caseLink.textContent = `Open ${item.title}`;
+    beforeVerdict.textContent = `${item.before.status} · ${beforeSummary}`;
+    afterVerdict.textContent = `${item.after.status} · ${afterSummary}`;
+    heroBeforeStatus.textContent = item.before.status;
+    heroAfterStatus.textContent = item.after.status;
+    findingDimension.textContent = item.finding.dimension;
+    findingMeasure.textContent = `${item.finding.measured_px}px`;
+    findingSelector.textContent = item.finding.selector;
+    findingTrigger.textContent = item.finding.trigger;
+    beforeCaption.textContent =
+      `${item.before.status} · ${item.finding.measured_px}px over`;
+    afterCaption.textContent =
+      `${item.after.status} · ${item.after.issue_occurrences} findings`;
+    reproduceCommand.textContent =
+      `ego-webqa ${item.url} --profile baseline --browser-channel chrome --no-smoke`;
+
+    images.heroBefore.src = `assets/production/before/${imageStem}.png`;
+    images.heroAfter.src = `assets/production/after/${imageStem}.png`;
+    images.caseBefore.src = `assets/production/before/${imageStem}.png`;
+    images.caseAfter.src = `assets/production/after/${imageStem}.png`;
+
+    images.heroBefore.alt =
+      `${item.title} before repair at ${scenario}: the page extends beyond the viewport.`;
+    images.heroAfter.alt =
+      `${item.title} after repair at ${scenario}: the footer remains inside the viewport.`;
+    images.caseBefore.alt =
+      `${item.title} before repair at ${scenario}.`;
+    images.caseAfter.alt =
+      `${item.title} after repair at ${scenario}, with no delivery findings.`;
+  }
+
+  async function loadLedger() {
+    const response = await fetch("data/repair-ledger.json", {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`Evidence ledger returned ${response.status}`);
     }
+
+    const ledger = await response.json();
+    const cases = new Map(ledger.cases.map((item) => [item.id, item]));
 
     for (const control of controls) {
-      const active = control.dataset.variant === name;
-      control.classList.toggle("is-active", active);
-      control.setAttribute("aria-pressed", String(active));
+      const item = cases.get(control.dataset.case);
+      if (!item) {
+        control.disabled = true;
+        continue;
+      }
+
+      control.addEventListener("click", () => {
+        for (const candidate of controls) {
+          const active = candidate === control;
+          candidate.classList.toggle("is-active", active);
+          candidate.setAttribute("aria-pressed", String(active));
+        }
+        displayCase(item);
+      });
     }
-
-    beforeImage.src = `assets/before/${name}.png`;
-    afterImage.src = `assets/after/${name}.png`;
-    beforeImage.alt = `Before repair: generated vocabulary page at ${variant.label}.`;
-    afterImage.alt = `After repair: vocabulary page at ${variant.label}, with controls kept inside the viewport.`;
-    beforeDetail.textContent = variant.before;
-    afterDetail.textContent = variant.after;
-    selectedVariant.textContent = variant.label;
   }
 
-  for (const control of controls) {
-    control.addEventListener("click", () => {
-      selectVariant(control.dataset.variant);
-    });
-  }
-
-  showFailure.addEventListener("click", () => {
-    selectVariant("mobile-360-150-safe34");
-    showFailure.textContent = "已显示失败组合 / Showing failing variant";
-    evidence.scrollIntoView({ behavior: "smooth", block: "start" });
-    document
-      .querySelector('[data-variant="mobile-360-150-safe34"]')
-      .focus({ preventScroll: true });
+  loadLedger().catch((error) => {
+    document.documentElement.dataset.ledgerStatus = "unavailable";
+    console.error(error);
+    for (const control of controls) {
+      control.disabled = true;
+    }
   });
 })();

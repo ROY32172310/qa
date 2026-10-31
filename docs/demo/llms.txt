@@ -32,7 +32,9 @@ before claiming that page is ready to deliver.
 
 ## Evidence
 
-- Interactive before/after board: https://roy32172310.github.io/qa/
+- Interactive repair ledger: https://roy32172310.github.io/qa/
+- Production footer repair and same-rule verification:
+  https://github.com/ROY32172310/qa/blob/master/docs/upstream-footer-rollout-2026-10-31.md
 - Real-page dogfood report:
   https://github.com/ROY32172310/qa/blob/master/docs/real-world-dogfood-2026-10-29.md
 - Repair case study:
