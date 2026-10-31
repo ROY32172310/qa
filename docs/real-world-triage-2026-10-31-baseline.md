@@ -63,3 +63,6 @@ No detector loosening is justified by this sample. The next action is to feed
 the shared-footer evidence back to the Ego generator and rerun the same
 deterministic baseline after repair. External AI-generated pages are still
 needed before claiming market-wide false-positive accuracy.
+
+The actionable upstream contract is
+`docs/generated-footer-repair-brief-2026-10-31.md`.
