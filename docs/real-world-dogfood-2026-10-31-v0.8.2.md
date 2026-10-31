@@ -151,6 +151,15 @@ therefore an upstream transient, not a profile-dependent structural result:
 The split is functionally validated. It remains unreleased until external
 AI-generated pages provide independent evidence.
 
+## Manual Triage
+
+The baseline's 20 root causes were reviewed against selectors, geometry,
+trigger viewports, and representative screenshots. All 20 are visible true
+positives; no structural false positive was found. Eighteen belong to the
+shared generated-page footer and control system. Details and the false-negative
+boundary are recorded in
+`docs/real-world-triage-2026-10-31-baseline.md`.
+
 ## Next Evidence
 
 The next real-world pass should recruit 5-10 external AI-generated pages,

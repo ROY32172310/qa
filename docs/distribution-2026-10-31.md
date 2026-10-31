@@ -59,6 +59,12 @@ and metadata models. Both are linked from the repository README. Their signals
 must remain separately attributed; a badge from one must not be used as if it
 were a rating issued by the other.
 
+TensorBlock's community claim was merged on 2026-10-31. Its public index record
+now reports `community.claimed: true`, maintainer `@ROY32172310`, and
+`uvx ego-webqa@0.8.1 mcp`. The install pin is therefore one release behind;
+this is directory metadata lag, not a stale first-party release. A separate
+metadata update is required to expose `0.8.2`.
+
 ## Interpretation boundary
 
 This event establishes:
@@ -83,4 +89,3 @@ curl -o /tmp/ego-webqa-glama-badge.png \
 ```
 
 The first command should return `HTTP/2 200` and `content-type: image/png`.
-
