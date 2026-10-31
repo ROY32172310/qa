@@ -66,3 +66,9 @@ needed before claiming market-wide false-positive accuracy.
 
 The actionable upstream contract is
 `docs/generated-footer-repair-brief-2026-10-31.md`.
+
+The repaired generator was subsequently assembled and audited against three
+fresh pages. All three passed the default eight-viewport baseline with zero
+errors and warnings, including regenerated copies of the accounting and
+vocabulary projects. Details and the production-rollout boundary are recorded
+in `docs/upstream-footer-repair-2026-10-31.md`.

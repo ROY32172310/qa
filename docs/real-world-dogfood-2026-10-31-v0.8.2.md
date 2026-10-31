@@ -162,6 +162,13 @@ boundary are recorded in
 
 ## Next Evidence
 
+The first upstream repair loop is complete at generator-source level: three
+freshly assembled pages, including temporary rebuilds of the accounting and
+vocabulary projects, pass the default eight-viewport baseline with zero
+findings. Historical public and benchmark artifacts still need regeneration
+and rollout before rerunning the 20-page aggregate. Evidence and boundaries are
+in `docs/upstream-footer-repair-2026-10-31.md`.
+
 The next real-world pass should recruit 5-10 external AI-generated pages,
 capture the exact page-generation context, and record one classified finding
 per participating user where possible. Controlled-network performance runs
